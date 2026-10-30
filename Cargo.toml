@@ -6,11 +6,17 @@ rust-version = "1.88"
 description = "Standalone Google Maps CLI and MCP server with stdio and Streamable HTTP transports"
 repository = "https://github.com/fcenedes/mcp-gmap-rs"
 homepage = "https://github.com/fcenedes/mcp-gmap-rs#readme"
+documentation = "https://docs.rs/mcp-gmap-rs/latest/mcp_gmap_rs/"
 keywords = ["mcp", "google-maps", "geocoding", "cli", "maps"]
 categories = ["command-line-utilities", "api-bindings"]
 license = "MIT"
 readme = "README.md"
 include = ["Cargo.toml", "Cargo.lock", "src/**", "tests/**", "docs/**", "licenses/**", "LICENSE", "README.md", "CHANGELOG.md", ".env.example"]
+
+[package.metadata.docs.rs]
+all-features = true
+default-target = "x86_64-unknown-linux-gnu"
+targets = []
 
 [dependencies]
 anyhow = "1"

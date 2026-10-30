@@ -4,6 +4,11 @@ A standalone Rust executable for Google Maps:
 **CLI**, **MCP stdio**, and **MCP Streamable HTTP**. 
 
 [![CI](https://github.com/fcenedes/mcp-gmap-rs/actions/workflows/ci.yml/badge.svg)](https://github.com/fcenedes/mcp-gmap-rs/actions/workflows/ci.yml)
+[![docs.rs](https://docs.rs/mcp-gmap-rs/badge.svg)](https://docs.rs/mcp-gmap-rs/latest/mcp_gmap_rs/)
+
+The [docs.rs guide](https://docs.rs/mcp-gmap-rs/latest/mcp_gmap_rs/) contains the
+tool catalog, CLI/MCP setup, and public Rust entry-point documentation. Hosted
+documentation becomes available after a crate version is published to crates.io.
 
 Prebuilt executables for Linux and macOS (Apple Silicon and Intel) are
 published on the [Releases page](https://github.com/fcenedes/mcp-gmap-rs/releases).

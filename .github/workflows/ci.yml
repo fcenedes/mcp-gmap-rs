@@ -85,6 +85,48 @@ jobs:
           key: msrv
       - run: cargo check --all-targets --all-features --locked
 
+  docs:
+    name: Rustdoc (${{ matrix.toolchain }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        toolchain: [stable, nightly]
+    env:
+      DOCS_RS: "1"
+      RUSTDOCFLAGS: "--cfg docsrs -D warnings"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.checkout_ref || github.ref }}
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+        with:
+          toolchain: ${{ matrix.toolchain }}
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
+        with:
+          key: docs-${{ matrix.toolchain }}
+      - name: Fetch documentation dependencies before the offline build
+        run: cargo fetch --locked --target x86_64-unknown-linux-gnu
+      - name: Build public docs with the docs.rs target and features
+        run: cargo doc --no-deps --lib --all-features --locked --offline --target x86_64-unknown-linux-gnu
+      - name: Compile and test Rust documentation examples
+        run: cargo test --doc --all-features --locked
+      - name: Report public documentation coverage
+        if: matrix.toolchain == 'nightly'
+        shell: bash
+        run: |
+          cargo rustdoc --lib --all-features --locked --target x86_64-unknown-linux-gnu -- -Z unstable-options --show-coverage
+          python3 <<'PY'
+          import os
+          from pathlib import Path
+          text = Path("target/x86_64-unknown-linux-gnu/doc/mcp_gmap_rs.txt").read_text()
+          print(text)
+          with Path(os.environ["GITHUB_STEP_SUMMARY"]).open("a") as summary:
+              summary.write("### Public Rust documentation coverage\n\n```text\n" + text + "\n```\n")
+          PY
+
   package:
     name: Cargo package verification
     runs-on: ubuntu-24.04

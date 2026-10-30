@@ -10,6 +10,37 @@ Action dependencies are pinned to commit SHAs. Dependabot checks Cargo and Actio
 dependencies weekly. Live Google tests remain opt-in because they are billable
 and the local test key has an IP restriction.
 
+## docs.rs
+
+The crate declares its docs.rs documentation URL and builds all features on the
+default Linux target only. `targets = []` disables docs.rs's additional default
+targets, including Windows; the Mac/Linux executable release matrix is independent.
+The docs.rs landing page is compiled from `docs/crate.md`, which must remain in
+the Cargo package. [`run`](https://docs.rs/mcp-gmap-rs/latest/mcp_gmap_rs/fn.run.html)
+is the public Rust entry point; internal Google clients stay private.
+
+CI builds rustdoc on stable and nightly with `DOCS_RS=1`, `--cfg docsrs`, and
+warnings treated as errors. It fetches dependencies first, then builds docs
+offline, matching docs.rs's no-network build constraint. Rust documentation
+examples are compile-checked without starting a server or making Google requests.
+Nightly's rustdoc coverage table is included in the CI job summary. Missing
+public documentation and broken symbol links fail the build. The publishing
+workflow also verifies public docs and examples for the exact tag being uploaded.
+
+Local documentation checks:
+
+```sh
+RUSTDOCFLAGS='--cfg docsrs -D warnings' DOCS_RS=1 cargo doc --no-deps --lib --all-features --locked
+cargo test --doc --all-features --locked
+cargo +nightly rustdoc --lib --all-features --locked -- -Z unstable-options --show-coverage
+```
+
+docs.rs builds hosted documentation automatically after a crates.io publication.
+A GitHub release or successful CI build does not publish to docs.rs. Documentation
+changes on `main` need a new source tag/version to be included by the publishing
+workflow; existing release tags are not moved. The docs.rs build environment is
+not reproduced exactly by CI, so check the hosted build status after publication.
+
 ## GitHub release
 
 1. Update the Cargo version, lockfile, changelog and `.github/RELEASE_NOTES.md`.

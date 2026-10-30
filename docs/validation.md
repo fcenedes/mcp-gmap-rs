@@ -81,3 +81,20 @@ for matching server-side keys to the source address observed by Google.
 The local semantic index could not be built because its Python SQLite connection
 lacks `enable_load_extension`. Direct source inspection was used; this did not
 prevent Cargo builds or tests.
+
+## docs.rs preparation after v0.1.0
+
+The unreleased documentation changes on `main` add explicit docs.rs metadata,
+a standalone CLI/MCP guide, and a compile-only Rust example. Stable Rust and
+nightly 1.101.0 built the public docs locally with `DOCS_RS=1` and warnings treated
+as errors. Rustdoc measured 2 of 2 public items documented (100%) and 1 of 1
+eligible items with examples (100%). This is public-API coverage, not private
+implementation documentation coverage. The example compiled on both toolchains
+without making Google requests. The Cargo package includes `docs/crate.md` and
+still passes compilation and file auditing.
+
+The registry index and docs.rs endpoint returned HTTP 404 during this check;
+hosted docs are not yet available. docs.rs builds published crates, not GitHub
+tags or unreleased `main` changes. A future crate version/tag must include these
+changes; the existing v0.1.0 tag and archives have not been modified. CI now builds
+docs on Linux with stable and nightly, reports coverage, and checks examples.

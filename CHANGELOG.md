@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Add a docs.rs landing guide covering all 18 tools and the public Rust entry point.
+- Configure all-feature Linux documentation builds and compile-checked Rust examples.
+- Enforce strict stable/nightly rustdoc checks in CI and verify docs before crate publication.
+
 ## 0.1.0 - 2026-10-30
 
 - Standalone Rust CLI and MCP server with stdio and Streamable HTTP transports.
