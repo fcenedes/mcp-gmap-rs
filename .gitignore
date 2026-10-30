@@ -29,3 +29,7 @@ rustc-ice-*.txt
 .env
 .env.*
 !.env.example
+
+# Release archives and Python build-tool caches
+/dist/
+__pycache__/
