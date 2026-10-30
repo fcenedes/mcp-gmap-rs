@@ -1,8 +1,8 @@
 # CI and releases
 
 CI runs on pushes to `main`, pull requests, manual dispatch, and as a reusable
-release check. It checks formatting, strict Clippy, offline tests on Linux/macOS/
-Windows, the declared Rust 1.88 minimum, and compilation of the actual Cargo
+release check. It checks formatting, strict Clippy, offline tests on Linux/macOS,
+the declared Rust 1.88 minimum, and compilation of the actual Cargo
 package. Package auditing checks the file allowlist, original license and example
 configuration; Google credentials are never needed in CI.
 
@@ -15,14 +15,14 @@ and the local test key has an IP restriction.
 1. Update the Cargo version, lockfile, changelog and `.github/RELEASE_NOTES.md`.
 2. Commit and push the release changes; wait for CI to pass.
 3. Create an annotated tag matching the Cargo version, e.g. `v0.1.0`, and push it.
-4. The Release workflow reruns CI, builds the four native executable targets,
+4. The Release workflow reruns CI, builds the three native executable targets,
    smoke-tests version/discovery without credentials, and publishes their archives
    and SHA-256 checksums to a GitHub release.
 
 The release build uses Rust 1.94.1 and `Cargo.lock`. Linux x86_64 binaries are built
 on Ubuntu 22.04 for glibc 2.35 compatibility. The other targets are macOS Apple
-Silicon, macOS Intel and Windows x86_64. Each archive includes documentation,
-configuration example and licenses. macOS/Windows code signing is not configured.
+Silicon and macOS Intel. Each archive includes documentation,
+configuration example and licenses. macOS code signing is not configured.
 
 The GitHub release is created only after every platform build succeeds. To retry
 an interrupted release, rerun failed jobs or manually dispatch Release on the

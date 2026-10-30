@@ -10,7 +10,6 @@ import subprocess
 import tarfile
 import tempfile
 import tomllib
-import zipfile
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -21,7 +20,6 @@ TARGETS = (
     "x86_64-unknown-linux-gnu",
     "aarch64-apple-darwin",
     "x86_64-apple-darwin",
-    "x86_64-pc-windows-msvc",
 )
 
 
@@ -32,12 +30,11 @@ def verify_tag(tag):
 
 
 def archive_name(target):
-    extension = "zip" if "windows" in target else "tar.gz"
-    return f"{NAME}-v{VERSION}-{target}.{extension}"
+    return f"{NAME}-v{VERSION}-{target}.tar.gz"
 
 
 def package(target, output):
-    binary_name = NAME + (".exe" if "windows" in target else "")
+    binary_name = NAME
     binary = ROOT / "target" / target / "release" / binary_name
     env = {k: v for k, v in os.environ.items() if not k.startswith("GOOGLE_MAPS_")}
     env.pop("MCP_HTTP_TOKEN", None)
@@ -58,14 +55,8 @@ def package(target, output):
             shutil.copy2(ROOT / filename, folder / filename)
         for directory_name in ["licenses", "docs"]:
             shutil.copytree(ROOT / directory_name, folder / directory_name)
-        if "windows" in target:
-            with zipfile.ZipFile(destination, "w", zipfile.ZIP_DEFLATED) as archive:
-                for path in sorted(folder.rglob("*")):
-                    if path.is_file():
-                        archive.write(path, path.relative_to(folder.parent))
-        else:
-            with tarfile.open(destination, "w:gz") as archive:
-                archive.add(folder, arcname=folder.name)
+        with tarfile.open(destination, "w:gz") as archive:
+            archive.add(folder, arcname=folder.name)
     digest = hashlib.sha256(destination.read_bytes()).hexdigest()
     destination.with_name(destination.name + ".sha256").write_text(
         f"{digest}  {destination.name}\n", encoding="utf-8"
@@ -104,7 +95,7 @@ def checksums(output):
     expected = {archive_name(target) for target in TARGETS}
     checks = sorted(output.glob("*.sha256"))
     if {path.name.removesuffix(".sha256") for path in checks} != expected:
-        raise SystemExit("release must contain checksums for exactly the four expected archives")
+        raise SystemExit(f"release must contain checksums for exactly the {len(TARGETS)} expected archives")
     lines = []
     for path in checks:
         name = path.name.removesuffix(".sha256")
@@ -114,7 +105,7 @@ def checksums(output):
             raise SystemExit(f"checksum mismatch for {name}")
         lines.append(expected_line)
     (output / "SHA256SUMS").write_text("\n".join(lines) + "\n", encoding="utf-8")
-    print("Verified all four archive checksums and generated SHA256SUMS")
+    print(f"Verified all {len(TARGETS)} archive checksums and generated SHA256SUMS")
 
 
 def main():

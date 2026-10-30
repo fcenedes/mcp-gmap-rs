@@ -542,8 +542,7 @@ async fn network_and_timeout_errors_do_not_expose_credential_urls() {
     assert!(matches!(error, Error::Timeout));
     assert!(!error.to_string().contains("never-log-this-key"));
     drop(listener);
-    // Windows can take longer than the timeout probe's 50 ms to report refusal.
-    // Use a normal request budget when testing network-error classification.
+    // A connection refusal must not reuse the response-timeout probe's 50 ms budget.
     let mut client = MapsClient::new(
         Some("never-log-this-key".into()),
         Duration::from_secs(5),

@@ -5,7 +5,7 @@ A standalone Rust executable for Google Maps:
 
 [![CI](https://github.com/fcenedes/mcp-gmap-rs/actions/workflows/ci.yml/badge.svg)](https://github.com/fcenedes/mcp-gmap-rs/actions/workflows/ci.yml)
 
-Prebuilt executables for Linux, macOS (Apple Silicon and Intel), and Windows are
+Prebuilt executables for Linux and macOS (Apple Silicon and Intel) are
 published on the [Releases page](https://github.com/fcenedes/mcp-gmap-rs/releases).
 Each archive includes documentation and licenses; use `SHA256SUMS` to verify it.
 See [release automation](docs/releases.md) for the CI and publishing process.
