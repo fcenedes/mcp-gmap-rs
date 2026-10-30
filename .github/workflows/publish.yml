@@ -48,7 +48,8 @@ jobs:
         with:
           toolchain: 1.94.1
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
-      - run: cargo publish --dry-run --locked
+      - name: Build and retain the crate archive for auditing
+        run: cargo package --locked
       - run: python3 .github/scripts/release.py audit-package
       - name: Verify public documentation before publishing
         env:
