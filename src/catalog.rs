@@ -1,0 +1,263 @@
+use std::sync::Arc;
+
+use rmcp::model::{Tool, ToolAnnotations};
+use serde_json::{Value, json};
+
+use crate::client::{Error, Result};
+
+pub(crate) struct ToolDefinition {
+    pub tool: Tool,
+    validator: jsonschema::Validator,
+}
+
+impl ToolDefinition {
+    pub fn validate(&self, input: &Value) -> Result<()> {
+        if let Some(error) = self.validator.iter_errors(input).next() {
+            // Do not echo user input or credentials back in validation errors.
+            return Err(Error::Input(format!(
+                "invalid arguments at {} (schema constraint {}); use `schema` to inspect accepted input",
+                error.instance_path(),
+                error.schema_path()
+            )));
+        }
+        Ok(())
+    }
+}
+
+#[derive(Clone)]
+pub(crate) struct Catalog(Arc<Vec<ToolDefinition>>);
+
+impl Catalog {
+    pub fn new(filter: Option<&str>) -> Result<Self> {
+        let mut definitions = Vec::new();
+        for (name, description, schema) in builtin_definitions() {
+            let validator = jsonschema::validator_for(&schema)
+                .map_err(|_| Error::Input(format!("invalid built-in schema for {name}")))?;
+            let schema = schema
+                .as_object()
+                .cloned()
+                .ok_or_else(|| Error::Input("schema must be an object".into()))?;
+            definitions.push(ToolDefinition {
+                tool: Tool::new(name, description, schema).with_annotations(
+                    ToolAnnotations::new()
+                        .read_only(true)
+                        .destructive(false)
+                        .idempotent(true)
+                        .open_world(true),
+                ),
+                validator,
+            });
+        }
+        if let Some(filter) = filter.map(str::trim).filter(|s| !s.is_empty() && *s != "*") {
+            let names: Vec<_> = filter
+                .split(',')
+                .map(str::trim)
+                .filter(|s| !s.is_empty())
+                .collect();
+            if names.is_empty()
+                || names
+                    .iter()
+                    .any(|name| !definitions.iter().any(|d| d.tool.name == *name))
+            {
+                return Err(Error::Input("GOOGLE_MAPS_ENABLED_TOOLS contains an unknown tool or empty selection; use `tools` to list names".into()));
+            }
+            definitions.retain(|d| names.contains(&d.tool.name.as_ref()));
+        }
+        Ok(Self(Arc::new(definitions)))
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = &ToolDefinition> {
+        self.0.iter()
+    }
+
+    pub fn get(&self, name: &str) -> Result<&ToolDefinition> {
+        self.0
+            .iter()
+            .find(|d| d.tool.name == name)
+            .ok_or_else(|| Error::Input(format!("unknown or disabled tool: {name}")))
+    }
+}
+
+fn object(properties: Value, required: &[&str]) -> Value {
+    json!({"type":"object", "properties":properties, "required":required, "additionalProperties":false})
+}
+
+fn string() -> Value {
+    json!({"type":"string","minLength":1})
+}
+fn number(min: f64, max: f64) -> Value {
+    json!({"type":"number","minimum":min,"maximum":max})
+}
+fn integer(min: u32, max: u32) -> Value {
+    json!({"type":"integer","minimum":min,"maximum":max})
+}
+fn array(items: Value, min: u32, max: u32) -> Value {
+    json!({"type":"array","items":items,"minItems":min,"maxItems":max})
+}
+fn boolean() -> Value {
+    json!({"type":"boolean"})
+}
+fn coordinate() -> Value {
+    object(
+        json!({"latitude":number(-90.,90.),"longitude":number(-180.,180.)}),
+        &["latitude", "longitude"],
+    )
+}
+fn travel() -> Value {
+    json!({"type":"string","enum":["driving","walking","bicycling","transit"]})
+}
+
+fn builtin_definitions() -> Vec<(&'static str, &'static str, Value)> {
+    let lat = number(-90., 90.);
+    let lng = number(-180., 180.);
+    let bias = object(
+        json!({"latitude":lat,"longitude":lng,"radius":number(0.1,50000.)}),
+        &["latitude", "longitude"],
+    );
+    let route_options = json!({"mode":travel(),"departure_time":string(),"avoid_tolls":boolean(),"avoid_highways":boolean()});
+    let mut directions = route_options.clone();
+    directions["origin"] = string();
+    directions["destination"] = string();
+    directions["arrival_time"] = string();
+    let mut matrix = route_options.clone();
+    matrix["origins"] = array(string(), 1, 50);
+    matrix["destinations"] = array(string(), 1, 50);
+    let mut plan = route_options;
+    plan["stops"] = array(string(), 2, 27);
+    plan["optimize"] = boolean();
+    vec![
+        (
+            "maps_geocode",
+            "Convert an address or landmark to coordinates.",
+            object(json!({"address":string()}), &["address"]),
+        ),
+        (
+            "maps_reverse_geocode",
+            "Convert coordinates to a street address.",
+            object(
+                json!({"latitude":lat,"longitude":lng}),
+                &["latitude", "longitude"],
+            ),
+        ),
+        (
+            "maps_search_places",
+            "Search Places (New) by text with optional location and rating filters.",
+            object(
+                json!({"query":string(),"locationBias":bias,"openNow":boolean(),"minRating":number(0.,5.),"includedType":string()}),
+                &["query"],
+            ),
+        ),
+        (
+            "maps_search_nearby",
+            "Find places around an address or exact coordinate pair, filtered by type, rating, and opening status.",
+            object(
+                json!({"center":object(json!({"value":string(),"isCoordinates":boolean()}), &["value"]),"keyword":string(),"radius":number(0.1,50000.),"openNow":boolean(),"minRating":number(0.,5.)}),
+                &["center"],
+            ),
+        ),
+        (
+            "maps_place_details",
+            "Get full place details, reviews and attribution. Optional photo URLs retain author attribution. Display source/disclosure metadata alongside content.",
+            object(
+                json!({"placeId":string(),"maxPhotos":integer(0,10)}),
+                &["placeId"],
+            ),
+        ),
+        (
+            "maps_directions",
+            "Get directions, route geometry, navigation instructions and travel duration.",
+            object(directions, &["origin", "destination"]),
+        ),
+        (
+            "maps_distance_matrix",
+            "Compute travel distances and durations for multiple origins and destinations.",
+            object(matrix, &["origins", "destinations"]),
+        ),
+        (
+            "maps_elevation",
+            "Get elevation in meters for geographic coordinates.",
+            object(
+                json!({"locations":array(coordinate(),1,512)}),
+                &["locations"],
+            ),
+        ),
+        (
+            "maps_timezone",
+            "Get timezone, UTC/DST offsets and local time. timestamp is Unix milliseconds.",
+            object(
+                json!({"latitude":lat,"longitude":lng,"timestamp":{"type":"integer","minimum":0,"maximum":253402300799999_i64}}),
+                &["latitude", "longitude"],
+            ),
+        ),
+        (
+            "maps_weather",
+            "Get current weather, daily forecast or hourly forecast.",
+            object(
+                json!({"latitude":lat,"longitude":lng,"type":{"type":"string","enum":["current","forecast_daily","forecast_hourly"]},"forecastDays":integer(1,10),"forecastHours":integer(1,240)}),
+                &["latitude", "longitude"],
+            ),
+        ),
+        (
+            "maps_air_quality",
+            "Get air quality indices, optional pollutant concentrations and health recommendations.",
+            object(
+                json!({"latitude":lat,"longitude":lng,"includeHealthRecommendations":boolean(),"includePollutants":boolean()}),
+                &["latitude", "longitude"],
+            ),
+        ),
+        (
+            "maps_static_map",
+            "Fetch a PNG map with markers and paths. MCP returns an inline image; CLI returns base64 JSON or writes --output.",
+            object(
+                json!({"center":string(),"zoom":integer(0,21),"size":{"type":"string","pattern":"^[1-9][0-9]{0,2}x[1-9][0-9]{0,2}$"},"maptype":{"type":"string","enum":["roadmap","satellite","terrain","hybrid"]},"markers":array(string(),1,100),"path":array(string(),1,100)}),
+                &[],
+            ),
+        ),
+        (
+            "maps_batch_geocode",
+            "Geocode up to 50 addresses with per-address success or error and bounded concurrency.",
+            object(json!({"addresses":array(string(),1,50)}), &["addresses"]),
+        ),
+        (
+            "maps_explore_area",
+            "Resolve a location and explore categories with details for top results. Use specific landmarks for trip planning.",
+            object(
+                json!({"location":string(),"types":array(string(),1,10),"radius":number(0.1,50000.),"topN":integer(1,20)}),
+                &["location"],
+            ),
+        ),
+        (
+            "maps_plan_route",
+            "Plan a route through 2-27 stops. Optimize 2-25 intermediate stops, except transit. Exact coordinates are preserved.",
+            object(plan, &["stops"]),
+        ),
+        (
+            "maps_compare_places",
+            "Search and compare places with detailed information and optional driving distance from userLocation.",
+            object(
+                json!({"query":string(),"userLocation":coordinate(),"limit":integer(1,20)}),
+                &["query"],
+            ),
+        ),
+        (
+            "maps_search_along_route",
+            "Find places along a route using its encoded polyline.",
+            object(
+                json!({"textQuery":string(),"origin":string(),"destination":string(),"mode":travel(),"maxResults":integer(1,20)}),
+                &["textQuery", "origin", "destination"],
+            ),
+        ),
+        (
+            "maps_local_rank_tracker",
+            "Track search rank across a geographic grid for 1-3 keywords; returns ARP, ATRP, SoLV and per-point errors.",
+            {
+                let mut schema = object(
+                    json!({"keyword":string(),"keywords":array(string(),1,3),"placeId":string(),"center":coordinate(),"gridSize":integer(3,7),"gridSpacing":number(100.,10000.)}),
+                    &["placeId", "center"],
+                );
+                schema["anyOf"] = json!([{"required":["keyword"]},{"required":["keywords"]}]);
+                schema
+            },
+        ),
+    ]
+}
