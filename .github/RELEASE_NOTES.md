@@ -1,5 +1,9 @@
-Initial standalone Rust release with 18 Google Maps tools, a CLI, MCP stdio, and
-MCP Streamable HTTP at `/mcp`.
+Documentation and packaging update for the standalone Rust CLI and MCP server.
+
+- Add a docs.rs guide covering all 18 tools, CLI use, MCP transports and the public Rust entry point.
+- Configure all-feature Linux documentation builds and compile-checked examples.
+- Enforce stable/nightly documentation checks and publication preflight checks.
+- Update base64 to 0.23.1.
 
 Download the archive for your platform and verify it against `SHA256SUMS`:
 

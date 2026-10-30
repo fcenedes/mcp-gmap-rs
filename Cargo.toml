@@ -1,6 +1,6 @@
 [package]
 name = "mcp-gmap-rs"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 rust-version = "1.88"
 description = "Standalone Google Maps CLI and MCP server with stdio and Streamable HTTP transports"

@@ -1,10 +1,11 @@
 # Changelog
 
-## Unreleased
+## 0.1.1 - 2026-10-30
 
 - Add a docs.rs landing guide covering all 18 tools and the public Rust entry point.
 - Configure all-feature Linux documentation builds and compile-checked Rust examples.
 - Enforce strict stable/nightly rustdoc checks in CI and verify docs before crate publication.
+- Update base64 to 0.23.1.
 
 ## 0.1.0 - 2026-10-30
 

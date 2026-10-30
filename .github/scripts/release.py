@@ -70,7 +70,7 @@ def audit_package():
         "Cargo.toml", "Cargo.toml.orig", "Cargo.lock", "README.md", "LICENSE",
         "CHANGELOG.md", ".env.example", ".cargo_vcs_info.json",
     }
-    required = {"Cargo.lock", "LICENSE", "licenses/cablate-mcp-google-map-MIT.txt", ".env.example"}
+    required = {"Cargo.lock", "LICENSE", "licenses/cablate-mcp-google-map-MIT.txt", ".env.example", "docs/crate.md"}
     seen = set()
     with tarfile.open(path, "r:gz") as archive:
         for member in archive.getmembers():
