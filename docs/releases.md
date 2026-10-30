@@ -15,19 +15,27 @@ and the local test key has an IP restriction.
 1. Update the Cargo version, lockfile, changelog and `.github/RELEASE_NOTES.md`.
 2. Commit and push the release changes; wait for CI to pass.
 3. Create an annotated tag matching the Cargo version, e.g. `v0.1.0`, and push it.
-4. The Release workflow reruns CI, builds the three native executable targets,
-   smoke-tests version/discovery without credentials, and publishes their archives
-   and SHA-256 checksums to a GitHub release.
+4. The Release workflow reruns CI on the exact tag, creates an unpublished draft,
+   builds the three native executable targets, and smoke-tests version/discovery
+   without credentials. Each build uploads its archive and checksum to the draft.
+   After every build succeeds, the workflow downloads and verifies all archives,
+   adds `SHA256SUMS`, and publishes the release.
 
 The release build uses Rust 1.94.1 and `Cargo.lock`. Linux x86_64 binaries are built
 on Ubuntu 22.04 for glibc 2.35 compatibility. The other targets are macOS Apple
 Silicon and macOS Intel. Each archive includes documentation,
 configuration example and licenses. macOS code signing is not configured.
 
-The GitHub release is created only after every platform build succeeds. To retry
-an interrupted release, rerun failed jobs or manually dispatch Release on the
-existing tag. Tags must match the version; dispatching on a branch fails the gate.
-An existing release receives rebuilt assets when the workflow is explicitly rerun.
+Draft assets are used for staging, so releases do not depend on the account's
+Actions artifact storage quota. A failed build leaves the release unpublished.
+To retry, rerun failed jobs, or manually dispatch the latest Release workflow on
+`main` with the existing source tag as input. This lets workflow fixes release an
+unchanged source tag. Tags must match the Cargo version. Completed releases are
+not overwritten by this workflow; create a new version for changed release files.
+
+```sh
+gh workflow run release.yml --ref main -f tag=v0.1.0
+```
 
 ## crates.io publication
 
