@@ -1,0 +1,34 @@
+# mcp-gmap-rs
+
+全 23 ツールの引数、既定値、制約、実行例を網羅しています。MCP と CLI から同じインターフェースを利用できます。
+
+## ツール
+
+- [エージェントスキル](https://fcenedes.github.io/mcp-gmap-rs/ja/guide/agent-skill)
+- [認証](https://fcenedes.github.io/mcp-gmap-rs/ja/guide/authentication)
+- [コマンドラインインターフェース](https://fcenedes.github.io/mcp-gmap-rs/ja/guide/cli)
+- [設定](https://fcenedes.github.io/mcp-gmap-rs/ja/guide/configuration)
+- [デプロイ](https://fcenedes.github.io/mcp-gmap-rs/ja/guide/deployment)
+- [開発とリリース](https://fcenedes.github.io/mcp-gmap-rs/ja/guide/development)
+- [はじめに](https://fcenedes.github.io/mcp-gmap-rs/ja/guide/getting-started)
+- [Google Cloud の設定](https://fcenedes.github.io/mcp-gmap-rs/ja/guide/google-cloud)
+- [MCP 統合](https://fcenedes.github.io/mcp-gmap-rs/ja/guide/mcp)
+- [本番運用](https://fcenedes.github.io/mcp-gmap-rs/ja/guide/production)
+- [活用例](https://fcenedes.github.io/mcp-gmap-rs/ja/guide/recipes)
+- [トラブルシューティング](https://fcenedes.github.io/mcp-gmap-rs/ja/guide/troubleshooting)
+- [設定リファレンス](https://fcenedes.github.io/mcp-gmap-rs/ja/reference/configuration)
+- [ツールリファレンス](https://fcenedes.github.io/mcp-gmap-rs/ja/reference/tools)
+
+- [全文](https://fcenedes.github.io/mcp-gmap-rs/ja/llms-full.txt)
+
+## 言語
+
+- [English](https://fcenedes.github.io/mcp-gmap-rs/llms.txt)
+- [Français](https://fcenedes.github.io/mcp-gmap-rs/fr/llms.txt)
+- [Italiano](https://fcenedes.github.io/mcp-gmap-rs/it/llms.txt)
+- [Deutsch](https://fcenedes.github.io/mcp-gmap-rs/de/llms.txt)
+- [Español](https://fcenedes.github.io/mcp-gmap-rs/es/llms.txt)
+- [简体中文](https://fcenedes.github.io/mcp-gmap-rs/zh/llms.txt)
+- [日本語](https://fcenedes.github.io/mcp-gmap-rs/ja/llms.txt)
+- [العربية](https://fcenedes.github.io/mcp-gmap-rs/ar/llms.txt)
+- [עברית](https://fcenedes.github.io/mcp-gmap-rs/he/llms.txt)

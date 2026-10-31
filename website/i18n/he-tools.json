@@ -1,0 +1,941 @@
+{
+  "maps_geocode": {
+    "purpose": "פתרון כתובת או אתר לציון להתאמת Geocoding הראשונה לקבלת קואורדינטות ומזהה מקום לשימוש חוזר; אינו מאמת אפשרות משלוח דואר.",
+    "parameters": {
+      "address": {
+        "description": "כתובת, עיר או אתר לציון לקידוד גאוגרפי.",
+        "default": "—"
+      }
+    },
+    "result": "אובייקט הכולל `location.lat`, `location.lng`, `formatted_address` ו-`place_id`. רק התוצאה הראשונה מוחזרת.",
+    "example": {
+      "address": "Eiffel Tower, Paris, France"
+    },
+    "notes": [
+      "אין התאמה הוא שגיאת כלי, ולא מיקום ריק מוצלח.",
+      "כלי ישיר זה משתמש ב-Geocoding v3; גיבוי Places משמש בכלים משולבים הפותרים מיקומים, ולא בקריאה זו."
+    ],
+    "authentication": "נדרש מפתח API במימוש זה.",
+    "summary": "המרת כתובת או אתר לציון לקואורדינטות."
+  },
+  "maps_validate_address": {
+    "purpose": "אימות רכיבי כתובת והחזרת תיקונים, כתובת תקנית ומסקנת Google. יש להשאיר מסקנה ורכיבים לא פתורים גלויים לקורא.",
+    "parameters": {
+      "addressLines": {
+        "description": "שורה אחת או יותר של כתובת למשלוח, לפי הסדר.",
+        "default": "—"
+      },
+      "regionCode": {
+        "description": "קוד מדינה או אזור בן שתי אותיות גדולות; מומלץ להסרת עמימות בכתובת.",
+        "default": "לא מסופק; Google עשויה להסיק אותו"
+      },
+      "locality": {
+        "description": "עיר או יישוב.",
+        "default": "לא מסופק"
+      },
+      "administrativeArea": {
+        "description": "מדינה, מחוז או יחידה מנהלית מקבילה.",
+        "default": "לא מסופק"
+      },
+      "postalCode": {
+        "description": "מיקוד או ZIP.",
+        "default": "לא מסופק"
+      },
+      "enableUspsCass": {
+        "description": "בקשת עיבוד USPS CASS; במימוש זה regionCode חייב להיות US או PR כשהערך true.",
+        "default": "false"
+      }
+    },
+    "result": "תשובת האימות המלאה, בדרך כלל עם `result.verdict`, `result.address`, `result.geocode` ו-`responseId`; Google עשויה להשמיט שדות שאינם זמינים.",
+    "example": {
+      "addressLines": [
+        "5 Avenue Anatole France"
+      ],
+      "regionCode": "FR",
+      "locality": "Paris",
+      "postalCode": "75007"
+    },
+    "notes": [
+      "מסקנת אימות אינה הבטחת משלוח.",
+      "כיסוי אזורי ו-API משתנה. הכלי אינו שולח משוב אימות ואינו מאשר תיקונים אוטומטית."
+    ],
+    "authentication": "מפתח API או OAuth לממשק המרכזי.",
+    "summary": "אימות כתובת למשלוח ותקנונה; מחזיר מסקנה, תיקונים, רכיבים וקידוד גאוגרפי של Google. המסקנה היא ראיה ולא הבטחת משלוח."
+  },
+  "maps_pollen": {
+    "purpose": "שליפת תחזית אבקנים יומית קצרה לקואורדינטות מדויקות. התשובה שומרת סוגי אבקנים, מדדים, מידע על צמחים והמלצות ספק.",
+    "parameters": {
+      "latitude": {
+        "description": "קו רוחב WGS84 במעלות עשרוניות; צפון חיובי.",
+        "default": "—"
+      },
+      "longitude": {
+        "description": "קו אורך WGS84 במעלות עשרוניות; מזרח חיובי.",
+        "default": "—"
+      },
+      "days": {
+        "description": "מספר רשומות תחזית יומיות לבקשה.",
+        "default": "1"
+      },
+      "plantsDescription": {
+        "description": "הכללת תיאורי צמחים מפורטים ומידע קשור כשזמין.",
+        "default": "false"
+      }
+    },
+    "result": "תשובת Pollen המקורית, כולל `regionCode`, `dailyInfo` וכל `nextPageToken`. כל יום עשוי לכלול מידע על סוגי אבקנים וצמחים.",
+    "example": {
+      "latitude": 48.8584,
+      "longitude": 2.2945,
+      "days": 3,
+      "plantsDescription": false
+    },
+    "notes": [
+      "הבקשות משתמשות בגודל עמוד 5, המספיק לבקשה המרבית של חמישה ימים; עמודים נוספים אינם נשלפים אוטומטית.",
+      "הזמינות תלויה במיקום, בעונה ובכיסוי Google."
+    ],
+    "authentication": "נדרש מפתח API במימוש זה.",
+    "summary": "קבלת תחזית אבקנים, מדדים והמלצות בריאות ל-1–5 ימים בקואורדינטות מדויקות. הכיסוי משתנה לפי מיקום ועונה."
+  },
+  "maps_area_insights": {
+    "purpose": "ספירת מקומות מתאימים במעגל, באזור או במצולע עם Places Aggregate. זו שאילתה מצטברת ולא ספירת עמוד חיפוש Places מוגבל.",
+    "parameters": {
+      "area": {
+        "description": "אחד בלבד מבין circle, region או customArea.",
+        "default": "—"
+      },
+      "area.circle": {
+        "description": "אזור מעגלי; אינו משולב עם region או customArea.",
+        "default": "לא מסופק"
+      },
+      "area.circle.latLng": {
+        "description": "מרכז המעגל בקואורדינטות מדויקות.",
+        "default": "—"
+      },
+      "area.circle.latLng.latitude": {
+        "description": "קו רוחב WGS84 במעלות עשרוניות; צפון חיובי.",
+        "default": "—"
+      },
+      "area.circle.latLng.longitude": {
+        "description": "קו אורך WGS84 במעלות עשרוניות; מזרח חיובי.",
+        "default": "—"
+      },
+      "area.circle.radius": {
+        "description": "רדיוס המעגל במטרים.",
+        "default": "—"
+      },
+      "area.region": {
+        "description": "אזור מנהלי או גאוגרפי המזוהה באמצעות משאב מקום Google.",
+        "default": "לא מסופק"
+      },
+      "area.region.place": {
+        "description": "משאב אזור בפורמט places/PLACE_ID, ולא שם אזור בטקסט חופשי.",
+        "default": "—"
+      },
+      "area.customArea": {
+        "description": "אזור מצולע מותאם; אינו משולב עם circle או region.",
+        "default": "לא מסופק"
+      },
+      "area.customArea.polygon": {
+        "description": "גבול המצולע.",
+        "default": "—"
+      },
+      "area.customArea.polygon.coordinates": {
+        "description": "טבעת מסודרת של אובייקטי קואורדינטות; הראשונה והאחרונה חייבות להיות זהות.",
+        "default": "—"
+      },
+      "area.customArea.polygon.coordinates[].latitude": {
+        "description": "קו רוחב WGS84 במעלות עשרוניות; צפון חיובי.",
+        "default": "—"
+      },
+      "area.customArea.polygon.coordinates[].longitude": {
+        "description": "קו אורך WGS84 במעלות עשרוניות; מזרח חיובי.",
+        "default": "—"
+      },
+      "includedTypes": {
+        "description": "סוגי מקומות Google להכללה, כגון restaurant או cafe.",
+        "default": "—"
+      },
+      "excludedTypes": {
+        "description": "סוגי מקומות Google להחרגה.",
+        "default": "ללא מסנן סוגים מוחרגים"
+      },
+      "includePlaces": {
+        "description": "בקשת מזהי משאבי מקומות מתאימים בנוסף לספירה.",
+        "default": "false"
+      },
+      "minRating": {
+        "description": "גבול תחתון כולל לציון; אינו יכול לעלות על maxRating.",
+        "default": "ללא מסנן ציון תחתון"
+      },
+      "maxRating": {
+        "description": "גבול עליון כולל לציון.",
+        "default": "ללא מסנן ציון עליון"
+      },
+      "operatingStatus": {
+        "description": "מצבי פעילות מותרים.",
+        "default": "ברירת המחדל של Google היא מקומות פעילים"
+      },
+      "priceLevels": {
+        "description": "רמות מחירים מותרות.",
+        "default": "כל רמות המחירים"
+      }
+    },
+    "result": "תשובת Google עם `count` (בדרך כלל מחרוזת int64) ומשאבי `placeInsights[].place` אופציונליים כשהמזהים התבקשו וזמינים.",
+    "example": {
+      "area": {
+        "circle": {
+          "latLng": {
+            "latitude": 48.8584,
+            "longitude": 2.2945
+          },
+          "radius": 500
+        }
+      },
+      "includedTypes": [
+        "restaurant"
+      ],
+      "minRating": 4
+    },
+    "notes": [
+      "ספקו צורת אזור אחת בדיוק. אובייקטים מקוננים הם ערכי JSON ב-CLI; לפרמטרי הבנים אין אפשרויות עצמאיות.",
+      "טבעות מצולע חייבות להיות סגורות. Google בודקת גם גאומטריה, סוגים נתמכים, שטח וכיסוי.",
+      "מזהי מקומות זמינים רק בספירה של 100 ומטה. הכלי אינו מבקש Place Details אוטומטית."
+    ],
+    "authentication": "מפתח API או OAuth לממשק המרכזי.",
+    "summary": "ספירת מקומות במעגל, באזור או במצולע באמצעות Places Aggregate. מזהים אופציונליים זמינים רק לספירה של 100 ומטה; אין בקשות פרטים אוטומטיות."
+  },
+  "maps_snap_to_roads": {
+    "purpose": "התאמת תוואי GPS מסודר לגאומטריית הכביש הסבירה ביותר. לנקודות עצמאיות השתמשו ב-Nearest Roads ולא בתוואי נסיעה.",
+    "parameters": {
+      "path": {
+        "description": "אובייקטי קואורדינטות GPS בסדר הנסיעה.",
+        "default": "—"
+      },
+      "path[].latitude": {
+        "description": "קו רוחב WGS84 במעלות עשרוניות; צפון חיובי.",
+        "default": "—"
+      },
+      "path[].longitude": {
+        "description": "קו אורך WGS84 במעלות עשרוניות; מזרח חיובי.",
+        "default": "—"
+      },
+      "interpolate": {
+        "description": "הוספת גאומטריית כביש ביניים בין הנקודות שסופקו.",
+        "default": "false"
+      }
+    },
+    "result": "תשובת Roads המקורית, כולל `snappedPoints` וכל `warningMessage`. הנקודות שומרות `placeId`, `location` ו-`originalIndex` כשסופקו.",
+    "example": {
+      "path": [
+        {
+          "latitude": -35.27801,
+          "longitude": 149.12958
+        },
+        {
+          "latitude": -35.28032,
+          "longitude": 149.12907
+        }
+      ],
+      "interpolate": true
+    },
+    "notes": [
+      "נקודות קלט עוקבות צריכות להיות במרחק של כ-300 מטר לקבלת התאמה טובה.",
+      "לנקודות אינטרפולציה ייתכן שאין originalIndex. הכלי אינו מבקש מגבלות מהירות."
+    ],
+    "authentication": "נדרש מפתח API במימוש זה.",
+    "summary": "התאמת תוואי GPS מסודר של 2–100 נקודות לכבישים. מומלץ מרחק של כ-300 מטר בין נקודות עוקבות. אינטרפולציה אופציונלית מוסיפה גאומטריית כביש."
+  },
+  "maps_nearest_roads": {
+    "purpose": "מציאת מקטעי כביש ליד נקודות GPS עצמאיות בלי לפרש אותן כתוואי רציף אחד.",
+    "parameters": {
+      "points": {
+        "description": "אובייקטי קואורדינטות עצמאיים להתאמה.",
+        "default": "—"
+      },
+      "points[].latitude": {
+        "description": "קו רוחב WGS84 במעלות עשרוניות; צפון חיובי.",
+        "default": "—"
+      },
+      "points[].longitude": {
+        "description": "קו אורך WGS84 במעלות עשרוניות; מזרח חיובי.",
+        "default": "—"
+      }
+    },
+    "result": "תשובת Roads המקורית עם `snappedPoints`, `placeId` של הכביש, `location` ו-`originalIndex` המקשר לנקודות הקלט.",
+    "example": {
+      "points": [
+        {
+          "latitude": -35.27801,
+          "longitude": 149.12958
+        },
+        {
+          "latitude": -35.28032,
+          "longitude": 149.12907
+        }
+      ]
+    },
+    "notes": [
+      "נקודה יכולה להתאים לכמה מקטעי כביש; שמרו originalIndex במקום להניח פלט אחד לכל קלט.",
+      "הכלי אינו מבקש מגבלות מהירות."
+    ],
+    "authentication": "נדרש מפתח API במימוש זה.",
+    "summary": "מציאת מקטעי הכביש הקרובים ל-1–100 נקודות GPS עצמאיות; נשמרים originalIndex ומזהי כבישים של Google."
+  },
+  "maps_reverse_geocode": {
+    "purpose": "המרת קואורדינטות מדויקות לתוצאת Geocoding הפוכה הראשונה. השתמשו ברכיבי התוצאה כשהכתובת המעוצבת אינה מספיקה.",
+    "parameters": {
+      "latitude": {
+        "description": "קו רוחב WGS84 במעלות עשרוניות; צפון חיובי.",
+        "default": "—"
+      },
+      "longitude": {
+        "description": "קו אורך WGS84 במעלות עשרוניות; מזרח חיובי.",
+        "default": "—"
+      }
+    },
+    "result": "תוצאת Geocoding המקורית הראשונה, כולל `formatted_address`, `address_components`, `geometry` ו-`place_id` כשזמינים.",
+    "example": {
+      "latitude": 48.8584,
+      "longitude": 2.2945
+    },
+    "notes": [
+      "רק התוצאה הראשונה מוחזרת. אין התאמה הוא שגיאת כלי."
+    ],
+    "authentication": "נדרש מפתח API במימוש זה.",
+    "summary": "המרת קואורדינטות לכתובת רחוב."
+  },
+  "maps_search_places": {
+    "purpose": "חיפוש ב-Places (New) בטקסט ועם מסנני מיקום, ציון וסוג אופציונליים. השתמשו במזהים שהוחזרו לבקשות פרטים סלקטיביות.",
+    "parameters": {
+      "query": {
+        "description": "שאילתת מקום בשפה טבעית.",
+        "default": "—"
+      },
+      "locationBias": {
+        "description": "הטיית חיפוש מעגלית אופציונלית; הטיה אינה מגבלה גאוגרפית קשיחה.",
+        "default": "ללא הטיית מיקום"
+      },
+      "locationBias.latitude": {
+        "description": "קו רוחב WGS84 במעלות עשרוניות; צפון חיובי.",
+        "default": "—"
+      },
+      "locationBias.longitude": {
+        "description": "קו אורך WGS84 במעלות עשרוניות; מזרח חיובי.",
+        "default": "—"
+      },
+      "locationBias.radius": {
+        "description": "רדיוס ההטיה במטרים.",
+        "default": "5000"
+      },
+      "openNow": {
+        "description": "הגבלה למקומות פתוחים כעת כשהערך true.",
+        "default": "ללא הגבלת מצב פתיחה"
+      },
+      "minRating": {
+        "description": "ציון המשתמש המינימלי המבוקש מ-Google.",
+        "default": "ללא מסנן ציון"
+      },
+      "includedType": {
+        "description": "סוג מקום Google, כגון cafe.",
+        "default": "ללא מסנן סוג"
+      }
+    },
+    "result": "מערך של עד 20 אובייקטי Google Place עם שדות חיפוש נבחרים, קישורי Maps/מקור ומטא-נתוני ייחוס.",
+    "example": {
+      "query": "coffee near Gare de Lyon, Paris",
+      "openNow": true,
+      "minRating": 4
+    },
+    "notes": [
+      "הכלי מבקש עמוד אחד של 20 תוצאות ואינו מחזיר או עוקב אוטומטית אחר אסימון עמוד.",
+      "היעדר נתוני פתיחה או ציון תלוי בכיסוי Google; אין להסיק מלאי ממצה מהחיפוש."
+    ],
+    "authentication": "מפתח API או OAuth לממשק המרכזי.",
+    "summary": "חיפוש טקסט ב-Places (New) עם מסנני מיקום וציון אופציונליים."
+  },
+  "maps_search_nearby": {
+    "purpose": "מציאת מקומות ברדיוס מוגבל סביב מרכז שנפתר. בניגוד לחיפוש טקסט, זו מגבלת מיקום מעגלית קשיחה.",
+    "parameters": {
+      "center": {
+        "description": "קלט המרכז והדגל המתאר איך לפרשו.",
+        "default": "—"
+      },
+      "center.value": {
+        "description": "כתובת או אתר לציון, או מחרוזת latitude,longitude כשהערך isCoordinates הוא true.",
+        "default": "—"
+      },
+      "center.isCoordinates": {
+        "description": "התייחסות ל-value כקואורדינטות מדויקות ללא קידוד גאוגרפי.",
+        "default": "false"
+      },
+      "keyword": {
+        "description": "סוג מקום Google המועבר כ-includedTypes, כגון cafe; לא מילת חיפוש חופשית.",
+        "default": "ללא מסנן סוג"
+      },
+      "radius": {
+        "description": "רדיוס חיפוש במטרים.",
+        "default": "1000"
+      },
+      "openNow": {
+        "description": "שמירת תוצאות רק כש-currentOpeningHours.openNow הוא true.",
+        "default": "false"
+      },
+      "minRating": {
+        "description": "ציון מינימלי המוחל מקומית על המקומות שהוחזרו.",
+        "default": "ללא מסנן ציון"
+      }
+    },
+    "result": "מערך של עד 20 אובייקטי Place נבחרים. מסנני פתיחה וציון מקומיים עשויים לצמצם אותו עוד.",
+    "example": {
+      "center": {
+        "value": "48.8584,2.2945",
+        "isCoordinates": true
+      },
+      "keyword": "cafe",
+      "radius": 500
+    },
+    "notes": [
+      "בסינון, מצב פתיחה חסר אינו נחשב פתוח וציון חסר מטופל כ-0.",
+      "מרכזים לפי כתובת דורשים פתרון מיקום; קואורדינטות מונעות קריאה נוספת זו."
+    ],
+    "authentication": "Places מקבל מפתח API או OAuth. מרכזים לפי כתובת או אתר לציון דורשים גם מפתח API לפתרון Geocoding.",
+    "summary": "מציאת מקומות סביב כתובת או קואורדינטות מדויקות, בסינון סוג, ציון ומצב פתיחה."
+  },
+  "maps_place_details": {
+    "purpose": "הרחבת מזהה מקום מוכר לפרטים נבחרים, ביקורות וכתובות תמונה אופציונליות. שמרו מידע מחבר ומקור וכל גילוי AI.",
+    "parameters": {
+      "placeId": {
+        "description": "מזהה מקום Google, עם קידומת places/ אופציונלית.",
+        "default": "—"
+      },
+      "maxPhotos": {
+        "description": "מספר מרבי של חיפושי כתובות מדיה לתמונות.",
+        "default": "0"
+      }
+    },
+    "result": "אובייקט Google Place מקורי למסכת השדות המבוקשת. כשמבקשים תמונות, `photoUrls` מכיל כתובות מדיה, ייחוס מחברי תמונות וקישורי מקור.",
+    "example": {
+      "placeId": "ChIJLU7jZClu5kcR4PcOOO6p3I0",
+      "maxPhotos": 1
+    },
+    "notes": [
+      "כל תמונה שנבחרה עשויה ליצור בקשה נוספת; אפס תמונות מונע קריאות אלה.",
+      "הכלי משתמש במסכת פרטים קבועה ולא בכל שדות Google Place האפשריים. שדות לא זמינים עשויים להיעדר."
+    ],
+    "authentication": "מפתח API או OAuth לממשק המרכזי.",
+    "summary": "קבלת פרטי מקום, ביקורות וייחוס. כתובות תמונה אופציונליות שומרות ייחוס מחבר. הציגו מטא-נתוני מקור וגילוי לצד התוכן."
+  },
+  "maps_directions": {
+    "purpose": "חישוב מסלול בין שתי נקודות קצה והצגת נתוני Google נבחרים וסיכומים מנורמלים.",
+    "parameters": {
+      "origin": {
+        "description": "כתובת או אתר מוצא, או מחרוזת latitude,longitude מדויקת.",
+        "default": "—"
+      },
+      "destination": {
+        "description": "כתובת או אתר יעד, או מחרוזת latitude,longitude מדויקת.",
+        "default": "—"
+      },
+      "mode": {
+        "description": "אופן נסיעה. נהיגה משתמשת בניתוב המתחשב בתנועה.",
+        "default": "driving"
+      },
+      "departure_time": {
+        "description": "רגע יציאה בפורמט RFC 3339 עם Z או היסט UTC מפורש.",
+        "default": "לא מסופק"
+      },
+      "avoid_tolls": {
+        "description": "הימנעות מכבישי אגרה; true נתמך רק בנהיגה.",
+        "default": "false"
+      },
+      "avoid_highways": {
+        "description": "הימנעות מכבישים מהירים; true נתמך רק בנהיגה.",
+        "default": "false"
+      },
+      "arrival_time": {
+        "description": "הגעה רצויה ב-RFC 3339 עם אזור זמן; לתחבורה ציבורית בלבד.",
+        "default": "לא מסופק"
+      }
+    },
+    "result": "אובייקט עם `routes`, `summary`, `total_distance` (במטרים), `total_duration` (בשניות) ואינדקסי אופטימיזציה אופציונליים. מסלולים כוללים מקטעים, צעדים, קו מקודד ואזהרות נבחרים.",
+    "example": {
+      "origin": "48.8584,2.2945",
+      "destination": "48.8606,2.3376",
+      "mode": "walking"
+    },
+    "notes": [
+      "לא ניתן לספק יחד departure_time ו-arrival_time. arrival_time מתקבל רק לתחבורה ציבורית.",
+      "אפשרויות הימנעות דורשות נהיגה. Google מטילה מגבלות נוספות של אופן נסיעה, זמן ואזור.",
+      "אין מסלול זמין הוא שגיאה מפורשת."
+    ],
+    "authentication": "Routes ו-Places מקבלים מפתח API או OAuth. פתרון מיקומים בשמות דורש גם מפתח API ל-Geocoding; מחרוזות קואורדינטות מדויקות מונעות זאת.",
+    "summary": "קבלת הוראות, גאומטריית מסלול, צעדי ניווט ומשך נסיעה."
+  },
+  "maps_distance_matrix": {
+    "purpose": "השוואת מרחק וזמן לכל צמד מוצא ויעד. בדקו תאים ושגיאות בנפרד במקום לראות בתשובה מוצלחת תוצאה מלאה.",
+    "parameters": {
+      "origins": {
+        "description": "מחרוזות מוצא: כתובות או צמדי latitude,longitude מדויקים.",
+        "default": "—"
+      },
+      "destinations": {
+        "description": "מחרוזות יעד: כתובות או צמדי latitude,longitude מדויקים.",
+        "default": "—"
+      },
+      "mode": {
+        "description": "אופן נסיעה. נהיגה משתמשת בניתוב המתחשב בתנועה.",
+        "default": "driving"
+      },
+      "departure_time": {
+        "description": "רגע יציאה בפורמט RFC 3339 עם Z או היסט UTC מפורש.",
+        "default": "לא מסופק"
+      },
+      "avoid_tolls": {
+        "description": "הימנעות מכבישי אגרה; true נתמך רק בנהיגה.",
+        "default": "false"
+      },
+      "avoid_highways": {
+        "description": "הימנעות מכבישים מהירים; true נתמך רק בנהיגה.",
+        "default": "false"
+      }
+    },
+    "result": "אובייקט עם `origin_addresses`, `destination_addresses`, מטריצות `distances` ו-`durations` בסדר שורות, ומערך `errors`. ערכי תאים מוצלחים הם במטרים ובשניות; תאים כושלים או חסרים נשארים null.",
+    "example": {
+      "origins": [
+        "48.8584,2.2945"
+      ],
+      "destinations": [
+        "48.8606,2.3376",
+        "48.8530,2.3499"
+      ],
+      "mode": "walking"
+    },
+    "notes": [
+      "עד 625 צמדי מוצא × יעד; תחבורה ציבורית מוגבלת ל-100 צמדים.",
+      "לכל היותר 50 מחרוזות מוצא/יעד שאינן קואורדינטות בסך הכול. מגבלות סכמה לכל מערך אינן מבטלות מגבלות משולבות אלה.",
+      "הימנעות מאגרה וכבישים מהירים חלה רק בנהיגה. הכלי אינו חושף arrival_time.",
+      "בקשת HTTP אחת למטריצה עשויה לחייב כמה רכיבים."
+    ],
+    "authentication": "מפתח API או OAuth לממשק המרכזי.",
+    "summary": "חישוב מרחקי נסיעה וזמנים למספר מוצאים ויעדים."
+  },
+  "maps_elevation": {
+    "purpose": "קבלת גובה גאוגרפי לנקודות קואורדינטות מדויקות.",
+    "parameters": {
+      "locations": {
+        "description": "אובייקטי קואורדינטות שעבורם מבקשים גובה.",
+        "default": "—"
+      },
+      "locations[].latitude": {
+        "description": "קו רוחב WGS84 במעלות עשרוניות; צפון חיובי.",
+        "default": "—"
+      },
+      "locations[].longitude": {
+        "description": "קו אורך WGS84 במעלות עשרוניות; מזרח חיובי.",
+        "default": "—"
+      }
+    },
+    "result": "מערך `results` המקורי של Elevation. רשומות עשויות לכלול `elevation` במטרים, `location` ו-`resolution`.",
+    "example": {
+      "locations": [
+        {
+          "latitude": 48.8584,
+          "longitude": 2.2945
+        }
+      ]
+    },
+    "notes": [
+      "הכלי מחזיר את נתוני Google ללא המרת יחידות גובה."
+    ],
+    "authentication": "נדרש מפתח API במימוש זה.",
+    "summary": "קבלת גובה במטרים לקואורדינטות גאוגרפיות."
+  },
+  "maps_timezone": {
+    "purpose": "פתרון זהות אזור זמן והיסטי UTC/שעון קיץ ברגע נתון, והפקת חותמת זמן מקומית.",
+    "parameters": {
+      "latitude": {
+        "description": "קו רוחב WGS84 במעלות עשרוניות; צפון חיובי.",
+        "default": "—"
+      },
+      "longitude": {
+        "description": "קו אורך WGS84 במעלות עשרוניות; מזרח חיובי.",
+        "default": "—"
+      },
+      "timestamp": {
+        "description": "מילישניות מאז תחילת Unix, ולא שניות.",
+        "default": "זמן UTC נוכחי במילישניות"
+      }
+    },
+    "result": "שדות אזור זמן כגון `timeZoneId`, `timeZoneName`, `rawOffset` ו-`dstOffset` בשניות, ו-`localTime` נגזר בפורמט RFC 3339.",
+    "example": {
+      "latitude": 48.8584,
+      "longitude": 2.2945,
+      "timestamp": 1793448000000
+    },
+    "notes": [
+      "הבקשה ממירה מילישניות לשניות שלמות; דיוק של חלקי שנייה אינו נשמר.",
+      "השעה המקומית משתמשת בהיסט הרגיל ובהיסט שעון הקיץ שהוחזרו עבור הרגע המבוקש."
+    ],
+    "authentication": "נדרש מפתח API במימוש זה.",
+    "summary": "קבלת אזור זמן, היסטי UTC/שעון קיץ ושעה מקומית. timestamp במילישניות Unix."
+  },
+  "maps_weather": {
+    "purpose": "בקשת תנאים נוכחיים או עמוד אחד של נתוני תחזית יומית/שעתית לקואורדינטות מדויקות.",
+    "parameters": {
+      "latitude": {
+        "description": "קו רוחב WGS84 במעלות עשרוניות; צפון חיובי.",
+        "default": "—"
+      },
+      "longitude": {
+        "description": "קו אורך WGS84 במעלות עשרוניות; מזרח חיובי.",
+        "default": "—"
+      },
+      "type": {
+        "description": "בחירת תנאים נוכחיים, תחזית יומית או שעתית.",
+        "default": "current"
+      },
+      "forecastDays": {
+        "description": "אורך תחזית יומית מבוקשת; בשימוש רק עם forecast_daily.",
+        "default": "5"
+      },
+      "forecastHours": {
+        "description": "אורך תחזית שעתית מבוקשת; בשימוש רק עם forecast_hourly.",
+        "default": "24"
+      }
+    },
+    "result": "תשובת Weather המקורית: שדות תנאים נוכחיים, `forecastDays` או `forecastHours`, לפי הסוג. שמרו יחידות, חותמות זמן וכל nextPageToken.",
+    "example": {
+      "latitude": 48.8584,
+      "longitude": 2.2945,
+      "type": "forecast_daily",
+      "forecastDays": 3
+    },
+    "notes": [
+      "forecastDays מתעלם בסוגים אחרים; forecastHours מתעלם מחוץ ל-forecast_hourly.",
+      "הכלי אינו עוקב אוטומטית אחר אסימוני עימוד. הטווח המבוקש עשוי לעלות על הרשומות שבעמוד תשובה אחד.",
+      "כיסוי וזמינות תחזיות תלויים ב-Google."
+    ],
+    "authentication": "מפתח API או OAuth לממשק המרכזי.",
+    "summary": "קבלת מזג אוויר נוכחי, תחזית יומית או שעתית."
+  },
+  "maps_air_quality": {
+    "purpose": "קבלת מדדי איכות אוויר נוכחיים עם ריכוזי מזהמים והמלצות בריאות ספק אופציונליים.",
+    "parameters": {
+      "latitude": {
+        "description": "קו רוחב WGS84 במעלות עשרוניות; צפון חיובי.",
+        "default": "—"
+      },
+      "longitude": {
+        "description": "קו אורך WGS84 במעלות עשרוניות; מזרח חיובי.",
+        "default": "—"
+      },
+      "includeHealthRecommendations": {
+        "description": "בקשת חישוב המלצות בריאות של Google.",
+        "default": "true"
+      },
+      "includePollutants": {
+        "description": "בקשת ריכוזי מזהמים.",
+        "default": "false"
+      }
+    },
+    "result": "תשובת התנאים הנוכחיים המקורית של Air Quality, כולל מדדים ו-`healthRecommendations`/`pollutants` אופציונליים כשסופקו בידי Google.",
+    "example": {
+      "latitude": 48.8584,
+      "longitude": 2.2945,
+      "includePollutants": true
+    },
+    "notes": [
+      "ההמלצות הן נתוני ספק ולא הערכה רפואית אישית.",
+      "הכלי חושף תנאים נוכחיים ולא נקודות קצה היסטוריות או תחזיות."
+    ],
+    "authentication": "מפתח API או OAuth לממשק המרכזי.",
+    "summary": "קבלת מדדי איכות אוויר, ריכוזי מזהמים אופציונליים והמלצות בריאות."
+  },
+  "maps_static_map": {
+    "purpose": "יצירת מפת PNG עם סמנים ומפרטי תוואי אופציונליים.",
+    "parameters": {
+      "center": {
+        "description": "מרכז ככתובת או כמחרוזת latitude,longitude.",
+        "default": "לא מסופק"
+      },
+      "zoom": {
+        "description": "רמת זום מפורשת.",
+        "default": "מושמט; Google בוחרת או מסיקה אותו"
+      },
+      "size": {
+        "description": "ממדים בפיקסלים WIDTHxHEIGHT; זמן הריצה מגביל כל ממד ל-1–640.",
+        "default": "600x400"
+      },
+      "maptype": {
+        "description": "סגנון מפת הבסיס.",
+        "default": "roadmap"
+      },
+      "markers": {
+        "description": "מפרטי סמנים חוזרים של Google Static Maps, לדוגמה color:red|48.8584,2.2945.",
+        "default": "ללא סמנים"
+      },
+      "path": {
+        "description": "מפרטי תוואי חוזרים של Google Static Maps, לדוגמה color:blue|48.8584,2.2945|48.8606,2.3376.",
+        "default": "ללא תוואים"
+      }
+    },
+    "result": "MCP מחזיר תוכן image/png מוטמע. CLI מחזיר JSON מסוג `{mimeType,base64}`, או בתים גולמיים של PNG כשמסופק --output.",
+    "example": {
+      "center": "48.8584,2.2945",
+      "zoom": 14,
+      "size": "320x240",
+      "markers": [
+        "color:red|48.8584,2.2945"
+      ]
+    },
+    "notes": [
+      "נדרש לפחות אחד מבין center, markers או path.",
+      "כתובת הבקשה המלאה חייבת להתאים ל-16,384 תווים. תבנית size בסכמה רחבה ממגבלת 640 הפיקסלים בזמן הריצה.",
+      "עיצוב סמנים ותוואים תואם לתחביר Google Static Maps. ייחוס Google נשאר בתמונה שנוצרה."
+    ],
+    "authentication": "נדרש מפתח API במימוש זה.",
+    "summary": "שליפת מפת PNG עם סמנים ותוואים. MCP מחזיר תמונה מוטמעת; CLI מחזיר base64 JSON או כותב --output."
+  },
+  "maps_batch_geocode": {
+    "purpose": "קידוד גאוגרפי של רשימת כתובות מוגבלת תוך שמירה על סדר הקלט והצלחת או כישלון כל פריט.",
+    "parameters": {
+      "addresses": {
+        "description": "מחרוזות כתובות או אתרים לציון לפתרון.",
+        "default": "—"
+      }
+    },
+    "result": "מערך בסדר הקלט. כל שורה מכילה `address`, `success` ו-`data` (אובייקט קידוד גאוגרפי) או `error`.",
+    "example": {
+      "addresses": [
+        "Paris, France",
+        "London, UK"
+      ]
+    },
+    "notes": [
+      "משתמש במקביליות מוגבלת של עד חמש בקשות Google פעילות לתהליך.",
+      "כשלי פריטים אינם מחייבים קוד יציאה שאינו אפס; בדקו success ו-error בכל שורה."
+    ],
+    "authentication": "נדרש מפתח API במימוש זה.",
+    "summary": "קידוד גאוגרפי של עד 50 כתובות עם הצלחה או שגיאה לכל כתובת ומקביליות מוגבלת."
+  },
+  "maps_explore_area": {
+    "purpose": "פתרון מיקום אחד, חיפוש קטגוריות נבחרות סביבו והרחבת התוצאות המובילות בלבד בכל קטגוריה.",
+    "parameters": {
+      "location": {
+        "description": "כתובת, אתר לציון או מחרוזת latitude,longitude מדויקת.",
+        "default": "—"
+      },
+      "types": {
+        "description": "קטגוריות מקומות Google לחיפוש.",
+        "default": "restaurant, cafe, tourist_attraction"
+      },
+      "radius": {
+        "description": "רדיוס חיפוש קטגוריה במטרים.",
+        "default": "1000"
+      },
+      "topN": {
+        "description": "מספר מרבי של מקומות בכל קטגוריה להרחבה עם פרטים.",
+        "default": "3"
+      }
+    },
+    "result": "אובייקט עם `location` שנפתר, `radius` ו-`categories`. לכל קטגוריה type/count/top או שגיאה; מקומות מורחבים עשויים לכלול details_error.",
+    "example": {
+      "location": "48.8584,2.2945",
+      "types": [
+        "cafe"
+      ],
+      "radius": 500,
+      "topN": 1
+    },
+    "notes": [
+      "כל קטגוריה מחפשת עד 20 מקומות; count הוא ספירת העמוד שהוחזר ולא מלאי מצטבר.",
+      "כשלי קטגוריות ופרטים נשארים גלויים בפלט עליון מוצלח.",
+      "הקריאה המשולבת שולחת כמה בקשות Google; הגבילו קטגוריות ו-topN לצורכי המשימה."
+    ],
+    "authentication": "Places מקבל מפתח API או OAuth. מיקומים בשמות דורשים גם מפתח API ל-Geocoding.",
+    "summary": "פתרון מיקום וחקירת קטגוריות עם פרטים לתוצאות המובילות. השתמשו באתרים מוגדרים לתכנון נסיעה."
+  },
+  "maps_plan_route": {
+    "purpose": "תכנון מסלול אחד דרך עצירות מסודרות, עם בקשה אופציונלית מ-Google לסדר מחדש עצירות ביניים תוך שמירת נקודות הקצה.",
+    "parameters": {
+      "stops": {
+        "description": "כתובות או אתרים לציון מסודרים, או מחרוזות latitude,longitude מדויקות; הראשון והאחרון נשארים נקודות קצה.",
+        "default": "—"
+      },
+      "mode": {
+        "description": "אופן נסיעה. נהיגה משתמשת בניתוב המתחשב בתנועה.",
+        "default": "driving"
+      },
+      "departure_time": {
+        "description": "רגע יציאה בפורמט RFC 3339 עם Z או היסט UTC מפורש.",
+        "default": "לא מסופק"
+      },
+      "avoid_tolls": {
+        "description": "הימנעות מכבישי אגרה; true נתמך רק בנהיגה.",
+        "default": "false"
+      },
+      "avoid_highways": {
+        "description": "הימנעות מכבישים מהירים; true נתמך רק בנהיגה.",
+        "default": "false"
+      },
+      "optimize": {
+        "description": "בקשת אופטימיזציה לעצירות ביניים כשיש יותר משלוש עצירות בסך הכול והמצב אינו transit.",
+        "default": "true, בכפוף לתנאים אלה"
+      }
+    },
+    "result": "אובייקט עם `mode`, ערך `optimized` אפקטיבי, `stops` פתורים ומסודרים, `legs` להצגה, total_distance, total_duration, polyline ואזהרות. durationSeconds של מקטע הוא מספר שניות.",
+    "example": {
+      "stops": [
+        "48.8584,2.2945",
+        "48.8606,2.3376",
+        "48.8530,2.3499"
+      ],
+      "mode": "walking",
+      "optimize": false
+    },
+    "notes": [
+      "תחבורה ציבורית תומכת רק בשתי נקודות קצה, ללא עצירות ביניים.",
+      "האופטימיזציה חלה רק מארבע עצירות בסך הכול (לפחות שתי עצירות ביניים).",
+      "הכלי ממטב סדר עצירות במסלול יחיד, ולא שיוך כלי רכב או משימות בצי."
+    ],
+    "authentication": "Routes ו-Places מקבלים מפתח API או OAuth. פתרון מיקומים בשמות דורש גם מפתח API ל-Geocoding; מחרוזות קואורדינטות מדויקות מונעות זאת.",
+    "summary": "תכנון מסלול דרך 2–27 עצירות. אופטימיזציה של 2–25 עצירות ביניים, למעט תחבורה ציבורית. קואורדינטות מדויקות נשמרות."
+  },
+  "maps_compare_places": {
+    "purpose": "מציאת רשימת מקומות מצומצמת והעשרתה, עם השוואת מרחק נהיגה מקואורדינטות משתמש מדויקות לפי בחירה.",
+    "parameters": {
+      "query": {
+        "description": "שאילתת חיפוש טקסט של Places.",
+        "default": "—"
+      },
+      "userLocation": {
+        "description": "קואורדינטות משתמש מדויקות להשוואת מרחק אופציונלית.",
+        "default": "ללא השוואת מרחק או זמן"
+      },
+      "userLocation.latitude": {
+        "description": "קו רוחב WGS84 במעלות עשרוניות; צפון חיובי.",
+        "default": "—"
+      },
+      "userLocation.longitude": {
+        "description": "קו אורך WGS84 במעלות עשרוניות; מזרח חיובי.",
+        "default": "—"
+      },
+      "limit": {
+        "description": "מספר מרבי של מקומות מתאימים להעשרה.",
+        "default": "5"
+      }
+    },
+    "result": "אובייקט עם `places` ו-`distance_error` אופציונלי. מקומות עשויים לכלול details/details_error, distance, drive_time ו-distance_errors לכל מקום.",
+    "example": {
+      "query": "cafes near Eiffel Tower, Paris",
+      "userLocation": {
+        "latitude": 48.8584,
+        "longitude": 2.2945
+      },
+      "limit": 3
+    },
+    "notes": [
+      "ההשוואה משתמשת בנהיגה; אין לכלי פרמטר לשינוי אופן הנסיעה.",
+      "כשלי פרטים ומרחק נשמרים במקום למחוק מקומות שימושיים אחרת.",
+      "רק הרשימה המצומצמת המבוקשת מועשרת."
+    ],
+    "authentication": "Places ו-Routes האופציונלי מקבלים מפתח API או OAuth.",
+    "summary": "חיפוש והשוואת מקומות עם פרטים ומרחק נהיגה אופציונלי מ-userLocation."
+  },
+  "maps_search_along_route": {
+    "purpose": "חישוב מסלול וחיפוש Places באמצעות הקו המקודד שלו, במקום לקירוב הנסיעה בחיפוש מעגלי יחיד.",
+    "parameters": {
+      "textQuery": {
+        "description": "שאילתת Places לעצירות לאורך המסלול, כגון בתי קפה או עמדות טעינה.",
+        "default": "—"
+      },
+      "origin": {
+        "description": "כתובת או אתר מוצא המסלול, או מחרוזת latitude,longitude מדויקת.",
+        "default": "—"
+      },
+      "destination": {
+        "description": "כתובת או אתר יעד המסלול, או מחרוזת latitude,longitude מדויקת.",
+        "default": "—"
+      },
+      "mode": {
+        "description": "אופן הנסיעה למסלול המשמש בחיפוש.",
+        "default": "walking"
+      },
+      "maxResults": {
+        "description": "מספר מרבי של תוצאות Places המבוקשות בעמוד התשובה.",
+        "default": "5"
+      }
+    },
+    "result": "אובייקט עם `places`, `routingSummaries` אופציונלי וה-`route` המחושב, כולל נתוני מסלול Google נבחרים וסיכומים מנורמלים.",
+    "example": {
+      "textQuery": "cafes",
+      "origin": "48.8584,2.2945",
+      "destination": "48.8606,2.3376",
+      "mode": "walking",
+      "maxResults": 3
+    },
+    "notes": [
+      "ברירת המחדל היא walking, בניגוד ל-directions, matrix ו-plan-route שברירת המחדל שלהם driving.",
+      "אין עימוד אוטומטי או הרחבת Place Details.",
+      "הכלי אינו חושף פרמטרי יציאה, הגעה או הימנעות של directions."
+    ],
+    "authentication": "Routes ו-Places מקבלים מפתח API או OAuth. פתרון מיקומים בשמות דורש גם מפתח API ל-Geocoding; מחרוזות קואורדינטות מדויקות מונעות זאת.",
+    "summary": "מציאת מקומות לאורך מסלול באמצעות הקו המקודד שלו."
+  },
+  "maps_local_rank_tracker": {
+    "purpose": "מדידת הופעת מקום יעד ב-20 תוצאות Text Search הראשונות בכל נקודת רשת גאוגרפית.",
+    "parameters": {
+      "keyword": {
+        "description": "מילת חיפוש אחת; השתמשו ב-keyword או keywords.",
+        "default": "לא מסופק"
+      },
+      "keywords": {
+        "description": "אחת עד שלוש מילות חיפוש; מקבל קדימות אם שני השדות סופקו.",
+        "default": "לא מסופק"
+      },
+      "placeId": {
+        "description": "מזהה מקום היעד, עם קידומת places/ אופציונלית.",
+        "default": "—"
+      },
+      "center": {
+        "description": "מרכז מדויק של רשת הסריקה.",
+        "default": "—"
+      },
+      "center.latitude": {
+        "description": "קו רוחב WGS84 במעלות עשרוניות; צפון חיובי.",
+        "default": "—"
+      },
+      "center.longitude": {
+        "description": "קו אורך WGS84 במעלות עשרוניות; מזרח חיובי.",
+        "default": "—"
+      },
+      "gridSize": {
+        "description": "מספר שורות ועמודות; כל המספרים השלמים 3–7 מתקבלים.",
+        "default": "3"
+      },
+      "gridSpacing": {
+        "description": "מרחק במטרים בין נקודות רשת שכנות.",
+        "default": "1000"
+      }
+    },
+    "result": "אובייקט עם target, grid_size, grid_spacing_m ומדדים/רשת לכל מילה. ARP הוא ממוצע דירוגים שנמצאו; ATRP משתמש בדירוג 21 לשאילתות מוצלחות שהיעד נעדר מהן; SoLV הוא אחוז הנקודות המוצלחות בדירוג שלוש הראשונות. failed_points ו-found_in חושפים כיסוי.",
+    "example": {
+      "keyword": "cafe",
+      "placeId": "ChIJLU7jZClu5kcR4PcOOO6p3I0",
+      "center": {
+        "latitude": 48.8584,
+        "longitude": 2.2945
+      },
+      "gridSize": 3,
+      "gridSpacing": 500
+    },
+    "notes": [
+      "נדרש לפחות keyword או keywords; שורות הסכמה הבודדות אינן מבטאות חלופה זו.",
+      "מספר בקשות החיפוש גדל כמספר המילים × gridSize² (עד 147 לפני ניסיונות חוזרים).",
+      "נקודות כושלות מוחרגות ממדדי הדירוג ולא מטופלות כהיעדר תקין. המדדים עשויים להיות null כשאין תצפיות שימושיות.",
+      "דירוג חיפוש אינו ציון ביקורות המשתמשים של המקום. התוצאות הן דגימות מחיפושי טקסט מוטים, ולא הבטחה לדירוג משתמש ב-Google Maps."
+    ],
+    "authentication": "מפתח API או OAuth לממשק המרכזי.",
+    "summary": "מעקב דירוג חיפוש ברשת גאוגרפית ל-1–3 מילות מפתח; מחזיר ARP, ATRP, SoLV ושגיאות לכל נקודה."
+  }
+}

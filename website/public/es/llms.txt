@@ -1,0 +1,34 @@
+# mcp-gmap-rs
+
+Las 23 herramientas, con cada parámetro, valor predeterminado, restricción y ejemplo. La misma interfaz está disponible mediante MCP y CLI.
+
+## Herramientas
+
+- [Skill para agentes](https://fcenedes.github.io/mcp-gmap-rs/es/guide/agent-skill)
+- [Autenticación](https://fcenedes.github.io/mcp-gmap-rs/es/guide/authentication)
+- [Interfaz de línea de comandos](https://fcenedes.github.io/mcp-gmap-rs/es/guide/cli)
+- [Configuración](https://fcenedes.github.io/mcp-gmap-rs/es/guide/configuration)
+- [Despliegue](https://fcenedes.github.io/mcp-gmap-rs/es/guide/deployment)
+- [Desarrollo y releases](https://fcenedes.github.io/mcp-gmap-rs/es/guide/development)
+- [Primeros pasos](https://fcenedes.github.io/mcp-gmap-rs/es/guide/getting-started)
+- [Configuración de Google Cloud](https://fcenedes.github.io/mcp-gmap-rs/es/guide/google-cloud)
+- [Integración MCP](https://fcenedes.github.io/mcp-gmap-rs/es/guide/mcp)
+- [Operación en producción](https://fcenedes.github.io/mcp-gmap-rs/es/guide/production)
+- [Recetas](https://fcenedes.github.io/mcp-gmap-rs/es/guide/recipes)
+- [Resolución de problemas](https://fcenedes.github.io/mcp-gmap-rs/es/guide/troubleshooting)
+- [Referencia de configuración](https://fcenedes.github.io/mcp-gmap-rs/es/reference/configuration)
+- [Referencia de herramientas](https://fcenedes.github.io/mcp-gmap-rs/es/reference/tools)
+
+- [Texto completo](https://fcenedes.github.io/mcp-gmap-rs/es/llms-full.txt)
+
+## Idiomas
+
+- [English](https://fcenedes.github.io/mcp-gmap-rs/llms.txt)
+- [Français](https://fcenedes.github.io/mcp-gmap-rs/fr/llms.txt)
+- [Italiano](https://fcenedes.github.io/mcp-gmap-rs/it/llms.txt)
+- [Deutsch](https://fcenedes.github.io/mcp-gmap-rs/de/llms.txt)
+- [Español](https://fcenedes.github.io/mcp-gmap-rs/es/llms.txt)
+- [简体中文](https://fcenedes.github.io/mcp-gmap-rs/zh/llms.txt)
+- [日本語](https://fcenedes.github.io/mcp-gmap-rs/ja/llms.txt)
+- [العربية](https://fcenedes.github.io/mcp-gmap-rs/ar/llms.txt)
+- [עברית](https://fcenedes.github.io/mcp-gmap-rs/he/llms.txt)

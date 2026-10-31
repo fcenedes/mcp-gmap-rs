@@ -1,0 +1,2059 @@
+# mcp-gmap-rs / he
+
+https://fcenedes.github.io/mcp-gmap-rs/he/
+
+
+<!-- https://fcenedes.github.io/mcp-gmap-rs/he/guide/agent-skill -->
+
+# מיומנות לסוכן
+
+מיומנות `mcp-gmap` הניידת מלמדת סוכן לבחור כלים, להפעיל MCP או CLI בבטחה, לבדוק כשלים חלקיים ולשמור על הייחוס ל-Google. היא משלימה את קובץ ההפעלה או את חיבור MCP שמגדירים בנפרד.
+
+## התקנה מהמקור או מחבילת גרסה {#install-from-source-or-a-release}
+
+חבילת המקור וכל ארכיון גרסה כוללים את [תיקיית המיומנות](https://github.com/fcenedes/mcp-gmap-rs/tree/main/skills/mcp-gmap). מתוך עותק של המאגר או ארכיון שחולץ, התקינו אותה עבור Codex:
+
+```sh
+mkdir -p "${CODEX_HOME:-$HOME/.codex}/skills"
+cp -R skills/mcp-gmap "${CODEX_HOME:-$HOME/.codex}/skills/"
+```
+
+הפעילו אותה בשם `$mcp-gmap`, לדוגמה:
+
+> השתמש ב-$mcp-gmap כדי למצוא בתי קפה ליד Gare de Lyon, להשוות מסלולי הליכה ולשמור קישורים למקורות.
+
+עבור סוכנים אחרים, מקמו את אותה תיקייה בספריית המיומנויות הנתמכת שלהם, או טענו את `SKILL.md` ואת ההפניות המקושרות. גוף ההוראות אינו תלוי בסוכן; `agents/openai.yaml` מספק מטא-נתונים אופציונליים לממשק Codex. התקינו קובץ הפעלה תקין ב-PATH של הסוכן או הגדירו את [חיבור MCP](./mcp).
+
+## מה המיומנות מוסיפה {#what-the-skill-adds}
+
+המיומנות מתחילה בגילוי כלים, ואינה מניחה שגרסה ישנה מותקנת מציגה את הקטלוג החדש ביותר. היא מעדיפה קואורדינטות מדויקות ומזהי מקומות שהוחזרו, מצמצמת את היקף החיפוש ובוחרת כלים ייעודיים לאימות כתובות, לספירה מצטברת ולחיפוש לאורך מסלול, במקום להסיק פעולות אלה מתוצאות לא קשורות.
+
+היא מתייחסת לפרטי גישה כהגדרות תהליך או פריסה, ולא כארגומנטים לכלים. היא מבדילה בין הרשאת MCP נכנסת לגישה יוצאת ל-Google, ומתחילה באבחון לא מקוון. בדיקות חיות עשויות להיות כרוכות בתשלום. יש לבדוק שגיאות מקוננות בתוצאות משולבות גם כשהקריאה הראשית מצליחה.
+
+[מדריך בחירת הכלים](https://github.com/fcenedes/mcp-gmap-rs/blob/main/skills/mcp-gmap/references/tool-selection.md) מסביר את כללי ההחלטה. [מדריך CLI](https://github.com/fcenedes/mcp-gmap-rs/blob/main/skills/mcp-gmap/references/cli.md) מכסה הפעלה מובנית ואבחון גישה. עיינו ב[מתכונים](./recipes) שבמדריך לתהליכי עבודה מלאים וב[מפרט הכלים](../reference/tools) לכל ארגומנט.
+
+
+<!-- https://fcenedes.github.io/mcp-gmap-rs/he/guide/authentication -->
+
+# אימות זהות
+
+הגדירו את פרטי הגישה היוצאים ל-Google בנפרד מפרטי הגישה של לקוחות MCP HTTP. מצב ברירת המחדל הוא מפתח API; הגדרת נתיב לחשבון שירות לבדה אינה מפעילה OAuth.
+
+## תמיכה במפתח API וב-OAuth {#api-key-and-oauth-coverage}
+
+| משפחת נקודות קצה | מפתח API | OAuth בקובץ הפעלה זה |
+| --- | --- | --- |
+| Places (New), Routes, Weather, Air Quality, Address Validation, Places Aggregate | כן | כן |
+| Geocoding v3, Elevation, Time Zone, Maps Static, Pollen, Roads | כן | לא |
+
+פתרון מיקומים לפי שם וקריאות משולבות עשויים לדרוש מפתח גם כשהפעולה העיקרית תומכת ב-OAuth. השתמשו בקואורדינטות מדויקות כדי למנוע קידוד גאוגרפי מיותר. כשלי OAuth לעולם אינם עוברים בשקט למפתח API. ראו [הגדרת Google Cloud](./google-cloud) להפעלת השירותים המדויקים ולהגבלת מפתח.
+
+## OAuth באמצעות חשבון שירות {#service-account-oauth}
+
+
+במצב OAuth, בקשות Places (New), Routes, Weather, Air Quality, Address Validation ו-Places Aggregate מקבלות **אסימון גישה** של OAuth וכותרת `X-Goog-User-Project`. הפרויקט מבקש את ההרשאה `https://www.googleapis.com/auth/cloud-platform` המתועדת עבור ממשקי API אלה. ספריית האימות של Google ל-Rust משיגה, שומרת במטמון ומרעננת את האסימונים. `GOOGLE_MAPS_TIMEOUT` מגביל גם את אתחול פרטי הגישה ואת השגת האסימון. בזרימת חשבון השירות אין צורך להדביק אסימון ידנית או להגדיר מסך הסכמה של OAuth לאפליקציה. ראו [הנחיות OAuth בצד השרת של Maps](https://developers.google.com/maps/api-security-best-practices#use-oauth-for-server-side-apps).
+
+צרו חשבון שירות ייעודי והעניקו לו הרשאה לצרוך שירותים בפרויקט המשמש לחיוב ולמכסות של Maps:
+
+```sh
+export PROJECT_ID='your-project-id'
+export SA_EMAIL="mcp-gmap@${PROJECT_ID}.iam.gserviceaccount.com"
+gcloud iam service-accounts create mcp-gmap --project="$PROJECT_ID" \
+  --display-name='MCP Google Maps'
+gcloud projects add-iam-policy-binding "$PROJECT_ID" \
+  --member="serviceAccount:${SA_EMAIL}" \
+  --role='roles/serviceusage.serviceUsageConsumer'
+```
+
+התפקיד Service Usage Consumer כולל את `serviceusage.services.use` לצורכי מכסה וחיוב. הוא אינו מעניק אפשרות להפעיל שירותים או ליצור מפתחות; שלבי הגדרה אלה דורשים מנהל בעל הרשאות נפרדות. הפעילו את ממשקי Maps בפרויקט המכסה לפי [מדריך Google Cloud](./google-cloud). ראו [הרשאות Service Usage](https://docs.cloud.google.com/service-usage/docs/access-control).
+
+בחרו אחד ממקורות פרטי הגישה שבהמשך. אותן הגדרות פועלות עם CLI, stdio ו-HTTP. סדר הקדימויות הרגיל הוא קובץ, אחריו סביבה ולבסוף אפשרויות שורת הפקודה.
+
+### א. מפתח JSON מותקן של חשבון שירות {#a-mounted-service-account-json-key}
+
+אם הארגון מאפשר מפתחות JSON, פתחו **IAM & Admin → Service Accounts**, בחרו בחשבון ואז **Keys → Add key → Create new key → JSON**. שמרו אותו מחוץ לעותק המקור. לחלופין:
+
+```sh
+mkdir -p "$HOME/.config/mcp-gmap-rs"
+gcloud iam service-accounts keys create \
+  "$HOME/.config/mcp-gmap-rs/service-account.json" \
+  --iam-account="$SA_EMAIL" --project="$PROJECT_ID"
+chmod 600 "$HOME/.config/mcp-gmap-rs/service-account.json"
+export GOOGLE_APPLICATION_CREDENTIALS="$HOME/.config/mcp-gmap-rs/service-account.json"
+export GOOGLE_CLOUD_QUOTA_PROJECT="$PROJECT_ID"
+export GOOGLE_MAPS_AUTH_MODE=oauth
+```
+
+עבור קובץ מותקן, תוכן `.env` המקביל הוא:
+
+```dotenv
+GOOGLE_MAPS_AUTH_MODE=oauth
+GOOGLE_APPLICATION_CREDENTIALS=/credentials/service-account.json
+GOOGLE_CLOUD_QUOTA_PROJECT=your-project-id
+# Optional, for Geocoding v3 / Elevation / Time Zone / Static Maps / Pollen / Roads:
+# GOOGLE_MAPS_API_KEY=your-restricted-api-key
+```
+
+הגדירו נתיב לפרטי גישה רק כשמשתמשים בקובץ JSON קריא; אל תגדירו מחרוזת ריקה או את תוכן ה-JSON עצמו. נתיבים יחסיים נפתרים מתוך תיקיית העבודה. ערכי הקובץ משמשים ישירות בלי לשנות את סביבת התהליך. הטוען מקבל גם תצורות ADC מסוג `external_account`, `impersonated_service_account` ו-`authorized_user`. הפעילו מחדש את התהליך לאחר שינוי קובץ פרטי הגישה.
+
+מפתחות חשבון שירות הם פרטי גישה ארוכי טווח. העדיפו אפשרויות ללא מפתח כשאפשר; שמרו מפתחות JSON מחוץ ל-Git ולשכבות תמונה, והחליפו או מחקו מפתחות שאינם בשימוש. Google מתעדת [יצירת מפתחות ומדיניות ארגונית](https://docs.cloud.google.com/iam/docs/keys-create-delete).
+
+### ב. Application Default Credentials ללא מפתח JSON {#b-application-default-credentials-without-a-json-key}
+
+השאירו את `GOOGLE_APPLICATION_CREDENTIALS` לא מוגדר הן בסביבת התהליך והן בקובץ dotenv שנבחר או ב-Secret/ConfigMap של Kubernetes. פקודת `unset` במעטפת לבדה אינה מסירה ערך משכבת הקובץ; מחקו את הערך במקום להגדיר נתיב ריק. לאחר מכן הגדירו:
+
+```dotenv
+GOOGLE_MAPS_AUTH_MODE=oauth
+GOOGLE_CLOUD_QUOTA_PROJECT=your-project-id
+```
+
+ספריית האימות הרשמית משתמשת ב-[Application Default Credentials (ADC)](https://docs.cloud.google.com/docs/authentication/application-default-credentials): פרטי ADC מקומיים אם קיימים, אחרת חשבון השירות או זהות עומס העבודה המחוברים דרך שרת המטא-נתונים. גילוי פרטי הגישה מתבצע רק כשצריך: `tools`, `schema` והעזרה פועלים בלי לקבל אסימון. קריאת OAuth דורשת פרויקט מכסה ופרטי גישה תקינים.
+
+לפיתוח מקומי באמצעות התחזות לחשבון שירות, הפעילו IAM Credentials API והעניקו לחשבון המפתח את התפקיד Token Creator בחשבון השירות, ואז צרו פרטי ADC מקומיים:
+
+```sh
+gcloud services enable iamcredentials.googleapis.com --project="$PROJECT_ID"
+gcloud iam service-accounts add-iam-policy-binding "$SA_EMAIL" \
+  --project="$PROJECT_ID" --member='user:you@example.com' \
+  --role='roles/iam.serviceAccountTokenCreator'
+unset GOOGLE_APPLICATION_CREDENTIALS
+gcloud auth application-default login --impersonate-service-account="$SA_EMAIL"
+export GOOGLE_MAPS_AUTH_MODE=oauth
+export GOOGLE_CLOUD_QUOTA_PROJECT="$PROJECT_ID"
+```
+
+כך משתמשים באסימון קצר טווח של חשבון השירות לקריאות Maps בלי להוריד את המפתח הפרטי שלו. ראו [התחזות לחשבון שירות](https://docs.cloud.google.com/iam/docs/service-account-impersonation).
+
+### ג. Kubernetes וזהות עומס עבודה ב-GKE {#c-kubernetes-and-gke-workload-identity}
+
+ב-Kubernetes כללי, התקינו את קובץ ה-JSON כקובץ Secret והגדירו את שלושת משתני OAuth שבאפשרות א. הקובץ חייב להיות קריא ל-UID 10001 של הקונטיינר. התקינו אותו לקריאה בלבד ושמרו את `MCP_HTTP_TOKEN` ב-Secret נפרד בזמן הריצה. [מדריך הפריסה](./deployment) מסביר את ה-Deployment הבסיסי.
+
+ב-GKE העדיפו [Workload Identity Federation for GKE](https://docs.cloud.google.com/kubernetes-engine/docs/how-to/workload-identity) עם Kubernetes ServiceAccount המקושר לחשבון שירות של IAM. הפעילו זאת קודם באשכול ובמאגר הצמתים (Autopilot כבר מפעיל זאת), ואז:
+
+```sh
+gcloud services enable iamcredentials.googleapis.com --project="$PROJECT_ID"
+kubectl create serviceaccount mcp-gmap-rs --namespace default
+gcloud iam service-accounts add-iam-policy-binding "$SA_EMAIL" \
+  --project="$PROJECT_ID" --role='roles/iam.workloadIdentityUser' \
+  --member="serviceAccount:${PROJECT_ID}.svc.id.goog[default/mcp-gmap-rs]"
+kubectl annotate serviceaccount mcp-gmap-rs --namespace default \
+  "iam.gke.io/gcp-service-account=${SA_EMAIL}"
+kubectl patch deployment mcp-gmap-rs --namespace default --type=merge \
+  -p '{"spec":{"template":{"spec":{"serviceAccountName":"mcp-gmap-rs"}}}}'
+kubectl set env deployment/mcp-gmap-rs --namespace default \
+  GOOGLE_MAPS_AUTH_MODE=oauth GOOGLE_CLOUD_QUOTA_PROJECT="$PROJECT_ID"
+```
+
+פקודות אלה מניחות שהאשכול וחשבון IAM נמצאים ב-`PROJECT_ID` ושה-Deployment הבסיסי ב-`default`. התאימו את שמות הפרויקט ומרחב השמות להתקנה. אל תגדירו `GOOGLE_APPLICATION_CREDENTIALS` בזרימת מטא-נתונים זו. ה-Pod מקבל אסימונים משרת המטא-נתונים של GKE. מחוץ ל-GKE אפשר להשתמש בתצורת `external_account` ובאסימון זהות מוקרן של הספק במסגרת Workload Identity Federation של Google.
+
+להפעלה ב-OAuth בלבד, הסירו את מפתח Google API מה-Secret בזמן הריצה והפעילו רק כלים וקלטים שקריאותיהם נשארות בממשקים התומכים ב-OAuth. השאירו מפתח כשמשתמשים בנקודות הקצה התומכות רק במפתח שבטבלה או בתהליכים משולבים הזקוקים להן. כשלי OAuth מדווחים במפורש ואינם עוברים בשקט למפתח.
+
+## אימות ופתרון בעיות {#verify-and-troubleshoot}
+
+```sh
+mcp-gmap-rs --auth-mode oauth search-places --query 'coffee in Paris'
+mcp-gmap-rs --auth-mode oauth weather --latitude 48.8584 --longitude 2.2945
+```
+
+אלה קריאות אמיתיות העשויות להיות כרוכות בתשלום. בדקו את המצב האפקטיבי ואת פרויקט המכסה בבדיקה; חיוב OAuth משתמש ב-`GOOGLE_CLOUD_QUOTA_PROJECT`, ואילו קריאות עם מפתח משתמשות בפרויקט המפתח. הפרויקטים עשויים להיות שונים.
+
+השתמשו ב-`mcp-gmap-rs doctor` לבדיקות תצורה לא מקוונות, או ב-`doctor --live` לבדיקות API חיות הכרוכות בתשלום. [מדריך הייצור](./production) מתאר את הדוח וסינון הכלים.
+
+לאחר ייצוא משתני OAuth, הריצו את שש בדיקות הקבלה החיות האופציונליות:
+
+```sh
+cargo test --locked --test live live_oauth_ -- --ignored --test-threads=1
+```
+
+בדיקות אלה מסירות במפורש את מפתח ה-API מכל תהליך משנה, ולכן הצלחה בודקת בפועל OAuth. הן מכסות Places, Routes, Weather, Air Quality, Address Validation ו-Places Aggregate ודורשות שממשקי API אלה יופעלו. הן אינן טוענות `.env`; ייצאו את הגדרות OAuth או הריצו בעומס עבודה מוגדר. בדיקות רגילות ו-CI משתמשות בנתוני דמה מקומיים של אסימונים וממשקים, ואינן דורשות חשבון שירות או חיבור ל-Google.
+
+| תסמין | בדיקה |
+| --- | --- |
+| `GOOGLE_MAPS_API_KEY is required` | הפעולה מגיעה לנקודת קצה התומכת רק במפתח, או שנבחר מצב מפתח API. |
+| אימות OAuth נכשל | בדקו נתיב וסוג פרטי גישה, תוקף מפתח, קישור זהות או התחזות, IAM Credentials API אם רלוונטי, קישוריות לנקודת האסימונים ודיוק שעון. שגיאות היישום אינן כוללות פרטי גישה או אסימונים. |
+| `GOOGLE_CLOUD_QUOTA_PROJECT is required` | הגדירו מזהה או מספר של פרויקט צרכן Maps לקריאות OAuth. |
+| Google `403` / API לא פעיל | הפעילו את השירות המדויק בפרויקט הצרכן ובדקו חיוב והרשאת Service Usage. |
+| דחיית IP במפתח API | התאימו הגבלות לכתובת היציאה הציבורית של השרת או האשכול. |
+| פג תוקף ההמתנה לאסימון | אפשרו גישה לנקודות האסימון, STS ו-IAM של Google או לשרת המטא-נתונים של עומס העבודה; בדקו `GOOGLE_MAPS_TIMEOUT`. |
+| HTTP `401` משרת MCP זה | שלחו את `MCP_HTTP_TOKEN` שלו; אסימוני חשבון שירות של Google מאמתים חיבור יוצא נפרד. |
+
+
+<!-- https://fcenedes.github.io/mcp-gmap-rs/he/guide/cli -->
+
+# ממשק שורת הפקודה
+
+השתמשו ב-CLI לשאילתות חד-פעמיות, לאוטומציה במעטפת ולהפעלת תהליכי משנה מובנית. כל כלי משתף את סכמת הקלט ואת המימוש עם MCP.
+
+## גילוי הממשק המותקן {#discover-the-installed-interface}
+
+```sh
+mcp-gmap-rs --version
+mcp-gmap-rs --help
+mcp-gmap-rs tools
+mcp-gmap-rs schema search-nearby
+mcp-gmap-rs search-nearby --help
+```
+
+`tools` מציג את הכלים המופעלים ואת הסכמות שלהם. בדקו את הגרסה המותקנת במקום להניח שכל יכולות המדריך החדש זמינות. הפעלה ללא תת-פקודה מפעילה את שרת stdio, ולכן באוטומציה חד-פעמית יש תמיד לציין פקודה.
+
+## אפשרויות או JSON משותף {#flags-or-shared-json}
+
+פקודות הכלים משתמשות באפשרויות kebab-case; אובייקטים ומערכים נמסרים כ-JSON. אפשרויות בוליאניות מקבלות `true` או `false`, ואפשרות בוליאנית ללא ערך פירושה `true`.
+
+```sh
+mcp-gmap-rs search-nearby \
+  --center '{"value":"48.8584,2.2945","isCoordinates":true}' \
+  --keyword cafe --radius 500 --open-now
+```
+
+ממשק `call` הכללי מקבל שם לוגי של כלי MCP או שם פקודת CLI, ומשתמש באותו אובייקט ארגומנטים של MCP:
+
+```sh
+mcp-gmap-rs call maps_geocode --args '{"address":"Paris, France"}'
+printf '%s' '{"address":"Paris, France"}' | mcp-gmap-rs call geocode --args -
+```
+
+כשמפעילים תהליך משנה מקוד, העבירו JSON מסודר כארגומנט נפרד. הימנעו משילוב טקסט לא מהימן במחרוזות פקודות מעטפת. לפרמטרים ברמה העליונה יש אפשרויות; שדות מקוננים נשארים באובייקטי JSON.
+
+## פלט וטיפול בכשלים {#output-and-failure-handling}
+
+תוצאות רגילות הן JSON ב-stdout. שגיאות נכתבות ל-stderr ומחזירות קוד יציאה שאינו אפס. `doctor` כותב את דוח ה-JSON ל-stdout גם כשהבדיקות נכשלות. תוצאות אצווה, מטריצה ופעולות משולבות עשויות לכלול שגיאות לכל פריט גם אם הפקודה הסתיימה בהצלחה; בדקו אותן לפני שמחשיבים את כל הפעולה למושלמת.
+
+```sh
+mcp-gmap-rs place-details --place-id ChIJLU7jZClu5kcR4PcOOO6p3I0 --output place.json
+mcp-gmap-rs static-map --center Paris --zoom 12 --output paris.png
+```
+
+`--output` כותב JSON לכלים רגילים ו-PNG גולמי למפה סטטית. בלעדיו, פלט המפה הסטטית ב-CLI מכיל base64. זמנים משתמשים בדרך כלל ב-RFC 3339 עם אזור זמן מפורש; `timestamp` האופציונלי של Time Zone משתמש ב**מילישניות** Unix. ראו [כל הכלים והדוגמאות](../reference/tools).
+
+
+<!-- https://fcenedes.github.io/mcp-gmap-rs/he/guide/configuration -->
+
+# תצורה
+
+CLI ושתי תעבורות MCP משתמשים באותה תצורת הפעלה. בחרו קובץ לעבודה מקומית, הזרקת משתני סביבה לקונטיינרים ואפשרויות לעקיפות מפורשות ברמת התהליך.
+
+## סדר קדימויות {#precedence}
+
+הערכים מוחלים בסדר הבא, כששכבות מאוחרות גוברות על קודמות:
+
+**ברירות מחדל מובנות → קובץ dotenv אופציונלי → סביבת התהליך → אפשרויות CLI**
+
+קובץ ברירת המחדל הוא `.env` בתיקיית העבודה הנוכחית. אין חיפוש בתיקיות אב. היעדר קובץ ברירת המחדל מותר; קובץ לא קריא או לא תקין מכשיל את ההפעלה בלי להדפיס את תוכנו.
+
+```sh
+mcp-gmap-rs --env-file /etc/mcp-gmap/runtime.env serve http
+mcp-gmap-rs --no-env-file tools
+```
+
+גם `MCP_ENV_FILE` בוחר קובץ, אך `--env-file` גובר עליו. קובץ שנבחר במפורש חייב להתקיים. `--no-env-file` מבטל טעינת קובץ, לרבות `MCP_ENV_FILE`, ומתנגש עם `--env-file`. ניתוח dotenv אינו משנה את סביבת התהליך.
+
+## עקיפת תצורה מותקנת {#override-a-mounted-configuration}
+
+```dotenv
+GOOGLE_MAPS_LANGUAGE=en
+GOOGLE_MAPS_TIMEOUT=30
+GOOGLE_MAPS_ENABLED_TOOLS=maps_search_places,maps_place_details
+```
+
+כשהקובץ מותקן, משתנה סביבה משנה את השפה ואפשרות משנה את פסק הזמן:
+
+```sh
+GOOGLE_MAPS_LANGUAGE=fr mcp-gmap-rs \
+  --env-file /etc/mcp-gmap/runtime.env --timeout 15 tools
+```
+
+אפשרויות `--allowed-host` ו-`--allowed-origin` חוזרות מחליפות את כל הרשימה המקבילה בקובץ או בסביבה. גם ערך סביבה ריק במפורש גובר על הקובץ: הוא יכול לנקות אסימון או רשימה אופציונליים, אך פסק זמן ריק אינו תקין.
+
+## שליטה בכלים הזמינים {#control-the-tool-surface}
+
+`GOOGLE_MAPS_ENABLED_TOOLS` או `--enabled-tools` מקבל שמות לוגיים מופרדים בפסיקים כגון `maps_weather,maps_air_quality`, או `*` לכל הכלים. שמות לא מוכרים מכשילים הפעלה. כלים מושבתים אינם מופיעים בגילוי ואי אפשר לקרוא להם. גילוי ובדיקת סכמות אינם דורשים פרטי גישה, אך פעולת API דורשת את פרטי הגישה המתאימים של Google.
+
+הגדרות היישום נקראות בהפעלה. הפעילו מחדש לאחר שינוי משתני סביבה, JSON של פרטי גישה או Secret/ConfigMap של Kubernetes. קובצי תעודת TLS מובנית, המפתח ו-CA ללקוחות הם חריג: הם תומכים ב[טעינה מחדש ב-SIGHUP](./production#native-tls-and-mutual-tls).
+
+ראו [מפרט התצורה המלא](../reference/configuration) לכל 21 ההגדרות, ברירות המחדל, האפשרויות והטווחים. בחירת שפת האתר אינה משנה את `GOOGLE_MAPS_LANGUAGE`, השולט בטקסט התשובות של Google.
+
+
+<!-- https://fcenedes.github.io/mcp-gmap-rs/he/guide/deployment -->
+
+# פריסה
+
+ליצירת מפתח Google API, להפעלת הממשקים ול-OAuth של חשבון שירות, עקבו אחר [מדריך Google Cloud](./google-cloud). אותן שכבות תצורה פועלות בקונטיינרים. OAuth יכול להשתמש בקובץ JSON מותקן או בזהות ADC של עומס העבודה; פרטי הגישה מסופקים בזמן הריצה.
+
+הורידו או שכפלו את [מאגר המקור](https://github.com/fcenedes/mcp-gmap-rs), ובנו מתיקיית השורש:
+
+```sh
+docker build -t mcp-gmap-rs:local .
+```
+
+ה-Dockerfile הרב-שלבי מקמפל עם Rust 1.94.1 וקובץ הנעילה. סביבת הריצה כוללת קובץ הפעלה, תעודות CA של Debian ורישיונות, פועלת כ-UID/GID 10001 ותומכת במערכת קבצים לקריאה בלבד. הקשר הבנייה המבוסס על רשימת היתר אינו כולל קובצי `.env` מקומיים, נתוני Git או פלט בנייה. הבנייה אינה דורשת פרטי גישה. BuildKit שומר הורדות Cargo ופלט בנייה במטמון לבניות הבאות.
+
+אותו Dockerfile נבנה באופן טבעי ב-Linux amd64 ו-arm64. כדי לבנות את שניהם ולדחוף למאגר התמונות שלכם באמצעות בונה Buildx מוגדר:
+
+```sh
+docker buildx build --platform linux/amd64,linux/arm64 \
+  -t registry.example.com/your-team/mcp-gmap-rs:YOUR_VERSION --push .
+```
+
+פרסום למאגר תמונות אינו מוגדר אוטומטית. החליפו שמות תמונות וגרסאות בתמונה שבניתם או פרסמתם.
+
+## הפעלת HTTP, CLI או stdio {#run-http-cli-or-stdio}
+
+ברירת המחדל של התמונה היא `serve http` ב-`0.0.0.0:3000`. ספקו אסימון bearer בזמן הריצה, למשל באותו פורמט `.env` המופיע ב-`.env.example`:
+
+```sh
+docker run --rm --read-only --cap-drop ALL --security-opt no-new-privileges \
+  --env-file .env -p 127.0.0.1:3000:3000 mcp-gmap-rs:local
+```
+
+ודאו ש-`.env` כולל `MCP_HTTP_TOKEN`, הנדרש כי הקונטיינר מאזין מחוץ ל-loopback. קריאות Google משתמשות ב-`GOOGLE_MAPS_API_KEY` או בהגדרות OAuth ובהתקנות פרטי הגישה שבמדריך, לפי הכלים המופעלים. הלקוחות משתמשים ב-`http://127.0.0.1:3000/mcp` וב-`Authorization: Bearer <token>`. `GET /health` אינו דורש אסימון ואינו פונה ל-Google.
+
+`--env-file` של Docker מזריק משתני סביבה. כדי להפעיל במקום זאת את טוען הקבצים של היישום, התקינו קובץ קריא ובחרו בו:
+
+```sh
+docker run --rm --read-only \
+  --mount type=bind,src="$(pwd)/.env",dst=/etc/mcp-gmap/runtime.env,readonly \
+  -e GOOGLE_MAPS_LANGUAGE=fr -p 127.0.0.1:3000:3000 \
+  mcp-gmap-rs:local --env-file /etc/mcp-gmap/runtime.env serve http
+```
+
+הסביבה גוברת על ערכי הקובץ המותקן, ואפשרויות CLI גוברות על שניהם. גם `MCP_HTTP_LISTEN=0.0.0.0:3000` שבתמונה הוא משתנה סביבה; שנו אותו עם `-e MCP_HTTP_LISTEN=...` או `--listen` לפי הצורך. לשימוש במשתני סביבה בלבד, העבירו `--no-env-file serve http`.
+
+החליפו את פקודת התמונה לשימוש ב-CLI או ב-stdio:
+
+```sh
+docker run --rm mcp-gmap-rs:local tools
+docker run --rm --env-file .env mcp-gmap-rs:local geocode --address Paris
+docker run --rm -i --env-file .env mcp-gmap-rs:local serve stdio
+```
+
+השתמשו ב-`-i` עבור stdio בלי להקצות TTY. לכתיבת קובצי פלט CLI, התקינו תיקייה הניתנת לכתיבה בידי UID 10001 והשתמשו ב-`--output` בתוכה.
+
+## Kubernetes {#kubernetes}
+
+[קובץ Kubernetes הבסיסי](https://github.com/fcenedes/mcp-gmap-rs/blob/main/deploy/kubernetes.yaml) מספק הגדרות לא סודיות דרך ConfigMap ופרטי גישה דרך Secret קיים בשם `mcp-gmap-rs`. צרו Secret זה מקובץ מקומי המכיל `GOOGLE_MAPS_API_KEY` ו-`MCP_HTTP_TOKEN` (הקובץ אינו נשמר ב-Git):
+
+```sh
+kubectl create secret generic mcp-gmap-rs --from-env-file=/secure/credentials.env
+```
+
+החליפו את `mcp-gmap-rs:local` ב-Deployment בתמונה מהמאגר שלכם, או טענו את התמונה המקומית לאשכול הפיתוח. לאחר מכן החילו את הדוגמה:
+
+```sh
+kubectl apply -f deploy/kubernetes.yaml
+kubectl rollout status deployment/mcp-gmap-rs
+kubectl port-forward service/mcp-gmap-rs 3000:3000
+```
+
+הדוגמה מיועדת למרחב השמות `default`. התאימו שמות DNS של שירותים כשמשתמשים במרחב שמות אחר או ב-ingress. שירות ClusterIP פרטי לאשכול; השתמשו ב-ingress או ב-proxy עם TLS עבור לקוחות מרוחקים, תוך העברת Host הרשום ב-`MCP_HTTP_ALLOWED_HOSTS`, הרשאות וכותרות MCP/SSE. הוסיפו מקורות דפדפן מפורשים, כולל פורטים, לפי הצורך.
+
+הפריסה משתמשת ב-`--no-env-file` כי כל התצורה מוזרקת דרך `envFrom`. לחלופין, התקינו Secret המכיל קובץ dotenv, הסירו את האפשרות והגדירו `args: ["--env-file", "/etc/mcp-gmap/runtime.env", "serve", "http"]`. הקובץ המוקרן חייב להיות קריא ל-UID 10001; משתני סביבה מ-Secrets או ConfigMaps עדיין גוברים עליו. ראו בתיעוד Kubernetes על [הזרקת סביבה](https://kubernetes.io/docs/tasks/inject-data-application/define-environment-variable-container/) ו[אמצעי אחסון Secret](https://kubernetes.io/docs/concepts/configuration/secret/).
+
+תצורת היישום נקראת בהפעלה. הפעילו מחדש Pods לאחר שינוי ערכי Secret/ConfigMap; קובצי TLS מובנה תומכים גם בטעינה מחדש ב-SIGHUP. בדיקות משתמשות ב-`/health` לזמינות HTTP; Pod בריא אינו מוכיח ש-Google API מופעל או שפרטי הגישה מורשים. קריאות Google דורשות HTTPS יוצא ו-DNS תקין. הגבלות המפתח חייבות להתיר את כתובת היציאה הציבורית של האשכול; OAuth דורש גישה לנקודות האסימון והזהות.
+
+השאירו עותק אחד עבור מאגר סשני MCP ברירת המחדל שבזיכרון. מספר עותקים דורש שיוך סשנים כדי שכל סשן יגיע ל-Pod שלו; הפעלות מחדש מדורגות מאבדות סשנים והלקוחות חייבים להתחבר מחדש. בקשות ומגבלות המשאבים בדוגמה הן ערכי התחלה להתאמה לעומס העבודה.
+
+SIGTERM מפעיל כיבוי מסודר של MCP/HTTP; Kubernetes מאפשר 30 שניות בדוגמה. התמונה פועלת גם ללא capabilities וללא אפשרות להסלמת הרשאות.
+
+## HTTPS, מדדים ומגבלות בייצור {#production-https-metrics-and-limits}
+
+[מדריך הייצור](./production) מכסה TLS/mTLS מובנה, טעינת תעודות, שער HTTPS אופציונלי `deploy/gateway.yaml`, מדדים, תקציבי בקשות, הגבלת קצב HTTP, יומני JSON ובדיקות `doctor` לא מקוונות וחיות. העבירו את אותן אפשרויות TLS אחרי שם התמונה, או הזריקו `MCP_TLS_CERT`, `MCP_TLS_KEY` ו-`MCP_TLS_CLIENT_CA` האופציונלי עם קובצי PEM לקריאה בלבד. שמרו מפתחות אמיתיים מחוץ לתמונה. ConfigMap ברירת המחדל מגדיר מגבלות בקשות ורישום JSON; מדדים כבויים עד הפעלה מפורשת. שירות HTTP ברירת המחדל מיועד למקטע הפרטי בין השער ל-Pod.
+
+## פרטי גישה של OAuth בקונטיינר {#oauth-credentials-in-a-container}
+
+עבור קובץ JSON של חשבון שירות, התקינו אותו לקריאה בלבד והגדירו את הנתיב בתוך הקונטיינר, לא את הנתיב במארח:
+
+```sh
+docker run --rm --read-only --env-file /secure/oauth.env \
+  --mount type=bind,src=/secure/service-account.json,dst=/credentials/service-account.json,readonly \
+  -p 127.0.0.1:3000:3000 mcp-gmap-rs:local
+```
+
+קובץ סביבת OAuth מגדיר `GOOGLE_MAPS_AUTH_MODE=oauth`, `GOOGLE_APPLICATION_CREDENTIALS=/credentials/service-account.json`, `GOOGLE_CLOUD_QUOTA_PROJECT=your-project-id` ו-`MCP_HTTP_TOKEN`. UID 10001 חייב לקרוא את הקובץ המותקן. השאירו מפתח API רק לכלים הדורשים נקודות קצה התומכות במפתח בלבד. ב-GKE השתמשו ב[הוראות זהות עומס העבודה](./authentication#c-kubernetes-and-gke-workload-identity) במקום להתקין מפתח ארוך טווח.
+
+
+<!-- https://fcenedes.github.io/mcp-gmap-rs/he/guide/development -->
+
+# פיתוח וגרסאות
+
+סביבת הריצה היא פרויקט Rust עצמאי. CLI, MCP stdio ו-Streamable HTTP משתפים מימושי כלים. אתר התיעוד הוא כלי עריכה ובנייה נפרד; משתמשי הקצה זקוקים רק לקובץ ההפעלה המקומפל.
+
+## בנייה ובדיקה {#build-and-check}
+
+שכפלו את [המאגר](https://github.com/fcenedes/mcp-gmap-rs) והשתמשו בקובץ הנעילה שלו:
+
+```sh
+cargo fmt --check
+cargo clippy --all-targets --all-features --locked -- -D warnings
+cargo test --all-targets --all-features --locked
+cargo test --doc --all-features --locked
+cargo build --release --locked
+```
+
+גרסת המינימום המוצהרת היא Rust 1.88; קובצי ההפעלה להפצה נבנים עם Rust 1.94.1. בדיקות ברירת המחדל משתמשות בנתוני דמה מקומיים של Google ואסימונים, ללא פרטי גישה או רשת ל-Google. CI בודק גם Linux/macOS, גרסת Rust המינימלית, rustdoc יציב ולילי, חבילת מקור, בדיקות Docker/MCP/TLS וקובצי Kubernetes.
+
+לאחר בדיקה מקומית, `cargo clean` מפנה פלט בנייה שנוצר; בניות הבאות יקמפלו אותו מחדש.
+
+## שמירה על מפרט מלא {#keep-the-reference-complete}
+
+מדריך הכלים הקנוני משלב סכמות אמיתיות מקובץ ההפעלה עם ברירות מחדל, תוצאות והערות התנהגות שנבדקו:
+
+```sh
+python3 .github/scripts/tool-reference.py --binary /path/to/mcp-gmap-rs
+python3 .github/scripts/tool-reference.py --binary /path/to/mcp-gmap-rs --check --verify-examples
+```
+
+הבודק מסיר פרטי גישה, מבטל טעינת dotenv ומאמת את כל הדוגמאות בגבול היעדר המפתח בלי לפנות ל-Google. עדכנו את הערות ה-JSON שנבדקו כשפרמטרים או התנהגות משתנים.
+
+בדיקות חיות הן אופציונליות ועשויות להיות כרוכות בתשלום. עם מפתח בדיקה שהוגדר במפורש, הריצו `cargo test --locked --test live live_maps_ -- --ignored --test-threads=1`. שש בדיקות OAuth משתמשות במסנן `live_oauth_` ומסירות את המפתח מתהליכי המשנה. אין לשמור פרטי גישה במאגר או להפעיל בדיקות חיות ב-CI רגיל.
+
+## פרסום גרסה {#publish-a-version}
+
+עדכנו יחד את גרסת Cargo, קובץ הנעילה, יומן השינויים, דוגמאות ההתקנה והערות הגרסה. דחפו והמתינו ל-CI, ואז צרו תג מתועד תואם `vX.Y.Z`. תהליך Release בודק את התג המדויק, בונה שלושה יעדים טבעיים, מאמת ארכיונים וסכומי ביקורת ומפרסם את הטיוטה המוכנה.
+
+תהליך **Publish crate** הנפרד דורש את גרסת GitHub שכבר פורסמה. הפעילו אותו עבור אותו תג. שמרו `CARGO_REGISTRY_TOKEN` בעל היקף מוגבל בסביבת GitHub בשם `crates-io`, ולא במאגר. docs.rs נבנה אוטומטית אחרי פרסום ל-crates.io; גרסת GitHub בלבד אינה מעדכנת תיעוד Rust מתארח. בדקו את הבנייה המתארחת בפועל לאחר העלאה.
+
+ראו [נוהלי שחרור](https://github.com/fcenedes/mcp-gmap-rs/blob/main/docs/releases.md), [רישום הבדיקות](https://github.com/fcenedes/mcp-gmap-rs/blob/main/docs/validation.md) ו[נקודת הכניסה הציבורית ל-Rust](https://docs.rs/mcp-gmap-rs/latest/mcp_gmap_rs/fn.run.html).
+
+
+<!-- https://fcenedes.github.io/mcp-gmap-rs/he/guide/getting-started -->
+
+# תחילת העבודה
+
+התקינו קובץ הפעלה אחד, הגדירו גישה ל-Google והשתמשו באותם 23 כלים מהמסוף או מלקוח MCP. מדריך זה מתאר את v0.3.1.
+
+## התקנה {#install}
+
+קובצי הפעלה מוכנים ל-Linux x86_64, macOS Apple Silicon ו-macOS Intel זמינים ב-[GitHub Releases](https://github.com/fcenedes/mcp-gmap-rs/releases). הורידו את הארכיון המתאים, אמתו מול `SHA256SUMS`, חלצו ומקמו את `mcp-gmap-rs` ב-`PATH`. קובצי Linux דורשים glibc 2.35 ומעלה. קובצי macOS אינם חתומים או מאושרי notarization.
+
+עם Rust 1.88 ומעלה, התקינו מ-crates.io:
+
+```sh
+cargo install mcp-gmap-rs --version 0.3.1 --locked
+mcp-gmap-rs --version
+```
+
+לא נדרשת סביבת ריצה של Rust, Python או JavaScript אחרי בניית קובץ ההפעלה. המארח זקוק לתעודות CA, ל-DNS ולגישת HTTPS יוצאת ל-Google.
+
+## הגדרת גישה {#configure-access}
+
+[צרו מפתח מוגבל והפעילו שירותים](./google-cloud), או הגדירו [OAuth לחשבון שירות](./authentication). שמרו פרטי גישה בקובץ `.env` המוחרג מ-Git בתיקיית העבודה:
+
+```dotenv
+GOOGLE_MAPS_AUTH_MODE=api-key
+GOOGLE_MAPS_API_KEY=your-restricted-api-key
+```
+
+משתני הסביבה גוברים על הקובץ. שמרו פרטי גישה מחוץ לבקרת המקור ולשכבות התמונה. תיקיית העבודה חשובה: אין חיפוש אחר `.env` בתיקיות אב.
+
+## גילוי, בדיקה וקריאה {#discover-check-call}
+
+גילוי ואבחון לא מקוון אינם שולחים בקשות ל-Google:
+
+```sh
+mcp-gmap-rs tools
+mcp-gmap-rs schema search-places
+mcp-gmap-rs doctor
+```
+
+לאחר מכן בצעו קריאה ראשונה העשויה להיות כרוכה בתשלום:
+
+```sh
+mcp-gmap-rs search-places --query 'coffee near Gare de Lyon, Paris'
+```
+
+התוצאה היא JSON. שמרו מזהי מקומות שהוחזרו לפרטים בהמשך במקום לפתור שוב ושוב את אותם שמות. קראו [שימוש ב-CLI](./cli) לאוטומציה או [שילוב MCP](./mcp) לחיבור סוכן. [המתכונים](./recipes) מראים איך לשלב כלים; [המפרט המלא](../reference/tools) מתעד כל פרמטר, ברירת מחדל ותוצאה.
+
+
+<!-- https://fcenedes.github.io/mcp-gmap-rs/he/guide/google-cloud -->
+
+# הגדרת Google Cloud
+
+קובץ ההפעלה מאמת **קריאות יוצאות ל-Google** באמצעות מפתח API או פרטי OAuth 2.0. `MCP_HTTP_TOKEN` מאמת בנפרד לקוחות שמתחברים לשרת MCP HTTP שלכם; בחירה ב-Google OAuth אינה מחליפה אותו.
+
+## הפעלת שירותים וחיוב {#enable-services-and-billing}
+
+ב[מסוף Google Cloud](https://console.cloud.google.com/), בחרו או צרו פרויקט וקשרו חשבון חיוב פעיל תחת **Billing**. הפעילו ממשקים נדרשים תחת **APIs & Services → Library**. הפעלת API והתרתו בהגבלות מפתח הן פעולות נפרדות. קריאות עשויות להיות כרוכות בתשלום.
+
+הטבלה הבאה מתארת את נקודות הקצה המשמשות בגרסה זו:
+
+| Google API | שירות להפעלה | אימות בשימוש כאן |
+| --- | --- | --- |
+| [Places API (New)](https://developers.google.com/maps/documentation/places/web-service/get-api-key) | `places.googleapis.com` | מפתח API או OAuth |
+| [Routes API](https://developers.google.com/maps/documentation/routes/get-api-key) | `routes.googleapis.com` | מפתח API או OAuth |
+| [Weather API](https://developers.google.com/maps/documentation/weather/get-api-key) | `weather.googleapis.com` | מפתח API או OAuth |
+| [Air Quality API](https://developers.google.com/maps/documentation/air-quality/get-api-key) | `airquality.googleapis.com` | מפתח API או OAuth |
+| [Address Validation API](https://developers.google.com/maps/documentation/address-validation/get-api-key) | `addressvalidation.googleapis.com` | מפתח API או OAuth |
+| [Places Aggregate API](https://developers.google.com/maps/documentation/places-aggregate/get-api-key) | `areainsights.googleapis.com` | מפתח API או OAuth |
+| [Pollen API](https://developers.google.com/maps/documentation/pollen/get-api-key) | `pollen.googleapis.com` | מפתח API |
+| [Roads API](https://developers.google.com/maps/documentation/roads/get-api-key) | `roads.googleapis.com` | מפתח API |
+| [Geocoding API v3](https://developers.google.com/maps/documentation/geocoding/guides-v3/get-api-key) | `geocoding-backend.googleapis.com` | מפתח API |
+| [Elevation API](https://developers.google.com/maps/documentation/elevation/get-api-key) | `elevation-backend.googleapis.com` | מפתח API |
+| [Time Zone API](https://developers.google.com/maps/documentation/timezone/get-api-key) | `timezone-backend.googleapis.com` | מפתח API |
+| [Maps Static API](https://developers.google.com/maps/documentation/maps-static/get-api-key) | `static-maps-backend.googleapis.com` | מפתח API |
+
+להפעלת כל שנים-עשר השירותים עם חשבון מנהל המחובר ל-`gcloud`:
+
+```sh
+export PROJECT_ID='your-project-id'
+gcloud services enable --project="$PROJECT_ID" \
+  places.googleapis.com routes.googleapis.com \
+  weather.googleapis.com airquality.googleapis.com \
+  geocoding-backend.googleapis.com elevation-backend.googleapis.com \
+  timezone-backend.googleapis.com static-maps-backend.googleapis.com \
+  addressvalidation.googleapis.com areainsights.googleapis.com \
+  pollen.googleapis.com roads.googleapis.com
+```
+
+כלי CLI בשם `directions` ו-`distance-matrix` משתמשים ב-**Routes API**, ולכן אינם דורשים את ממשקי Directions ו-Distance Matrix הישנים. הפרויקט עדיין משתמש ב-Geocoding v3; [תמיכת OAuth ב-Geocoding v4 של Google](https://developers.google.com/maps/documentation/geocoding/geocoding-v4-overview) אינה משנה את האימות של קריאות v3. כלים משולבים עשויים לקרוא לכמה ממשקים. פתרון שם מקום או מנגנון גיבוי עשויים לדרוש Geocoding גם כשהפעולה המרכזית משתמשת ב-Places או Routes. השתמשו בקואורדינטות כדי להימנע מתלות זו, או השאירו מפתח מוגבל לנקודות התומכות רק במפתח.
+
+## יצירת מפתח API מוגבל {#create-a-restricted-api-key}
+
+1. פתחו [Google Maps Platform → Keys & Credentials](https://console.cloud.google.com/google/maps-apis/credentials) בפרויקט הנבחר ובחרו **Create credentials → API key**.
+2. בחרו רק בממשקים מהטבלה שהמופע ישתמש בהם. למפתח קיים ערכו את הגבלות ה-API ושמרו.
+3. הגדירו את הגבלת היישום ל-**IP addresses** עבור יישום צד שרת זה. התירו את כתובות היציאה הציבוריות ש-Google תראה. כתובות Pod או כתובות פרטיות של Kubernetes בדרך כלל אינן כתובת המקור הציבורית; Cloud NAT קבוע או כתובת יציאה אחרת הופכים את ההגבלה לצפויה.
+4. שמרו את המפתח ב-`.env` מוחרג, בהזרקת סביבה או ב-Kubernetes Secret. ראו [הנחיות Google להגבלת מפתחות](https://developers.google.com/maps/api-security-best-practices#restrict-your-api-keys).
+
+דוגמת `.env`:
+
+```dotenv
+GOOGLE_MAPS_AUTH_MODE=api-key
+GOOGLE_MAPS_API_KEY=your-restricted-api-key
+```
+
+`api-key` הוא ברירת המחדל. ציון נתיב לחשבון שירות בלבד אינו משנה את מצב האימות. גילוי אינו פונה ל-Google; השתמשו בקריאה אמיתית לאימות חיוב הפרויקט, הפעלת ממשקים והגבלות:
+
+```sh
+mcp-gmap-rs geocode --address 'Paris, France'
+```
+
+
+## הצעדים הבאים {#next-steps}
+
+עבור JSON של חשבון שירות, ADC, התחזות מקומית וזהות GKE, עקבו אחר [אימות זהות](./authentication). לאחר מכן בחרו [CLI](./cli) או [MCP](./mcp). [מפרט הכלים](../reference/tools) מציין את דרישות פרטי הגישה של כל כלי.
+
+
+<!-- https://fcenedes.github.io/mcp-gmap-rs/he/guide/mcp -->
+
+# שילוב MCP
+
+חברו מארח MCP דרך stdio לתהליך משנה מקומי או דרך Streamable HTTP לשירות ארוך טווח. שניהם מציגים אותו קטלוג של כלים מופעלים וסכמות.
+
+## stdio מקומי {#local-stdio}
+
+תצורת לקוח MCP כללית:
+
+```json
+{
+  "mcpServers": {
+    "google-maps": {
+      "command": "/absolute/path/to/mcp-gmap-rs",
+      "args": ["--env-file", "/secure/mcp-gmap/runtime.env", "serve", "stdio"]
+    }
+  }
+}
+```
+
+השתמשו בפורמט ההגדרות של המארח ובנתיב מוחלט לקובץ ההפעלה. קובץ dotenv הנבחר חייב להתקיים. לחלופין אפשר להזריק משתני סביבה מהמארח. זו תצורת שרת MCP עצמאי; אין צורך בתוסף ריצה ייעודי לעוזר מסוים.
+
+```sh
+mcp-gmap-rs serve stdio
+```
+
+stdin ו-stdout נושאים רק הודעות MCP JSON-RPC מופרדות בשורות. אבחון נכתב ל-stderr. הפעלת הקובץ ללא ארגומנטים מפעילה אותה תעבורה. מארח stdio בקונטיינר חייב לחבר stdin בלי להקצות TTY.
+
+## Streamable HTTP {#streamable-http}
+
+```sh
+mcp-gmap-rs serve http --listen 127.0.0.1:3000
+```
+
+הגדירו את כתובת Streamable HTTP של לקוח MCP ל-**`http://127.0.0.1:3000/mcp`**. אם המארח תומך בהגדרות MCP מרוחקות, הגדירו נקודת קצה וכותרת הרשאה:
+
+```json
+{
+  "url": "https://maps.example.com/mcp",
+  "headers": {
+    "Authorization": "Bearer your-mcp-http-token"
+  }
+}
+```
+
+העטיפה המדויקת של הגדרה זו תלויה במארח MCP. השרת תומך במשא ומתן על הפרוטוקול ובפעולות הסשן המתאימות POST, GET/SSE ו-DELETE דרך Rust MCP SDK. השתמשו בלקוח MCP במקום להתייחס לבקשת JSON-RPC POST בודדת כסשן שלם.
+
+## כתובות האזנה וגישה {#bind-addresses-and-access}
+
+מאזינים שאינם loopback דורשים `MCP_HTTP_TOKEN`. הלקוחות שולחים אסימון זה כ-bearer, בנפרד מ-Google OAuth או ממפתחות API. הוסיפו במפורש את ערך Host של נקודת הקצה ואת מקורות הדפדפן בפועל:
+
+```sh
+mcp-gmap-rs serve http --listen 0.0.0.0:3000 \
+  --allowed-host maps.example.com \
+  --allowed-origin https://app.example.com:443
+```
+
+ברירת המחדל דוחה כותרות Origin קיימות אם אינן ברשימת ההיתר. גופי בקשות מוגבלים ל-1 MiB. `/health` בודק חיות תהליך בלי לפנות ל-Google. לגישה ציבורית הגדירו [TLS/mTLS מובנה או שער](./production). שרתי proxy חייבים לשמר הרשאות וכותרות פרוטוקול וסשן MCP ולאפשר הזרמה ללא אגירה. סשנים וזהות Google מקומיים לתהליך; ראו [פריסה](./deployment) לפני הוספת עותקים.
+
+
+<!-- https://fcenedes.github.io/mcp-gmap-rs/he/guide/production -->
+
+# תפעול בייצור
+
+מדריך זה מכסה את v0.3.x. כל כלי Google משתפים אותו מימוש ב-CLI, ב-MCP stdio וב-Streamable HTTP.
+
+## TLS מובנה ו-TLS הדדי {#native-tls-and-mutual-tls}
+
+מאזין HTTP יכול להגיש HTTPS ישירות באמצעות rustls ו-TLS 1.2/1.3:
+
+```sh
+mcp-gmap-rs serve http --listen 0.0.0.0:3443 \
+  --tls-cert /etc/mcp-gmap/tls/tls.crt \
+  --tls-key /etc/mcp-gmap/tls/tls.key \
+  --allowed-host maps.example.com:3443
+```
+
+ספקו `MCP_HTTP_TOKEN` בנפרד דרך הסביבה או Secret. לקוחות מתחברים ל-`https://maps.example.com:3443/mcp`, מאמתים את תעודת השרת ושולחים `Authorization: Bearer <token>`. קובצי התעודות כוללים תעודת קצה PEM ואחריה שרשרת ביניים; המפתח הפרטי חייב להתאים. קובץ ההפעלה אינו מנפיק תעודות ואינו מממש ACME. השתמשו ב-PKI שלכם, ב-cert-manager או בשער TLS להנפקה ולחידוש.
+
+הוסיפו `--tls-client-ca /etc/mcp-gmap/tls/client-ca.pem` לדרישת תעודת לקוח חתומה בידי CA זה. mTLS מובנה חל בכל הנתיבים, כולל `/health` ו-`/metrics`, ואינו מחליף אסימון HTTP. כל זהות לקוח תקינה תחת שורשי האמון המוגדרים מתקבלת בשכבת TLS; אין הרשאות כלים לפי תעודה או בדיקות רשימות ביטול.
+
+ב-Linux/macOS החליפו את הקבצים באופן אטומי ושלחו `SIGHUP` כדי לטעון יחד את התעודה, המפתח ו-CA הלקוח האופציונלי. חיבורים קיימים שומרים את מצב TLS שלהם; לחיצות יד חדשות משתמשות בהחלפה. אם הטעינה נכשלת, התצורה הקודמת נשארת פעילה ונרשמת שגיאה ללא חומר מפתחות. אפשר לטעון כך מחדש קובצי Kubernetes Secret מותקנים אחרי עדכון ההקרנה שלהם. שאר ההגדרות עדיין דורשות הפעלה מחדש.
+
+עבור UID/GID 10001 בקונטיינר, התקינו מפתחות לקריאה בלבד עם הרשאות המאפשרות לזהות לקרוא אותם; השתמשו בקבוצה מתאימה וב-`fsGroup` עבור Secrets מוקרנים. עם TLS מובנה, בדיקות HTTP של Kubernetes חייבות להשתמש ב-`scheme: HTTPS`. בדיקות HTTP של kubelet אינן יכולות לספק תעודת לקוח mTLS; השתמשו בבדיקת TCP בפריסה זו, בידיעה שהיא בודקת את המאזין ולא את TLS או Google.
+
+## שער TLS ב-Kubernetes {#kubernetes-tls-gateway}
+
+[קובץ השער](https://github.com/fcenedes/mcp-gmap-rs/blob/main/deploy/gateway.yaml) מספק שער HTTPS ו-HTTPRoute ל-Deployment שב[קובץ Kubernetes הבסיסי](https://github.com/fcenedes/mcp-gmap-rs/blob/main/deploy/kubernetes.yaml). התקינו תחילה CRDs של Gateway API ובקר תואם. החליפו `your-gateway-class` ו-`maps.example.com`, וצרו Secret מסוג `kubernetes.io/tls` בשם `mcp-gmap-tls` באותו מרחב שמות. הדוגמה משתמשת בשדות Gateway/HTTPRoute v1 יציבים ובפסקי זמן של HTTPRoute הנתמכים מ-Gateway API v1.2. בדקו את תמיכת הבקר בפסקי זמן.
+
+```sh
+kubectl create secret tls mcp-gmap-tls --cert=/secure/fullchain.pem --key=/secure/key.pem
+kubectl set env deployment/mcp-gmap-rs \
+  MCP_HTTP_ALLOWED_HOSTS='maps.example.com,mcp-gmap-rs:3000,localhost:3000,127.0.0.1:3000'
+kubectl apply -f deploy/gateway.yaml
+kubectl get gateway,httproute
+```
+
+שמרו את הגדרת המארח המותר גם ב-ConfigMap או במקור הפריסה. הוסיפו מקורות דפדפן אמיתיים עם `MCP_HTTP_ALLOWED_ORIGINS` לפי הצורך. הנתיב חושף רק `/mcp`; בריאות ומדדים נשארים בשירות הפרטי. כותרות הרשאה וסשן/פרוטוקול MCP חייבות לעבור ללא שינוי. בטלו אגירה ומטמון של תשובות והגדירו זמני הזרמה וחוסר פעילות בבקר. הנתיב מבטל מועדי בקשה ובקשת backend; הגדירו בשער מגבלות חיבור וחוסר פעילות המתאימות ללקוחות.
+
+תצורה זו מסיימת TLS בשער ומשתמשת ב-HTTP ל-backend של ClusterIP. השתמשו ב-TLS מובנה יחד עם BackendTLSPolicy הנתמך בבקר או ב-mesh אם גם החיבור מהשער ל-Pod חייב להיות מוצפן. הגבילו גישה ישירה ל-Pod ול-Service במדיניות הרשת של האשכול. TLS אינו מספק כניסת MCP OAuth: קובץ ההפעלה משתמש באסימון bearer משותף ובזהות Google אחת לתהליך.
+
+ראו [מדריך TLS לשער](https://gateway-api.sigs.k8s.io/guides/user-guides/tls/) ו[מדריך פסקי זמן של HTTPRoute](https://gateway-api.sigs.k8s.io/guides/http-timeouts/).
+
+## מגבלות, ניסיונות חוזרים ומועדי סיום {#limits-retries-and-deadlines}
+
+| משתנה | ברירת מחדל | אפשרות | משמעות וערכים מותרים |
+| --- | --- | --- | --- |
+| `GOOGLE_MAPS_MAX_REQUESTS` | `200` | `--max-requests` | תקציב ניסיונות Google HTTP לכל קריאת כלי, מספר שלם 1–10000. משותף לענפים משולבים; ניסיונות חוזרים צורכים מהתקציב. |
+| `GOOGLE_MAPS_MAX_RETRIES` | `2` | `--max-retries` | ניסיונות נוספים לכשלים זמניים לכל בקשת Google, מספר שלם 0–5. אפס פירושו ניסיון ראשוני אחד. הניסיונות נשארים בתוך פסק הזמן והתקציב. |
+| `GOOGLE_MAPS_TOOL_TIMEOUT` | `120` | `--tool-timeout` | מועד כולל של הכלי בשניות, מספר שלם 1–3600. כולל השגת פרטי גישה, המתנה, קריאות API וניסיונות חוזרים. |
+| `MCP_HTTP_RATE_LIMIT` | `120` | HTTP `--rate-limit` | בקשות `/mcp` מאומתות לדקה לכל תהליך, מספר שלם 0–1000000. אפס מבטל. קיבולת ההתפרצות שווה לקצב עם מילוי רציף. |
+| `MCP_METRICS_ENABLED` | `false` | HTTP `--metrics [true\|false]` | הפעלת Prometheus ב-`/metrics`. `--metrics` ללא ערך פירושו true. משתמש באותו אסימון bearer אם הוגדר, ו-mTLS מובנה חל גם כאן. |
+| `MCP_LOG_FORMAT` | `text` | `--log-format text\|json` | הערכים `text` או `json`. אבחון נכתב תמיד ל-stderr, ומשאיר stdout ל-JSON של CLI או לתעבורת MCP. |
+| `MCP_TLS_CERT` | לא מוגדר | HTTP `--tls-cert` | תעודת קצה של שרת ב-PEM עם שרשרת ביניים. יש לספק יחד מפתח פרטי תואם. |
+| `MCP_TLS_KEY` | לא מוגדר | HTTP `--tls-key` | נתיב מפתח פרטי של שרת ב-PEM. שמרו קריא לזהות הריצה ומחוץ למקור ולתמונות. |
+| `MCP_TLS_CLIENT_CA` | לא מוגדר | HTTP `--tls-client-ca` | חבילת CA ללקוחות ב-PEM המחייבת תעודות לקוח בכל נתיבי המאזין. אינה מחליפה אסימון bearer. |
+
+סדר ההגדרות הוא ברירות מחדל, dotenv אופציונלי, סביבה ואפשרויות. יש לספק יחד תעודת TLS ומפתח. נתיבי TLS ריקים בסביבה מנקים את ערכי הקובץ. `GOOGLE_MAPS_TIMEOUT` מגביל כל בקשת Google HTTP כולל המתנה לסמפור, ניסיונות חוזרים, השהיה וקריאת תשובה; להשגת OAuth יש גבול נפרד באותו ערך. המועד הכולל של הכלי כולל את שניהם.
+
+לכל קריאה תקציב בקשות חדש המשותף לכל הענפים המקבילים שלה. חמש בקשות Google API יכולות לרוץ במקביל בכל תהליך. כשהתקציב נגמר, ניסיונות נוספים נכשלים מקומית. כלים משולבים עשויים להחזיר פלט מוצלח המכיל שגיאות או חריגת תקציב לכל פריט; בדקו שדות אלה. המגבלה היא על מספר הבקשות ולא על כסף: לבקשות ולשדות Google מחירים שונים, ובקשת מטריצה אחת יכולה לחייב מספר רכיבים.
+
+בקשות Google לקריאה בלבד מנסות שוב ב-HTTP 429, 500, 502, 503 ו-504 ובכשלי רשת. ניסיונות חוזרים מכבדים `Retry-After` בשניות או בתאריך HTTP, ואחרת משתמשים בהשהיה מעריכית עם אקראיות. הם נשארים בתוך מועד הבקשה ותקציב הקריאה. שגיאות HTTP אחרות, כולל 400/401/403, אינן מנוסות שוב. כשל אימות אינו מחליף בשקט למצב מפתח API. הגדירו אפס ניסיונות חוזרים לניסיון יחיד. שגיאות JSON פנימיות ישנות של Google מדווחות ללא ניסיון חוזר.
+
+מגביל HTTP הוא דלי אסימונים שקיבולת ההתפרצות שלו שווה לקצב לדקה והוא מתמלא ברציפות. הוא כולל אתחול, POST, GET ו-DELETE ב-`/mcp` בכל הסשנים. בקשות לא מורשות אינן צורכות מהדלי. דחייה מחזירה HTTP 429 עם `Retry-After`. בדיקות בריאות ואיסוף מדדים פטורים. המגביל כללי לתהליך ולא לכל משתמש או IP, ואינו סומך על כותרות IP מועברות. השתמשו באימות בשער ובמגבלות לכל לקוח בפריסות משותפות.
+
+## מדדים ואירועי אבחון {#metrics-and-diagnostic-events}
+
+```sh
+mcp-gmap-rs --log-format json serve http --metrics --rate-limit 120
+```
+
+`GET /metrics` משתמש באותו אסימון bearer של `/mcp` אם הוגדר. במאזין loopback ללא אימות גם הוא אינו מאומת. הוא כבוי כברירת מחדל, ו-mTLS מובנה חל כשהוא מופעל. חשפו אותו רק לאוספי מדדים מהימנים. נקודת Prometheus הטקסטואלית מייצאת:
+
+- `mcp_gmap_tool_calls_total{tool,outcome}` לקריאות כלים שהושלמו;
+- `mcp_gmap_tool_duration_seconds{tool,outcome}` כהיסטוגרמה;
+- `mcp_gmap_google_requests_total{api,status}` לניסיונות Google HTTP, כולל ניסיונות חוזרים;
+- `mcp_gmap_http_rate_limited_total` לבקשות HTTP שנדחו.
+
+התוויות כוללות שמות כלים מובנים, שמות מארחי API, קודי HTTP ותוצאות קבועות. הן לעולם אינן כוללות כתובות, קואורדינטות, פרטי גישה, אסימונים או מזהי סשן. קריאה משולבת עם שגיאות לפריטים עשויה להיחשב מוצלחת ברמה העליונה; בדקו תוצאה ומדדי מצב השרת במעלה הזרם. מדדים מתאפסים בהפעלה מחדש.
+
+הגדירו `RUST_LOG=info` לצפייה באירועי סיום כלי עם שם, הצלחה וזמן שחלף. ארגומנטים וגופי תשובות Google אינם נכללים. כתובת האזנה בהפעלה נכתבת בנפרד ל-stderr. stdout נשאר ל-JSON של CLI או לתעבורת MCP.
+
+## Doctor {#doctor}
+
+```sh
+mcp-gmap-rs doctor
+# Explicit opt-in: makes potentially billable requests.
+mcp-gmap-rs doctor --live
+# Check only the API dependencies of selected tools:
+mcp-gmap-rs --enabled-tools maps_pollen,maps_area_insights doctor --live
+```
+
+ללא `--live`, doctor בודק תצורת פרטי גישה מקומית, הגדרות HTTP והתאמת קובץ ומפתח TLS בלי בקשות רשת. הוא אינו מוכיח תוקף מפתח, IAM, הפעלת API, אמון/שם מארח/תוקף תעודה או גישת ADC. גילוי ADC מדווח כ-`not_tested` עד בקשה חיה. Doctor אינו מדפיס ערכי פרטי גישה או JSON שלהם. דוח JSON נכתב ל-stdout; בדיקה כושלת מחזירה קוד יציאה 1. נתחו `checks[].status`: הערכים `pass`, `fail` או `not_tested`.
+
+מצב חי מפעיל קריאת כלי מייצגת אחת לכל Google API ייחודי שהכלים המופעלים משתמשים בו, עם הגדרות רגילות של ניסיונות חוזרים, מועדים ותקציב. הוא נמנע מפעולות משולבות יקרות. Routes משתמש בקואורדינטות מדויקות ו-Roads בחיפוש הדרך הקרובה. הבדיקות משתמשות באתרים ציבוריים בפריז, ולא בכתובות שסופקו בידי משתמש. הצלחה פירושה ש-Google קיבלה בדיקה זו, לא שכל פעולה או אזור זמינים.
+
+
+## כיבוי ושינויי תצורה {#shutdown-and-configuration-changes}
+
+Ctrl-C ו-SIGTERM מכבים את שרת HTTP ואת סשני MCP הפעילים. דוגמת Kubernetes נותנת לתהליך 30 שניות. שאר הגדרות היישום, כולל שינויי Secret מוזרקים בסביבה, דורשות הפעלה מחדש; רק קובצי תעודת TLS מובנית, מפתח ו-CA לקוח תומכים ב-SIGHUP. סשנים ומדדים נשמרים בזיכרון ואובדים בהפעלה מחדש. הפעילו עותק אחד או הגדירו שיוך סשנים; לקוחות חייבים להתחבר מחדש כשהתהליך שבבעלות הסשן מסתיים.
+
+ראו [פריסה](./deployment) להרשאות קונטיינרים, בדיקות והתקנות פרטי גישה בזמן ריצה, ו[מפרט התצורה](../reference/configuration) לכל הגדרה ואפשרות.
+
+
+<!-- https://fcenedes.github.io/mcp-gmap-rs/he/guide/recipes -->
+
+# מתכונים
+
+שלבו קריאות קטנות ומפורשות סביב מיקום אחד או רשימה מצומצמת של מזהי מקומות שהוחזרו. דוגמאות אלה שולחות בקשות Google העשויות להיות כרוכות בתשלום. בדקו תחילה [אימות זהות](./authentication); כלים משולבים עשויים להשתמש בכמה ממשקים ולהחזיר שגיאות חלקיות.
+
+## מציאת בית קפה והשוואת הנסיעה {#find-a-cafe-and-compare-the-trip}
+
+חפשו ברדיוס ממשי, הרחיבו רק מזהים מהרשימה המצומצמת והשוו נסיעות. `keyword` ב-Nearby הוא סוג מקום של Google ולא טקסט חופשי.
+
+```sh
+mcp-gmap-rs search-nearby \
+  --center '{"value":"48.8584,2.2945","isCoordinates":true}' \
+  --keyword cafe --radius 500 --open-now --min-rating 4
+mcp-gmap-rs place-details --place-id ChIJLU7jZClu5kcR4PcOOO6p3I0 --max-photos 0
+mcp-gmap-rs distance-matrix --origins '["48.8584,2.2945"]' \
+  --destinations '["48.8606,2.3376","48.8530,2.3499"]' --mode walking
+```
+
+השתמשו ב-[`search-places`](../reference/tools#maps_search_places) לכוונה בשפה טבעית, ב-[`compare-places`](../reference/tools#maps_compare_places) להתאמות מפורטות עם מרחק נהיגה אופציונלי, או ב-[`explore-area`](../reference/tools#maps_explore_area) לחקירה לפי קטגוריות. דף חיפוש אינו מלאי ממצה. שמרו קישורי מקור של Google, מחברי ביקורות וגילויי AI.
+
+## תכנון עצירות ומציאת סטייה {#plan-stops-and-find-a-detour}
+
+```sh
+mcp-gmap-rs plan-route \
+  --stops '["48.8584,2.2945","48.8606,2.3376","48.8530,2.3499"]' \
+  --mode walking --optimize false
+mcp-gmap-rs search-along-route --text-query cafes \
+  --origin '48.8584,2.2945' --destination '48.8606,2.3376' \
+  --mode walking --max-results 3
+```
+
+[`directions`](../reference/tools#maps_directions) מטפל בנסיעה אחת עם אפשרויות זמן והימנעות; [`plan-route`](../reference/tools#maps_plan_route) שומר על נקודות הקצה באופטימיזציה של עצירות ביניים. תחבורה ציבורית מקבלת רק שתי עצירות בסך הכול. חיפוש לאורך מסלול עוקב אחר קו מרובה נקודות במקום להחליפו במעגל אמצע. ברירת המחדל היא הליכה, ולכן בחרו תמיד את אופן הנסיעה הרצוי.
+
+## פתרון מיקום פעם אחת ובדיקת תנאים מקומיים {#resolve-once-inspect-local-conditions}
+
+```sh
+mcp-gmap-rs geocode --address 'Eiffel Tower, Paris, France'
+mcp-gmap-rs weather --latitude 48.8584 --longitude 2.2945 \
+  --type forecast_daily --forecast-days 3
+mcp-gmap-rs air-quality --latitude 48.8584 --longitude 2.2945
+mcp-gmap-rs pollen --latitude 48.8584 --longitude 2.2945 --days 3
+mcp-gmap-rs timezone --latitude 48.8584 --longitude 2.2945
+mcp-gmap-rs elevation --locations '[{"latitude":48.8584,"longitude":2.2945}]'
+```
+
+השתמשו שוב בקואורדינטות במקום לחזור על פתרון מיקום. הבדילו בין תצפיות, תחזיות והמלצות ספק; הכיסוי עשוי להשתנות. [`reverse-geocode`](../reference/tools#maps_reverse_geocode) פותר קואורדינטות לכתובת; [`batch-geocode`](../reference/tools#maps_batch_geocode) פותר עד 50 כתובות עם שגיאות לכל כתובת. חותמת הזמן האופציונלית של Time Zone היא במילישניות Unix; הגובה במטרים.
+
+## אימות כתובת למשלוח {#validate-a-postal-address}
+
+```sh
+mcp-gmap-rs validate-address --address-lines '["5 Avenue Anatole France"]' \
+  --locality Paris --postal-code 75007 --region-code FR
+```
+
+בדקו את מסקנת האימות, תיקונים ורכיבים לא פתורים. אימות כתובת שונה מקידוד גאוגרפי ואינו מבטיח משלוח. USPS CASS מופעל במפורש ודורש `regionCode` בערך US או PR במימוש זה.
+
+## ספירת מקומות במקום ספירת תוצאות חיפוש {#count-places-without-counting-search-hits}
+
+```sh
+mcp-gmap-rs area-insights \
+  --area '{"circle":{"latLng":{"latitude":48.8584,"longitude":2.2945},"radius":500}}' \
+  --included-types '["restaurant"]' --min-rating 4
+```
+
+ספירות מצטברות משתמשות בדרך כלל בייצוג מחרוזת int64 של Google. מזהי מקומות אופציונליים זמינים רק כשהספירה אינה עולה על 100; פרטים אינם נשלפים אוטומטית. לניתוח נראות שהתבקש במפורש, [`local-rank-tracker`](../reference/tools#maps_local_rank_tracker) מודד דירוגי מילות מפתח על רשת. התחילו במילה אחת וברשת 3×3; דירוג חיפוש אינו ציון ביקורות, ויש להשאיר נקודות כושלות גלויות.
+
+## התאמת נתוני GPS ושמירת מפה {#match-gps-data-and-save-a-map}
+
+השתמשו ב-[`snap-to-roads`](../reference/tools#maps_snap_to_roads) לתוואי מסודר וב-[`nearest-roads`](../reference/tools#maps_nearest_roads) לנקודות עצמאיות. שמרו את `originalIndex`; אינטרפולציה מוסיפה נקודות שייתכן שאין להן אינדקס. מגבלות מהירות אינן מוחזרות.
+
+```sh
+mcp-gmap-rs nearest-roads --points '[{"latitude":48.8584,"longitude":2.2945}]'
+mcp-gmap-rs static-map --center '48.8584,2.2945' --zoom 14 --output area.png
+```
+
+[מפרט הכלים](../reference/tools) מפרט גבולות מדויקים, שדות נדרשים, ברירות מחדל ופורמטי תוצאה לכל פעולה.
+
+
+<!-- https://fcenedes.github.io/mcp-gmap-rs/he/guide/troubleshooting -->
+
+# פתרון בעיות
+
+זהו תחילה את החיבור הכושל: שגיאת תצורה מקומית, חיבור לקוח MCP לשרת או בקשה יוצאת ל-Google. תקנו את השכבה הרלוונטית והריצו שוב את הפעולה שנכשלה.
+
+## התחלה ללא רשת {#start-offline}
+
+```sh
+mcp-gmap-rs --version
+mcp-gmap-rs tools
+mcp-gmap-rs doctor
+```
+
+`doctor` מדפיס JSON גם כשהבדיקות נכשלות. בדקו קוד יציאה ואת `checks[].status`: הערכים `pass`, `fail` או `not_tested`. בדיקות לא מקוונות אינן מוכיחות IAM, הפעלת API, חיוב, אמון/תוקף תעודה או גישת ADC. `/health` מוכיח רק חיות תהליך.
+
+אם קובץ dotenv מקומי לא תקין חוסם גילוי, `--no-env-file tools` מדלג עליו. הדבר עשוי לשנות את קבוצת הכלים שנבחרה, ולכן אין לראות בכך אימות לתצורת הקובץ המיועד.
+
+## פירוש כשלים נפוצים {#interpret-common-failures}
+
+| תסמין | הבדיקה הבאה |
+| --- | --- |
+| `GOOGLE_MAPS_API_KEY is required` | נבחר מצב מפתח API או שהפעולה מגיעה לנקודת קצה התומכת רק במפתח. |
+| `GOOGLE_CLOUD_QUOTA_PROJECT is required` | הגדירו מזהה או מספר פרויקט צרכן ל-OAuth. |
+| Google 403 / API לא פעיל | הפעילו את ה-API המדויק בפרויקט הצרכן של פרטי הגישה; בדקו חיוב והגבלות מפתח. |
+| `serviceusage.services.use` נדחה | העניקו לחשבון השירות `roles/serviceusage.serviceUsageConsumer` בפרויקט המכסה; אפשרו הפצת IAM ונסו שוב. |
+| דחיית IP של מפתח API | התירו את כתובת היציאה הציבורית של השרת או האשכול, ולא את ה-IP הפרטי של ה-Pod. |
+| MCP HTTP 401 | שלחו את אסימון bearer של השרת; אסימון גישה של Google מאמת חיבור אחר. |
+| Host/Origin נדחו | התאימו בדיוק ל-Host ולמקור הדפדפן המוגדרים, כולל פורטים. |
+| HTTP 429 מ-MCP | המגביל של התהליך מוצה; כבדו `Retry-After` ובדקו מקביליות לקוחות. |
+| פסק זמן OAuth | בדקו קישוריות לאסימון, STS, IAM או מטא-נתונים, שעון מערכת ופסק זמן לבקשה. |
+| חיבור TLS נכשל | בדקו שרשרת תעודות, שם מארח, אמון ותעודת mTLS אופציונלית בנפרד מהרשאת HTTP. |
+| יציאה 0 אך נתונים חסרים | בדקו שגיאות לפריט במטריצה ובכלים משולבים, ולא רק קוד יציאה של התהליך. |
+
+## אימות מכוון של גישה חיה {#verify-live-access-deliberately}
+
+בדיקות חיות מבצעות קריאות העשויות להיות כרוכות בתשלום. צמצמו אותן לממשקים הנדרשים:
+
+```sh
+mcp-gmap-rs --enabled-tools maps_weather doctor --live
+```
+
+בדיקה מוצלחת אינה מבטיחה כל אזור או פעולה. אחרי שינוי ב-Google Cloud, הריצו שוב את אותה קריאה כושלת במקום להסיק הצלחה מהגדרות המסוף. ראו [אימות זהות](./authentication) ל-IAM ולמקורות פרטי גישה, [תצורה](./configuration) לקדימויות ו[תפעול ייצור](./production) לתקציבים, מועדים ומדדים. אין להדפיס JSON של פרטי גישה או לצרף את כל הסביבה לדיווח תקלה.
+
+
+<!-- https://fcenedes.github.io/mcp-gmap-rs/he/reference/configuration -->
+
+# מפרט התצורה
+
+21 הגדרות היישום האלה חלות על CLI, MCP stdio ו-Streamable HTTP לפי הצורך. סדר הערכים הוא **ברירות מחדל, dotenv אופציונלי, סביבה ואפשרויות**. ראו [תצורה](../guide/configuration) לבחירת קובץ ולמשמעות עקיפות.
+
+אפשרויות כלליות מופיעות לפני כלי או `serve`; אפשרויות HTTP בלבד אחרי `serve http`. מקף בעמודת האפשרויות פירושו שאין אפשרות CLI מקבילה: הזריקו את הערך מהסביבה או מקובץ dotenv שנבחר.
+
+## גישה ל-Google והרצת כלים {#google-access-and-tool-execution}
+
+| משתנה | ברירת מחדל | אפשרות | משמעות וערכים מותרים |
+| --- | --- | --- | --- |
+| `GOOGLE_MAPS_API_KEY` | לא מוגדר | — | מפתח Google API מוגבל. נדרש במצב `api-key` ולנקודות קצה התומכות רק במפתח במימוש זה, גם כשנבחר OAuth. לעולם אינו ארגומנט לכלי. |
+| `GOOGLE_MAPS_AUTH_MODE` | `api-key` | `--auth-mode` | הערכים `api-key` או `oauth`. OAuth תומך ב-Places (New), Routes, Weather, Air Quality, Address Validation ו-Places Aggregate. |
+| `GOOGLE_APPLICATION_CREDENTIALS` | גילוי ADC | — | נתיב קובץ JSON קריא של חשבון שירות או ADC נתמך. נתיבים יחסיים נפתרים מתיקיית העבודה. השאירו לא מוגדר לגילוי ADC מקומי או מטא-נתונים. |
+| `GOOGLE_CLOUD_QUOTA_PROJECT` | לא מוגדר | — | מזהה או מספר פרויקט צרכן לחיוב ומכסה, הנדרש לקריאות OAuth. חשבון השירות זקוק ל-`serviceusage.services.use` בפרויקט זה. |
+| `GOOGLE_MAPS_LANGUAGE` | `en` | `--language` | קוד שפה לתשובות Google התומכות בשפה, בנפרד מבורר שפת המדריך. |
+| `GOOGLE_MAPS_TIMEOUT` | `30` | `--timeout` | פסק זמן לבקשה בשניות, מספר שלם 1–600. כולל המתנה, ניסיונות חוזרים, השהיה וקריאת תשובה; להשגת OAuth גבול נפרד באותו ערך. |
+| `GOOGLE_MAPS_ENABLED_TOOLS` | הכול (`*`) | `--enabled-tools` | שמות `maps_*` מופרדים בפסיקים או `*`. שמות לא מוכרים מכשילים הפעלה. כלים מושבתים אינם מופיעים בגילוי ולא ניתן לקרוא להם. |
+| `GOOGLE_MAPS_MAX_REQUESTS` | `200` | `--max-requests` | תקציב ניסיונות Google HTTP לכל קריאת כלי, מספר שלם 1–10000. משותף לענפים משולבים; ניסיונות חוזרים צורכים מהתקציב. |
+| `GOOGLE_MAPS_MAX_RETRIES` | `2` | `--max-retries` | ניסיונות נוספים לכשלים זמניים לכל בקשת Google, מספר שלם 0–5. אפס פירושו ניסיון ראשוני אחד. הניסיונות נשארים בתוך פסק הזמן והתקציב. |
+| `GOOGLE_MAPS_TOOL_TIMEOUT` | `120` | `--tool-timeout` | מועד כולל של הכלי בשניות, מספר שלם 1–3600. כולל השגת פרטי גישה, המתנה, קריאות API וניסיונות חוזרים. |
+
+חמש בקשות Google HTTP יכולות לרוץ במקביל בכל תהליך. תקציב הניסיונות מגביל בקשות ולא כסף; בקשת מטריצה אחת יכולה לחייב כמה רכיבים. כלים משולבים מסוימים מחזירים שגיאות לפריט כשענף ממצה תקציב או מועד. ראו [מגבלות ייצור](../guide/production#limits-retries-and-deadlines).
+
+## מאזין HTTP וגישה {#http-listener-and-access}
+
+| משתנה | ברירת מחדל | אפשרות | משמעות וערכים מותרים |
+| --- | --- | --- | --- |
+| `MCP_HTTP_TOKEN` | לא מוגדר | — | אסימון bearer משותף ללקוחות MCP, הנדרש בהאזנה מחוץ ל-loopback. נפרד מפרטי Google ונדרש גם עם mTLS מובנה. |
+| `MCP_HTTP_LISTEN` | `127.0.0.1:3000` | `--listen` | כתובת IP ופורט של המאזין. תמונת Docker מגדירה את ערך הסביבה ל-`0.0.0.0:3000`. |
+| `MCP_HTTP_ALLOWED_HOSTS` | מארחי loopback | `--allowed-host` | ערכי HTTP Host מותרים מופרדים בפסיקים. חזרו על האפשרות לכמה ערכים; האפשרויות מחליפות את כל רשימת הקובץ או הסביבה. כללו פורט מתאים. |
+| `MCP_HTTP_ALLOWED_ORIGINS` | ללא | `--allowed-origin` | מקורות דפדפן מותרים מופרדים בפסיקים. כותרות Origin קיימות נדחות אלא אם הותרו. ציינו פורטים במפורש; אפשרויות חוזרות מחליפות את הרשימה. |
+| `MCP_HTTP_RATE_LIMIT` | `120` | `--rate-limit` | בקשות `/mcp` מאומתות לדקה לכל תהליך, מספר שלם 0–1000000. אפס מבטל. קיבולת ההתפרצות שווה לקצב עם מילוי רציף. |
+| `MCP_METRICS_ENABLED` | `false` | `--metrics [true\|false]` | הפעלת Prometheus ב-`/metrics`. `--metrics` ללא ערך פירושו true. משתמש באותו אסימון bearer אם הוגדר, ו-mTLS מובנה חל גם כאן. |
+| `MCP_TLS_CERT` | לא מוגדר | `--tls-cert` | תעודת קצה של שרת ב-PEM עם שרשרת ביניים. יש לספק יחד מפתח פרטי תואם. |
+| `MCP_TLS_KEY` | לא מוגדר | `--tls-key` | נתיב מפתח פרטי של שרת ב-PEM. שמרו קריא לזהות הריצה ומחוץ למקור ולתמונות. |
+| `MCP_TLS_CLIENT_CA` | לא מוגדר | `--tls-client-ca` | חבילת CA ללקוחות ב-PEM המחייבת תעודות לקוח בכל נתיבי המאזין. אינה מחליפה אסימון bearer. |
+
+דלי אסימוני HTTP כללי לתהליך, ולא לכל משתמש או IP. בקשות לא מורשות אינן צורכות ממנו; בריאות ומדדים פטורים. דחייה מחזירה 429 עם `Retry-After`. מגבלת גוף הבקשה היא 1 MiB. ראו [גישת MCP](../guide/mcp#bind-addresses-and-access) ו[תפעול TLS](../guide/production#native-tls-and-mutual-tls).
+
+## אירועי אבחון {#diagnostic-events}
+
+| משתנה | ברירת מחדל | אפשרות | משמעות וערכים מותרים |
+| --- | --- | --- | --- |
+| `RUST_LOG` | `warn` | — | מסנן יומן אבחון. `info` מפעיל אירועי סיום כלים; ארגומנטים וגופי תשובות Google אינם נרשמים. |
+| `MCP_LOG_FORMAT` | `text` | `--log-format` | הערכים `text` או `json`. אבחון נכתב תמיד ל-stderr, ומשאיר stdout ל-JSON של CLI או לתעבורת MCP. |
+
+## בחירת קבצים ובקרות פלט {#file-selection-and-output-controls}
+
+בחירת קובץ מתרחשת לפני שכבות היישום שמעל. `MCP_ENV_FILE` בוחר נתיב dotenv; האפשרות הכללית `--env-file PATH` גוברת עליו. קובץ שנבחר במפורש חייב להתקיים. `--no-env-file` מבטל את כל טעינת dotenv ומתנגש עם `--env-file`. ללא בחירה נקרא רק `.env` האופציונלי בתיקיית העבודה.
+
+גם ערך סביבה ריק במפורש גובר על ערך הקובץ. הוא יכול לנקות אסימון, נתיב TLS או רשימת היתר אופציונליים, אך אינו הופך הגדרה מספרית ריקה לתקינה. ערכי קובץ שנטענו אינם משנים את סביבת התהליך.
+
+`doctor --live` מפעיל במפורש בדיקות העשויות להיות בתשלום; `doctor` רגיל אינו מקוון. `--output PATH` של כלי שומר JSON או PNG גולמי עבור `static-map`. אלה בקרות פקודה ולא הגדרות סביבה נוספות.
+
+שינויי הגדרות יישום וקובצי פרטי גישה דורשים הפעלה מחדש. ב-Linux/macOS יכול SIGHUP לטעון יחד קובצי תעודת TLS מובנה, מפתח ו-CA לקוח; טעינה כושלת שומרת את התצורה הקודמת. ראו [תצורה](../guide/configuration) ו[תפעול ייצור](../guide/production).
+
+
+<!-- https://fcenedes.github.io/mcp-gmap-rs/he/reference/tools -->
+
+
+<!-- Generated by scripts/generate-reference.py. Edit the source notes, then regenerate. -->
+
+# מפרט כלים
+
+כל 23 הכלים, עם כל פרמטר, ברירת מחדל, מגבלה ודוגמה. אותו ממשק זמין דרך MCP ו-CLI.
+
+## מוסכמות הפעלה
+
+הדוגמאות הן אובייקטי ארגומנטים של MCP. בקריאת MCP ישירה מסוג `tools/call`, השתמשו בשם הכלי ב-`name` ובאובייקט ב-`arguments`. מארחים עשויים להוסיף קידומת לשמות. קריאות CLI המקבילות להלן משתמשות ב-`mcp-gmap-rs call TOOL --args JSON`.
+
+רק לפרמטרים ברמה העליונה יש אפשרויות CLI. העבירו אובייקטים מקוננים ומערכים כ-JSON. אפשרות בוליאנית ללא ערך פירושה `true`; `--flag false` מגדיר `false`. מאפיינים לא מוכרים נדחים. בדקו את הגרסה המותקנת עם `tools` או `schema TOOL`.
+
+אימות Google ושפה הם הגדרות תהליך, לא פרמטרים של כלי. קואורדינטות מדויקות מונעות פתרון כתובות; מיקומים לפי שם עשויים לדרוש גם מפתח API ל-Geocoding. ראו [אימות זהות](../guide/authentication) ו[תצורה](../guide/configuration).
+
+קריאות עשויות להיות כרוכות בתשלום ל-Google. תוצאות משולבות ומטריצות עשויות לכלול שגיאות לפריט גם כשהכלי מצליח. שמרו קישורי Google, מחברי ביקורות ותמונות וגילויי סיכומי AI. הדוגמאות מדגימות קלט, ולא כיסוי או תוצאות עדכניים.
+
+סוגים, שדות נדרשים וגבולות הסכמה מגיעים מהמפרט הנגזר מסכמות קובץ ההפעלה. ברירות מחדל, תיאורי תוצאות ומגבלות בין שדות נבדקים מול המימוש. Google עשויה להטיל מגבלות כיסוי ומכסה נוספות.
+
+## כלים
+
+- [`maps_geocode`](#maps_geocode)
+- [`maps_validate_address`](#maps_validate_address)
+- [`maps_pollen`](#maps_pollen)
+- [`maps_area_insights`](#maps_area_insights)
+- [`maps_snap_to_roads`](#maps_snap_to_roads)
+- [`maps_nearest_roads`](#maps_nearest_roads)
+- [`maps_reverse_geocode`](#maps_reverse_geocode)
+- [`maps_search_places`](#maps_search_places)
+- [`maps_search_nearby`](#maps_search_nearby)
+- [`maps_place_details`](#maps_place_details)
+- [`maps_directions`](#maps_directions)
+- [`maps_distance_matrix`](#maps_distance_matrix)
+- [`maps_elevation`](#maps_elevation)
+- [`maps_timezone`](#maps_timezone)
+- [`maps_weather`](#maps_weather)
+- [`maps_air_quality`](#maps_air_quality)
+- [`maps_static_map`](#maps_static_map)
+- [`maps_batch_geocode`](#maps_batch_geocode)
+- [`maps_explore_area`](#maps_explore_area)
+- [`maps_plan_route`](#maps_plan_route)
+- [`maps_compare_places`](#maps_compare_places)
+- [`maps_search_along_route`](#maps_search_along_route)
+- [`maps_local_rank_tracker`](#maps_local_rank_tracker)
+
+## maps_geocode {#maps_geocode}
+
+המרת כתובת או אתר לציון לקואורדינטות.
+
+פתרון כתובת או אתר לציון להתאמת Geocoding הראשונה לקבלת קואורדינטות ומזהה מקום לשימוש חוזר; אינו מאמת אפשרות משלוח דואר.
+
+**פקודת CLI:** `geocode`. **גישה ל-Google:** נדרש מפתח API במימוש זה.
+
+### פרמטרים
+
+| פרמטר / אפשרות CLI | סוג וגבולות הסכמה | נדרש | ערך כשמושמט | תיאור |
+| --- | --- | --- | --- | --- |
+| `address` / `--address` | מחרוזת; לפחות 1 תווים | כן | <bdi dir="auto">—</bdi> | כתובת, עיר או אתר לציון לקידוד גאוגרפי. |
+
+### התנהגות ומגבלות
+
+- אין התאמה הוא שגיאת כלי, ולא מיקום ריק מוצלח.
+- כלי ישיר זה משתמש ב-Geocoding v3; גיבוי Places משמש בכלים משולבים הפותרים מיקומים, ולא בקריאה זו.
+
+### תוצאה
+
+אובייקט הכולל `location.lat`, `location.lng`, `formatted_address` ו-`place_id`. רק התוצאה הראשונה מוחזרת.
+
+### דוגמה
+
+ארגומנטי MCP:
+
+```json
+{
+  "address": "Eiffel Tower, Paris, France"
+}
+```
+
+קריאת CLI מקבילה:
+
+```sh
+mcp-gmap-rs call maps_geocode --args '{"address":"Eiffel Tower, Paris, France"}'
+```
+
+
+## maps_validate_address {#maps_validate_address}
+
+אימות כתובת למשלוח ותקנונה; מחזיר מסקנה, תיקונים, רכיבים וקידוד גאוגרפי של Google. המסקנה היא ראיה ולא הבטחת משלוח.
+
+אימות רכיבי כתובת והחזרת תיקונים, כתובת תקנית ומסקנת Google. יש להשאיר מסקנה ורכיבים לא פתורים גלויים לקורא.
+
+**פקודת CLI:** `validate-address`. **גישה ל-Google:** מפתח API או OAuth לממשק המרכזי.
+
+### פרמטרים
+
+| פרמטר / אפשרות CLI | סוג וגבולות הסכמה | נדרש | ערך כשמושמט | תיאור |
+| --- | --- | --- | --- | --- |
+| `addressLines` / `--address-lines` | מערך מחרוזות; `1–10` פריטים; כל פריט לפחות 1 תווים | כן | <bdi dir="auto">—</bdi> | שורה אחת או יותר של כתובת למשלוח, לפי הסדר. |
+| `administrativeArea` / `--administrative-area` | מחרוזת; לפחות 1 תווים | לא | <bdi dir="auto">לא מסופק</bdi> | מדינה, מחוז או יחידה מנהלית מקבילה. |
+| `enableUspsCass` / `--enable-usps-cass` | בוליאני | לא | <bdi dir="auto">false</bdi> | בקשת עיבוד USPS CASS; במימוש זה regionCode חייב להיות US או PR כשהערך true. |
+| `locality` / `--locality` | מחרוזת; לפחות 1 תווים | לא | <bdi dir="auto">לא מסופק</bdi> | עיר או יישוב. |
+| `postalCode` / `--postal-code` | מחרוזת; לפחות 1 תווים | לא | <bdi dir="auto">לא מסופק</bdi> | מיקוד או ZIP. |
+| `regionCode` / `--region-code` | מחרוזת; תבנית: `^[A-Z]{2}$` | לא | <bdi dir="auto">לא מסופק; Google עשויה להסיק אותו</bdi> | קוד מדינה או אזור בן שתי אותיות גדולות; מומלץ להסרת עמימות בכתובת. |
+
+### התנהגות ומגבלות
+
+- מסקנת אימות אינה הבטחת משלוח.
+- כיסוי אזורי ו-API משתנה. הכלי אינו שולח משוב אימות ואינו מאשר תיקונים אוטומטית.
+
+### תוצאה
+
+תשובת האימות המלאה, בדרך כלל עם `result.verdict`, `result.address`, `result.geocode` ו-`responseId`; Google עשויה להשמיט שדות שאינם זמינים.
+
+### דוגמה
+
+ארגומנטי MCP:
+
+```json
+{
+  "addressLines": [
+    "5 Avenue Anatole France"
+  ],
+  "regionCode": "FR",
+  "locality": "Paris",
+  "postalCode": "75007"
+}
+```
+
+קריאת CLI מקבילה:
+
+```sh
+mcp-gmap-rs call maps_validate_address --args '{"addressLines":["5 Avenue Anatole France"],"regionCode":"FR","locality":"Paris","postalCode":"75007"}'
+```
+
+
+## maps_pollen {#maps_pollen}
+
+קבלת תחזית אבקנים, מדדים והמלצות בריאות ל-1–5 ימים בקואורדינטות מדויקות. הכיסוי משתנה לפי מיקום ועונה.
+
+שליפת תחזית אבקנים יומית קצרה לקואורדינטות מדויקות. התשובה שומרת סוגי אבקנים, מדדים, מידע על צמחים והמלצות ספק.
+
+**פקודת CLI:** `pollen`. **גישה ל-Google:** נדרש מפתח API במימוש זה.
+
+### פרמטרים
+
+| פרמטר / אפשרות CLI | סוג וגבולות הסכמה | נדרש | ערך כשמושמט | תיאור |
+| --- | --- | --- | --- | --- |
+| `days` / `--days` | מספר שלם; `1–5` | לא | <bdi dir="auto">1</bdi> | מספר רשומות תחזית יומיות לבקשה. |
+| `latitude` / `--latitude` | מספר; `-90.0–90.0` | כן | <bdi dir="auto">—</bdi> | קו רוחב WGS84 במעלות עשרוניות; צפון חיובי. |
+| `longitude` / `--longitude` | מספר; `-180.0–180.0` | כן | <bdi dir="auto">—</bdi> | קו אורך WGS84 במעלות עשרוניות; מזרח חיובי. |
+| `plantsDescription` / `--plants-description` | בוליאני | לא | <bdi dir="auto">false</bdi> | הכללת תיאורי צמחים מפורטים ומידע קשור כשזמין. |
+
+### התנהגות ומגבלות
+
+- הבקשות משתמשות בגודל עמוד 5, המספיק לבקשה המרבית של חמישה ימים; עמודים נוספים אינם נשלפים אוטומטית.
+- הזמינות תלויה במיקום, בעונה ובכיסוי Google.
+
+### תוצאה
+
+תשובת Pollen המקורית, כולל `regionCode`, `dailyInfo` וכל `nextPageToken`. כל יום עשוי לכלול מידע על סוגי אבקנים וצמחים.
+
+### דוגמה
+
+ארגומנטי MCP:
+
+```json
+{
+  "latitude": 48.8584,
+  "longitude": 2.2945,
+  "days": 3,
+  "plantsDescription": false
+}
+```
+
+קריאת CLI מקבילה:
+
+```sh
+mcp-gmap-rs call maps_pollen --args '{"latitude":48.8584,"longitude":2.2945,"days":3,"plantsDescription":false}'
+```
+
+
+## maps_area_insights {#maps_area_insights}
+
+ספירת מקומות במעגל, באזור או במצולע באמצעות Places Aggregate. מזהים אופציונליים זמינים רק לספירה של 100 ומטה; אין בקשות פרטים אוטומטיות.
+
+ספירת מקומות מתאימים במעגל, באזור או במצולע עם Places Aggregate. זו שאילתה מצטברת ולא ספירת עמוד חיפוש Places מוגבל.
+
+**פקודת CLI:** `area-insights`. **גישה ל-Google:** מפתח API או OAuth לממשק המרכזי.
+
+### פרמטרים
+
+| פרמטר / אפשרות CLI | סוג וגבולות הסכמה | נדרש | ערך כשמושמט | תיאור |
+| --- | --- | --- | --- | --- |
+| `area` / `--area` | אובייקט | כן | <bdi dir="auto">—</bdi> | אחד בלבד מבין circle, region או customArea. |
+| `area.circle` | אובייקט | לא | <bdi dir="auto">לא מסופק</bdi> | אזור מעגלי; אינו משולב עם region או customArea. |
+| `area.circle.latLng` | אובייקט | כשהאובייקט ההורה מסופק | <bdi dir="auto">—</bdi> | מרכז המעגל בקואורדינטות מדויקות. |
+| `area.circle.latLng.latitude` | מספר; `-90.0–90.0` | כשהאובייקט ההורה מסופק | <bdi dir="auto">—</bdi> | קו רוחב WGS84 במעלות עשרוניות; צפון חיובי. |
+| `area.circle.latLng.longitude` | מספר; `-180.0–180.0` | כשהאובייקט ההורה מסופק | <bdi dir="auto">—</bdi> | קו אורך WGS84 במעלות עשרוניות; מזרח חיובי. |
+| `area.circle.radius` | מספר שלם; `23–50000` | כשהאובייקט ההורה מסופק | <bdi dir="auto">—</bdi> | רדיוס המעגל במטרים. |
+| `area.customArea` | אובייקט | לא | <bdi dir="auto">לא מסופק</bdi> | אזור מצולע מותאם; אינו משולב עם circle או region. |
+| `area.customArea.polygon` | אובייקט | כשהאובייקט ההורה מסופק | <bdi dir="auto">—</bdi> | גבול המצולע. |
+| `area.customArea.polygon.coordinates` | מערך אובייקטים; `4–1000` פריטים | כשהאובייקט ההורה מסופק | <bdi dir="auto">—</bdi> | טבעת מסודרת של אובייקטי קואורדינטות; הראשונה והאחרונה חייבות להיות זהות. |
+| `area.customArea.polygon.coordinates[].latitude` | מספר; `-90.0–90.0` | כשהאובייקט ההורה מסופק | <bdi dir="auto">—</bdi> | קו רוחב WGS84 במעלות עשרוניות; צפון חיובי. |
+| `area.customArea.polygon.coordinates[].longitude` | מספר; `-180.0–180.0` | כשהאובייקט ההורה מסופק | <bdi dir="auto">—</bdi> | קו אורך WGS84 במעלות עשרוניות; מזרח חיובי. |
+| `area.region` | אובייקט | לא | <bdi dir="auto">לא מסופק</bdi> | אזור מנהלי או גאוגרפי המזוהה באמצעות משאב מקום Google. |
+| `area.region.place` | מחרוזת; תבנית: `^places/[A-Za-z0-9_-]+$` | כשהאובייקט ההורה מסופק | <bdi dir="auto">—</bdi> | משאב אזור בפורמט places/PLACE_ID, ולא שם אזור בטקסט חופשי. |
+| `excludedTypes` / `--excluded-types` | מערך מחרוזות; `1–50` פריטים; כל פריט לפחות 1 תווים | לא | <bdi dir="auto">ללא מסנן סוגים מוחרגים</bdi> | סוגי מקומות Google להחרגה. |
+| `includePlaces` / `--include-places` | בוליאני | לא | <bdi dir="auto">false</bdi> | בקשת מזהי משאבי מקומות מתאימים בנוסף לספירה. |
+| `includedTypes` / `--included-types` | מערך מחרוזות; `1–50` פריטים; כל פריט לפחות 1 תווים | כן | <bdi dir="auto">—</bdi> | סוגי מקומות Google להכללה, כגון restaurant או cafe. |
+| `maxRating` / `--max-rating` | מספר; `1.0–5.0` | לא | <bdi dir="auto">ללא מסנן ציון עליון</bdi> | גבול עליון כולל לציון. |
+| `minRating` / `--min-rating` | מספר; `1.0–5.0` | לא | <bdi dir="auto">ללא מסנן ציון תחתון</bdi> | גבול תחתון כולל לציון; אינו יכול לעלות על maxRating. |
+| `operatingStatus` / `--operating-status` | מערך מחרוזות; `1–3` פריטים; ערכים: `OPERATING_STATUS_OPERATIONAL`, `OPERATING_STATUS_PERMANENTLY_CLOSED`, `OPERATING_STATUS_TEMPORARILY_CLOSED` | לא | <bdi dir="auto">ברירת המחדל של Google היא מקומות פעילים</bdi> | מצבי פעילות מותרים. |
+| `priceLevels` / `--price-levels` | מערך מחרוזות; `1–5` פריטים; ערכים: `PRICE_LEVEL_FREE`, `PRICE_LEVEL_INEXPENSIVE`, `PRICE_LEVEL_MODERATE`, `PRICE_LEVEL_EXPENSIVE`, `PRICE_LEVEL_VERY_EXPENSIVE` | לא | <bdi dir="auto">כל רמות המחירים</bdi> | רמות מחירים מותרות. |
+
+### התנהגות ומגבלות
+
+- ספקו צורת אזור אחת בדיוק. אובייקטים מקוננים הם ערכי JSON ב-CLI; לפרמטרי הבנים אין אפשרויות עצמאיות.
+- טבעות מצולע חייבות להיות סגורות. Google בודקת גם גאומטריה, סוגים נתמכים, שטח וכיסוי.
+- מזהי מקומות זמינים רק בספירה של 100 ומטה. הכלי אינו מבקש Place Details אוטומטית.
+
+### תוצאה
+
+תשובת Google עם `count` (בדרך כלל מחרוזת int64) ומשאבי `placeInsights[].place` אופציונליים כשהמזהים התבקשו וזמינים.
+
+### דוגמה
+
+ארגומנטי MCP:
+
+```json
+{
+  "area": {
+    "circle": {
+      "latLng": {
+        "latitude": 48.8584,
+        "longitude": 2.2945
+      },
+      "radius": 500
+    }
+  },
+  "includedTypes": [
+    "restaurant"
+  ],
+  "minRating": 4
+}
+```
+
+קריאת CLI מקבילה:
+
+```sh
+mcp-gmap-rs call maps_area_insights --args '{"area":{"circle":{"latLng":{"latitude":48.8584,"longitude":2.2945},"radius":500}},"includedTypes":["restaurant"],"minRating":4}'
+```
+
+
+## maps_snap_to_roads {#maps_snap_to_roads}
+
+התאמת תוואי GPS מסודר של 2–100 נקודות לכבישים. מומלץ מרחק של כ-300 מטר בין נקודות עוקבות. אינטרפולציה אופציונלית מוסיפה גאומטריית כביש.
+
+התאמת תוואי GPS מסודר לגאומטריית הכביש הסבירה ביותר. לנקודות עצמאיות השתמשו ב-Nearest Roads ולא בתוואי נסיעה.
+
+**פקודת CLI:** `snap-to-roads`. **גישה ל-Google:** נדרש מפתח API במימוש זה.
+
+### פרמטרים
+
+| פרמטר / אפשרות CLI | סוג וגבולות הסכמה | נדרש | ערך כשמושמט | תיאור |
+| --- | --- | --- | --- | --- |
+| `interpolate` / `--interpolate` | בוליאני | לא | <bdi dir="auto">false</bdi> | הוספת גאומטריית כביש ביניים בין הנקודות שסופקו. |
+| `path` / `--path` | מערך אובייקטים; `2–100` פריטים | כן | <bdi dir="auto">—</bdi> | אובייקטי קואורדינטות GPS בסדר הנסיעה. |
+| `path[].latitude` | מספר; `-90.0–90.0` | כשהאובייקט ההורה מסופק | <bdi dir="auto">—</bdi> | קו רוחב WGS84 במעלות עשרוניות; צפון חיובי. |
+| `path[].longitude` | מספר; `-180.0–180.0` | כשהאובייקט ההורה מסופק | <bdi dir="auto">—</bdi> | קו אורך WGS84 במעלות עשרוניות; מזרח חיובי. |
+
+### התנהגות ומגבלות
+
+- נקודות קלט עוקבות צריכות להיות במרחק של כ-300 מטר לקבלת התאמה טובה.
+- לנקודות אינטרפולציה ייתכן שאין originalIndex. הכלי אינו מבקש מגבלות מהירות.
+
+### תוצאה
+
+תשובת Roads המקורית, כולל `snappedPoints` וכל `warningMessage`. הנקודות שומרות `placeId`, `location` ו-`originalIndex` כשסופקו.
+
+### דוגמה
+
+ארגומנטי MCP:
+
+```json
+{
+  "path": [
+    {
+      "latitude": -35.27801,
+      "longitude": 149.12958
+    },
+    {
+      "latitude": -35.28032,
+      "longitude": 149.12907
+    }
+  ],
+  "interpolate": true
+}
+```
+
+קריאת CLI מקבילה:
+
+```sh
+mcp-gmap-rs call maps_snap_to_roads --args '{"path":[{"latitude":-35.27801,"longitude":149.12958},{"latitude":-35.28032,"longitude":149.12907}],"interpolate":true}'
+```
+
+
+## maps_nearest_roads {#maps_nearest_roads}
+
+מציאת מקטעי הכביש הקרובים ל-1–100 נקודות GPS עצמאיות; נשמרים originalIndex ומזהי כבישים של Google.
+
+מציאת מקטעי כביש ליד נקודות GPS עצמאיות בלי לפרש אותן כתוואי רציף אחד.
+
+**פקודת CLI:** `nearest-roads`. **גישה ל-Google:** נדרש מפתח API במימוש זה.
+
+### פרמטרים
+
+| פרמטר / אפשרות CLI | סוג וגבולות הסכמה | נדרש | ערך כשמושמט | תיאור |
+| --- | --- | --- | --- | --- |
+| `points` / `--points` | מערך אובייקטים; `1–100` פריטים | כן | <bdi dir="auto">—</bdi> | אובייקטי קואורדינטות עצמאיים להתאמה. |
+| `points[].latitude` | מספר; `-90.0–90.0` | כשהאובייקט ההורה מסופק | <bdi dir="auto">—</bdi> | קו רוחב WGS84 במעלות עשרוניות; צפון חיובי. |
+| `points[].longitude` | מספר; `-180.0–180.0` | כשהאובייקט ההורה מסופק | <bdi dir="auto">—</bdi> | קו אורך WGS84 במעלות עשרוניות; מזרח חיובי. |
+
+### התנהגות ומגבלות
+
+- נקודה יכולה להתאים לכמה מקטעי כביש; שמרו originalIndex במקום להניח פלט אחד לכל קלט.
+- הכלי אינו מבקש מגבלות מהירות.
+
+### תוצאה
+
+תשובת Roads המקורית עם `snappedPoints`, `placeId` של הכביש, `location` ו-`originalIndex` המקשר לנקודות הקלט.
+
+### דוגמה
+
+ארגומנטי MCP:
+
+```json
+{
+  "points": [
+    {
+      "latitude": -35.27801,
+      "longitude": 149.12958
+    },
+    {
+      "latitude": -35.28032,
+      "longitude": 149.12907
+    }
+  ]
+}
+```
+
+קריאת CLI מקבילה:
+
+```sh
+mcp-gmap-rs call maps_nearest_roads --args '{"points":[{"latitude":-35.27801,"longitude":149.12958},{"latitude":-35.28032,"longitude":149.12907}]}'
+```
+
+
+## maps_reverse_geocode {#maps_reverse_geocode}
+
+המרת קואורדינטות לכתובת רחוב.
+
+המרת קואורדינטות מדויקות לתוצאת Geocoding הפוכה הראשונה. השתמשו ברכיבי התוצאה כשהכתובת המעוצבת אינה מספיקה.
+
+**פקודת CLI:** `reverse-geocode`. **גישה ל-Google:** נדרש מפתח API במימוש זה.
+
+### פרמטרים
+
+| פרמטר / אפשרות CLI | סוג וגבולות הסכמה | נדרש | ערך כשמושמט | תיאור |
+| --- | --- | --- | --- | --- |
+| `latitude` / `--latitude` | מספר; `-90.0–90.0` | כן | <bdi dir="auto">—</bdi> | קו רוחב WGS84 במעלות עשרוניות; צפון חיובי. |
+| `longitude` / `--longitude` | מספר; `-180.0–180.0` | כן | <bdi dir="auto">—</bdi> | קו אורך WGS84 במעלות עשרוניות; מזרח חיובי. |
+
+### התנהגות ומגבלות
+
+- רק התוצאה הראשונה מוחזרת. אין התאמה הוא שגיאת כלי.
+
+### תוצאה
+
+תוצאת Geocoding המקורית הראשונה, כולל `formatted_address`, `address_components`, `geometry` ו-`place_id` כשזמינים.
+
+### דוגמה
+
+ארגומנטי MCP:
+
+```json
+{
+  "latitude": 48.8584,
+  "longitude": 2.2945
+}
+```
+
+קריאת CLI מקבילה:
+
+```sh
+mcp-gmap-rs call maps_reverse_geocode --args '{"latitude":48.8584,"longitude":2.2945}'
+```
+
+
+## maps_search_places {#maps_search_places}
+
+חיפוש טקסט ב-Places (New) עם מסנני מיקום וציון אופציונליים.
+
+חיפוש ב-Places (New) בטקסט ועם מסנני מיקום, ציון וסוג אופציונליים. השתמשו במזהים שהוחזרו לבקשות פרטים סלקטיביות.
+
+**פקודת CLI:** `search-places`. **גישה ל-Google:** מפתח API או OAuth לממשק המרכזי.
+
+### פרמטרים
+
+| פרמטר / אפשרות CLI | סוג וגבולות הסכמה | נדרש | ערך כשמושמט | תיאור |
+| --- | --- | --- | --- | --- |
+| `includedType` / `--included-type` | מחרוזת; לפחות 1 תווים | לא | <bdi dir="auto">ללא מסנן סוג</bdi> | סוג מקום Google, כגון cafe. |
+| `locationBias` / `--location-bias` | אובייקט | לא | <bdi dir="auto">ללא הטיית מיקום</bdi> | הטיית חיפוש מעגלית אופציונלית; הטיה אינה מגבלה גאוגרפית קשיחה. |
+| `locationBias.latitude` | מספר; `-90.0–90.0` | כשהאובייקט ההורה מסופק | <bdi dir="auto">—</bdi> | קו רוחב WGS84 במעלות עשרוניות; צפון חיובי. |
+| `locationBias.longitude` | מספר; `-180.0–180.0` | כשהאובייקט ההורה מסופק | <bdi dir="auto">—</bdi> | קו אורך WGS84 במעלות עשרוניות; מזרח חיובי. |
+| `locationBias.radius` | מספר; `0.1–50000.0` | לא | <bdi dir="auto">5000</bdi> | רדיוס ההטיה במטרים. |
+| `minRating` / `--min-rating` | מספר; `0.0–5.0` | לא | <bdi dir="auto">ללא מסנן ציון</bdi> | ציון המשתמש המינימלי המבוקש מ-Google. |
+| `openNow` / `--open-now` | בוליאני | לא | <bdi dir="auto">ללא הגבלת מצב פתיחה</bdi> | הגבלה למקומות פתוחים כעת כשהערך true. |
+| `query` / `--query` | מחרוזת; לפחות 1 תווים | כן | <bdi dir="auto">—</bdi> | שאילתת מקום בשפה טבעית. |
+
+### התנהגות ומגבלות
+
+- הכלי מבקש עמוד אחד של 20 תוצאות ואינו מחזיר או עוקב אוטומטית אחר אסימון עמוד.
+- היעדר נתוני פתיחה או ציון תלוי בכיסוי Google; אין להסיק מלאי ממצה מהחיפוש.
+
+### תוצאה
+
+מערך של עד 20 אובייקטי Google Place עם שדות חיפוש נבחרים, קישורי Maps/מקור ומטא-נתוני ייחוס.
+
+### דוגמה
+
+ארגומנטי MCP:
+
+```json
+{
+  "query": "coffee near Gare de Lyon, Paris",
+  "openNow": true,
+  "minRating": 4
+}
+```
+
+קריאת CLI מקבילה:
+
+```sh
+mcp-gmap-rs call maps_search_places --args '{"query":"coffee near Gare de Lyon, Paris","openNow":true,"minRating":4}'
+```
+
+
+## maps_search_nearby {#maps_search_nearby}
+
+מציאת מקומות סביב כתובת או קואורדינטות מדויקות, בסינון סוג, ציון ומצב פתיחה.
+
+מציאת מקומות ברדיוס מוגבל סביב מרכז שנפתר. בניגוד לחיפוש טקסט, זו מגבלת מיקום מעגלית קשיחה.
+
+**פקודת CLI:** `search-nearby`. **גישה ל-Google:** Places מקבל מפתח API או OAuth. מרכזים לפי כתובת או אתר לציון דורשים גם מפתח API לפתרון Geocoding.
+
+### פרמטרים
+
+| פרמטר / אפשרות CLI | סוג וגבולות הסכמה | נדרש | ערך כשמושמט | תיאור |
+| --- | --- | --- | --- | --- |
+| `center` / `--center` | אובייקט | כן | <bdi dir="auto">—</bdi> | קלט המרכז והדגל המתאר איך לפרשו. |
+| `center.isCoordinates` | בוליאני | לא | <bdi dir="auto">false</bdi> | התייחסות ל-value כקואורדינטות מדויקות ללא קידוד גאוגרפי. |
+| `center.value` | מחרוזת; לפחות 1 תווים | כשהאובייקט ההורה מסופק | <bdi dir="auto">—</bdi> | כתובת או אתר לציון, או מחרוזת latitude,longitude כשהערך isCoordinates הוא true. |
+| `keyword` / `--keyword` | מחרוזת; לפחות 1 תווים | לא | <bdi dir="auto">ללא מסנן סוג</bdi> | סוג מקום Google המועבר כ-includedTypes, כגון cafe; לא מילת חיפוש חופשית. |
+| `minRating` / `--min-rating` | מספר; `0.0–5.0` | לא | <bdi dir="auto">ללא מסנן ציון</bdi> | ציון מינימלי המוחל מקומית על המקומות שהוחזרו. |
+| `openNow` / `--open-now` | בוליאני | לא | <bdi dir="auto">false</bdi> | שמירת תוצאות רק כש-currentOpeningHours.openNow הוא true. |
+| `radius` / `--radius` | מספר; `0.1–50000.0` | לא | <bdi dir="auto">1000</bdi> | רדיוס חיפוש במטרים. |
+
+### התנהגות ומגבלות
+
+- בסינון, מצב פתיחה חסר אינו נחשב פתוח וציון חסר מטופל כ-0.
+- מרכזים לפי כתובת דורשים פתרון מיקום; קואורדינטות מונעות קריאה נוספת זו.
+
+### תוצאה
+
+מערך של עד 20 אובייקטי Place נבחרים. מסנני פתיחה וציון מקומיים עשויים לצמצם אותו עוד.
+
+### דוגמה
+
+ארגומנטי MCP:
+
+```json
+{
+  "center": {
+    "value": "48.8584,2.2945",
+    "isCoordinates": true
+  },
+  "keyword": "cafe",
+  "radius": 500
+}
+```
+
+קריאת CLI מקבילה:
+
+```sh
+mcp-gmap-rs call maps_search_nearby --args '{"center":{"value":"48.8584,2.2945","isCoordinates":true},"keyword":"cafe","radius":500}'
+```
+
+
+## maps_place_details {#maps_place_details}
+
+קבלת פרטי מקום, ביקורות וייחוס. כתובות תמונה אופציונליות שומרות ייחוס מחבר. הציגו מטא-נתוני מקור וגילוי לצד התוכן.
+
+הרחבת מזהה מקום מוכר לפרטים נבחרים, ביקורות וכתובות תמונה אופציונליות. שמרו מידע מחבר ומקור וכל גילוי AI.
+
+**פקודת CLI:** `place-details`. **גישה ל-Google:** מפתח API או OAuth לממשק המרכזי.
+
+### פרמטרים
+
+| פרמטר / אפשרות CLI | סוג וגבולות הסכמה | נדרש | ערך כשמושמט | תיאור |
+| --- | --- | --- | --- | --- |
+| `maxPhotos` / `--max-photos` | מספר שלם; `0–10` | לא | <bdi dir="auto">0</bdi> | מספר מרבי של חיפושי כתובות מדיה לתמונות. |
+| `placeId` / `--place-id` | מחרוזת; לפחות 1 תווים | כן | <bdi dir="auto">—</bdi> | מזהה מקום Google, עם קידומת places/ אופציונלית. |
+
+### התנהגות ומגבלות
+
+- כל תמונה שנבחרה עשויה ליצור בקשה נוספת; אפס תמונות מונע קריאות אלה.
+- הכלי משתמש במסכת פרטים קבועה ולא בכל שדות Google Place האפשריים. שדות לא זמינים עשויים להיעדר.
+
+### תוצאה
+
+אובייקט Google Place מקורי למסכת השדות המבוקשת. כשמבקשים תמונות, `photoUrls` מכיל כתובות מדיה, ייחוס מחברי תמונות וקישורי מקור.
+
+### דוגמה
+
+ארגומנטי MCP:
+
+```json
+{
+  "placeId": "ChIJLU7jZClu5kcR4PcOOO6p3I0",
+  "maxPhotos": 1
+}
+```
+
+קריאת CLI מקבילה:
+
+```sh
+mcp-gmap-rs call maps_place_details --args '{"placeId":"ChIJLU7jZClu5kcR4PcOOO6p3I0","maxPhotos":1}'
+```
+
+
+## maps_directions {#maps_directions}
+
+קבלת הוראות, גאומטריית מסלול, צעדי ניווט ומשך נסיעה.
+
+חישוב מסלול בין שתי נקודות קצה והצגת נתוני Google נבחרים וסיכומים מנורמלים.
+
+**פקודת CLI:** `directions`. **גישה ל-Google:** Routes ו-Places מקבלים מפתח API או OAuth. פתרון מיקומים בשמות דורש גם מפתח API ל-Geocoding; מחרוזות קואורדינטות מדויקות מונעות זאת.
+
+### פרמטרים
+
+| פרמטר / אפשרות CLI | סוג וגבולות הסכמה | נדרש | ערך כשמושמט | תיאור |
+| --- | --- | --- | --- | --- |
+| `arrival_time` / `--arrival-time` | מחרוזת; לפחות 1 תווים | לא | <bdi dir="auto">לא מסופק</bdi> | הגעה רצויה ב-RFC 3339 עם אזור זמן; לתחבורה ציבורית בלבד. |
+| `avoid_highways` / `--avoid-highways` | בוליאני | לא | <bdi dir="auto">false</bdi> | הימנעות מכבישים מהירים; true נתמך רק בנהיגה. |
+| `avoid_tolls` / `--avoid-tolls` | בוליאני | לא | <bdi dir="auto">false</bdi> | הימנעות מכבישי אגרה; true נתמך רק בנהיגה. |
+| `departure_time` / `--departure-time` | מחרוזת; לפחות 1 תווים | לא | <bdi dir="auto">לא מסופק</bdi> | רגע יציאה בפורמט RFC 3339 עם Z או היסט UTC מפורש. |
+| `destination` / `--destination` | מחרוזת; לפחות 1 תווים | כן | <bdi dir="auto">—</bdi> | כתובת או אתר יעד, או מחרוזת latitude,longitude מדויקת. |
+| `mode` / `--mode` | מחרוזת; ערכים: `driving`, `walking`, `bicycling`, `transit` | לא | <bdi dir="auto">driving</bdi> | אופן נסיעה. נהיגה משתמשת בניתוב המתחשב בתנועה. |
+| `origin` / `--origin` | מחרוזת; לפחות 1 תווים | כן | <bdi dir="auto">—</bdi> | כתובת או אתר מוצא, או מחרוזת latitude,longitude מדויקת. |
+
+### התנהגות ומגבלות
+
+- לא ניתן לספק יחד departure_time ו-arrival_time. arrival_time מתקבל רק לתחבורה ציבורית.
+- אפשרויות הימנעות דורשות נהיגה. Google מטילה מגבלות נוספות של אופן נסיעה, זמן ואזור.
+- אין מסלול זמין הוא שגיאה מפורשת.
+
+### תוצאה
+
+אובייקט עם `routes`, `summary`, `total_distance` (במטרים), `total_duration` (בשניות) ואינדקסי אופטימיזציה אופציונליים. מסלולים כוללים מקטעים, צעדים, קו מקודד ואזהרות נבחרים.
+
+### דוגמה
+
+ארגומנטי MCP:
+
+```json
+{
+  "origin": "48.8584,2.2945",
+  "destination": "48.8606,2.3376",
+  "mode": "walking"
+}
+```
+
+קריאת CLI מקבילה:
+
+```sh
+mcp-gmap-rs call maps_directions --args '{"origin":"48.8584,2.2945","destination":"48.8606,2.3376","mode":"walking"}'
+```
+
+
+## maps_distance_matrix {#maps_distance_matrix}
+
+חישוב מרחקי נסיעה וזמנים למספר מוצאים ויעדים.
+
+השוואת מרחק וזמן לכל צמד מוצא ויעד. בדקו תאים ושגיאות בנפרד במקום לראות בתשובה מוצלחת תוצאה מלאה.
+
+**פקודת CLI:** `distance-matrix`. **גישה ל-Google:** מפתח API או OAuth לממשק המרכזי.
+
+### פרמטרים
+
+| פרמטר / אפשרות CLI | סוג וגבולות הסכמה | נדרש | ערך כשמושמט | תיאור |
+| --- | --- | --- | --- | --- |
+| `avoid_highways` / `--avoid-highways` | בוליאני | לא | <bdi dir="auto">false</bdi> | הימנעות מכבישים מהירים; true נתמך רק בנהיגה. |
+| `avoid_tolls` / `--avoid-tolls` | בוליאני | לא | <bdi dir="auto">false</bdi> | הימנעות מכבישי אגרה; true נתמך רק בנהיגה. |
+| `departure_time` / `--departure-time` | מחרוזת; לפחות 1 תווים | לא | <bdi dir="auto">לא מסופק</bdi> | רגע יציאה בפורמט RFC 3339 עם Z או היסט UTC מפורש. |
+| `destinations` / `--destinations` | מערך מחרוזות; `1–50` פריטים; כל פריט לפחות 1 תווים | כן | <bdi dir="auto">—</bdi> | מחרוזות יעד: כתובות או צמדי latitude,longitude מדויקים. |
+| `mode` / `--mode` | מחרוזת; ערכים: `driving`, `walking`, `bicycling`, `transit` | לא | <bdi dir="auto">driving</bdi> | אופן נסיעה. נהיגה משתמשת בניתוב המתחשב בתנועה. |
+| `origins` / `--origins` | מערך מחרוזות; `1–50` פריטים; כל פריט לפחות 1 תווים | כן | <bdi dir="auto">—</bdi> | מחרוזות מוצא: כתובות או צמדי latitude,longitude מדויקים. |
+
+### התנהגות ומגבלות
+
+- עד 625 צמדי מוצא × יעד; תחבורה ציבורית מוגבלת ל-100 צמדים.
+- לכל היותר 50 מחרוזות מוצא/יעד שאינן קואורדינטות בסך הכול. מגבלות סכמה לכל מערך אינן מבטלות מגבלות משולבות אלה.
+- הימנעות מאגרה וכבישים מהירים חלה רק בנהיגה. הכלי אינו חושף arrival_time.
+- בקשת HTTP אחת למטריצה עשויה לחייב כמה רכיבים.
+
+### תוצאה
+
+אובייקט עם `origin_addresses`, `destination_addresses`, מטריצות `distances` ו-`durations` בסדר שורות, ומערך `errors`. ערכי תאים מוצלחים הם במטרים ובשניות; תאים כושלים או חסרים נשארים null.
+
+### דוגמה
+
+ארגומנטי MCP:
+
+```json
+{
+  "origins": [
+    "48.8584,2.2945"
+  ],
+  "destinations": [
+    "48.8606,2.3376",
+    "48.8530,2.3499"
+  ],
+  "mode": "walking"
+}
+```
+
+קריאת CLI מקבילה:
+
+```sh
+mcp-gmap-rs call maps_distance_matrix --args '{"origins":["48.8584,2.2945"],"destinations":["48.8606,2.3376","48.8530,2.3499"],"mode":"walking"}'
+```
+
+
+## maps_elevation {#maps_elevation}
+
+קבלת גובה במטרים לקואורדינטות גאוגרפיות.
+
+קבלת גובה גאוגרפי לנקודות קואורדינטות מדויקות.
+
+**פקודת CLI:** `elevation`. **גישה ל-Google:** נדרש מפתח API במימוש זה.
+
+### פרמטרים
+
+| פרמטר / אפשרות CLI | סוג וגבולות הסכמה | נדרש | ערך כשמושמט | תיאור |
+| --- | --- | --- | --- | --- |
+| `locations` / `--locations` | מערך אובייקטים; `1–512` פריטים | כן | <bdi dir="auto">—</bdi> | אובייקטי קואורדינטות שעבורם מבקשים גובה. |
+| `locations[].latitude` | מספר; `-90.0–90.0` | כשהאובייקט ההורה מסופק | <bdi dir="auto">—</bdi> | קו רוחב WGS84 במעלות עשרוניות; צפון חיובי. |
+| `locations[].longitude` | מספר; `-180.0–180.0` | כשהאובייקט ההורה מסופק | <bdi dir="auto">—</bdi> | קו אורך WGS84 במעלות עשרוניות; מזרח חיובי. |
+
+### התנהגות ומגבלות
+
+- הכלי מחזיר את נתוני Google ללא המרת יחידות גובה.
+
+### תוצאה
+
+מערך `results` המקורי של Elevation. רשומות עשויות לכלול `elevation` במטרים, `location` ו-`resolution`.
+
+### דוגמה
+
+ארגומנטי MCP:
+
+```json
+{
+  "locations": [
+    {
+      "latitude": 48.8584,
+      "longitude": 2.2945
+    }
+  ]
+}
+```
+
+קריאת CLI מקבילה:
+
+```sh
+mcp-gmap-rs call maps_elevation --args '{"locations":[{"latitude":48.8584,"longitude":2.2945}]}'
+```
+
+
+## maps_timezone {#maps_timezone}
+
+קבלת אזור זמן, היסטי UTC/שעון קיץ ושעה מקומית. timestamp במילישניות Unix.
+
+פתרון זהות אזור זמן והיסטי UTC/שעון קיץ ברגע נתון, והפקת חותמת זמן מקומית.
+
+**פקודת CLI:** `timezone`. **גישה ל-Google:** נדרש מפתח API במימוש זה.
+
+### פרמטרים
+
+| פרמטר / אפשרות CLI | סוג וגבולות הסכמה | נדרש | ערך כשמושמט | תיאור |
+| --- | --- | --- | --- | --- |
+| `latitude` / `--latitude` | מספר; `-90.0–90.0` | כן | <bdi dir="auto">—</bdi> | קו רוחב WGS84 במעלות עשרוניות; צפון חיובי. |
+| `longitude` / `--longitude` | מספר; `-180.0–180.0` | כן | <bdi dir="auto">—</bdi> | קו אורך WGS84 במעלות עשרוניות; מזרח חיובי. |
+| `timestamp` / `--timestamp` | מספר שלם; `0–253402300799999` | לא | <bdi dir="auto">זמן UTC נוכחי במילישניות</bdi> | מילישניות מאז תחילת Unix, ולא שניות. |
+
+### התנהגות ומגבלות
+
+- הבקשה ממירה מילישניות לשניות שלמות; דיוק של חלקי שנייה אינו נשמר.
+- השעה המקומית משתמשת בהיסט הרגיל ובהיסט שעון הקיץ שהוחזרו עבור הרגע המבוקש.
+
+### תוצאה
+
+שדות אזור זמן כגון `timeZoneId`, `timeZoneName`, `rawOffset` ו-`dstOffset` בשניות, ו-`localTime` נגזר בפורמט RFC 3339.
+
+### דוגמה
+
+ארגומנטי MCP:
+
+```json
+{
+  "latitude": 48.8584,
+  "longitude": 2.2945,
+  "timestamp": 1793448000000
+}
+```
+
+קריאת CLI מקבילה:
+
+```sh
+mcp-gmap-rs call maps_timezone --args '{"latitude":48.8584,"longitude":2.2945,"timestamp":1793448000000}'
+```
+
+
+## maps_weather {#maps_weather}
+
+קבלת מזג אוויר נוכחי, תחזית יומית או שעתית.
+
+בקשת תנאים נוכחיים או עמוד אחד של נתוני תחזית יומית/שעתית לקואורדינטות מדויקות.
+
+**פקודת CLI:** `weather`. **גישה ל-Google:** מפתח API או OAuth לממשק המרכזי.
+
+### פרמטרים
+
+| פרמטר / אפשרות CLI | סוג וגבולות הסכמה | נדרש | ערך כשמושמט | תיאור |
+| --- | --- | --- | --- | --- |
+| `forecastDays` / `--forecast-days` | מספר שלם; `1–10` | לא | <bdi dir="auto">5</bdi> | אורך תחזית יומית מבוקשת; בשימוש רק עם forecast_daily. |
+| `forecastHours` / `--forecast-hours` | מספר שלם; `1–240` | לא | <bdi dir="auto">24</bdi> | אורך תחזית שעתית מבוקשת; בשימוש רק עם forecast_hourly. |
+| `latitude` / `--latitude` | מספר; `-90.0–90.0` | כן | <bdi dir="auto">—</bdi> | קו רוחב WGS84 במעלות עשרוניות; צפון חיובי. |
+| `longitude` / `--longitude` | מספר; `-180.0–180.0` | כן | <bdi dir="auto">—</bdi> | קו אורך WGS84 במעלות עשרוניות; מזרח חיובי. |
+| `type` / `--type` | מחרוזת; ערכים: `current`, `forecast_daily`, `forecast_hourly` | לא | <bdi dir="auto">current</bdi> | בחירת תנאים נוכחיים, תחזית יומית או שעתית. |
+
+### התנהגות ומגבלות
+
+- forecastDays מתעלם בסוגים אחרים; forecastHours מתעלם מחוץ ל-forecast_hourly.
+- הכלי אינו עוקב אוטומטית אחר אסימוני עימוד. הטווח המבוקש עשוי לעלות על הרשומות שבעמוד תשובה אחד.
+- כיסוי וזמינות תחזיות תלויים ב-Google.
+
+### תוצאה
+
+תשובת Weather המקורית: שדות תנאים נוכחיים, `forecastDays` או `forecastHours`, לפי הסוג. שמרו יחידות, חותמות זמן וכל nextPageToken.
+
+### דוגמה
+
+ארגומנטי MCP:
+
+```json
+{
+  "latitude": 48.8584,
+  "longitude": 2.2945,
+  "type": "forecast_daily",
+  "forecastDays": 3
+}
+```
+
+קריאת CLI מקבילה:
+
+```sh
+mcp-gmap-rs call maps_weather --args '{"latitude":48.8584,"longitude":2.2945,"type":"forecast_daily","forecastDays":3}'
+```
+
+
+## maps_air_quality {#maps_air_quality}
+
+קבלת מדדי איכות אוויר, ריכוזי מזהמים אופציונליים והמלצות בריאות.
+
+קבלת מדדי איכות אוויר נוכחיים עם ריכוזי מזהמים והמלצות בריאות ספק אופציונליים.
+
+**פקודת CLI:** `air-quality`. **גישה ל-Google:** מפתח API או OAuth לממשק המרכזי.
+
+### פרמטרים
+
+| פרמטר / אפשרות CLI | סוג וגבולות הסכמה | נדרש | ערך כשמושמט | תיאור |
+| --- | --- | --- | --- | --- |
+| `includeHealthRecommendations` / `--include-health-recommendations` | בוליאני | לא | <bdi dir="auto">true</bdi> | בקשת חישוב המלצות בריאות של Google. |
+| `includePollutants` / `--include-pollutants` | בוליאני | לא | <bdi dir="auto">false</bdi> | בקשת ריכוזי מזהמים. |
+| `latitude` / `--latitude` | מספר; `-90.0–90.0` | כן | <bdi dir="auto">—</bdi> | קו רוחב WGS84 במעלות עשרוניות; צפון חיובי. |
+| `longitude` / `--longitude` | מספר; `-180.0–180.0` | כן | <bdi dir="auto">—</bdi> | קו אורך WGS84 במעלות עשרוניות; מזרח חיובי. |
+
+### התנהגות ומגבלות
+
+- ההמלצות הן נתוני ספק ולא הערכה רפואית אישית.
+- הכלי חושף תנאים נוכחיים ולא נקודות קצה היסטוריות או תחזיות.
+
+### תוצאה
+
+תשובת התנאים הנוכחיים המקורית של Air Quality, כולל מדדים ו-`healthRecommendations`/`pollutants` אופציונליים כשסופקו בידי Google.
+
+### דוגמה
+
+ארגומנטי MCP:
+
+```json
+{
+  "latitude": 48.8584,
+  "longitude": 2.2945,
+  "includePollutants": true
+}
+```
+
+קריאת CLI מקבילה:
+
+```sh
+mcp-gmap-rs call maps_air_quality --args '{"latitude":48.8584,"longitude":2.2945,"includePollutants":true}'
+```
+
+
+## maps_static_map {#maps_static_map}
+
+שליפת מפת PNG עם סמנים ותוואים. MCP מחזיר תמונה מוטמעת; CLI מחזיר base64 JSON או כותב --output.
+
+יצירת מפת PNG עם סמנים ומפרטי תוואי אופציונליים.
+
+**פקודת CLI:** `static-map`. **גישה ל-Google:** נדרש מפתח API במימוש זה.
+
+### פרמטרים
+
+| פרמטר / אפשרות CLI | סוג וגבולות הסכמה | נדרש | ערך כשמושמט | תיאור |
+| --- | --- | --- | --- | --- |
+| `center` / `--center` | מחרוזת; לפחות 1 תווים | לא | <bdi dir="auto">לא מסופק</bdi> | מרכז ככתובת או כמחרוזת latitude,longitude. |
+| `maptype` / `--maptype` | מחרוזת; ערכים: `roadmap`, `satellite`, `terrain`, `hybrid` | לא | <bdi dir="auto">roadmap</bdi> | סגנון מפת הבסיס. |
+| `markers` / `--markers` | מערך מחרוזות; `1–100` פריטים; כל פריט לפחות 1 תווים | לא | <bdi dir="auto">ללא סמנים</bdi> | מפרטי סמנים חוזרים של Google Static Maps, לדוגמה color:red\|48.8584,2.2945. |
+| `path` / `--path` | מערך מחרוזות; `1–100` פריטים; כל פריט לפחות 1 תווים | לא | <bdi dir="auto">ללא תוואים</bdi> | מפרטי תוואי חוזרים של Google Static Maps, לדוגמה color:blue\|48.8584,2.2945\|48.8606,2.3376. |
+| `size` / `--size` | מחרוזת; תבנית: `^[1-9][0-9]{0,2}x[1-9][0-9]{0,2}$` | לא | <bdi dir="auto">600x400</bdi> | ממדים בפיקסלים WIDTHxHEIGHT; זמן הריצה מגביל כל ממד ל-1–640. |
+| `zoom` / `--zoom` | מספר שלם; `0–21` | לא | <bdi dir="auto">מושמט; Google בוחרת או מסיקה אותו</bdi> | רמת זום מפורשת. |
+
+### התנהגות ומגבלות
+
+- נדרש לפחות אחד מבין center, markers או path.
+- כתובת הבקשה המלאה חייבת להתאים ל-16,384 תווים. תבנית size בסכמה רחבה ממגבלת 640 הפיקסלים בזמן הריצה.
+- עיצוב סמנים ותוואים תואם לתחביר Google Static Maps. ייחוס Google נשאר בתמונה שנוצרה.
+
+### תוצאה
+
+MCP מחזיר תוכן image/png מוטמע. CLI מחזיר JSON מסוג `{mimeType,base64}`, או בתים גולמיים של PNG כשמסופק --output.
+
+### דוגמה
+
+ארגומנטי MCP:
+
+```json
+{
+  "center": "48.8584,2.2945",
+  "zoom": 14,
+  "size": "320x240",
+  "markers": [
+    "color:red|48.8584,2.2945"
+  ]
+}
+```
+
+קריאת CLI מקבילה:
+
+```sh
+mcp-gmap-rs call maps_static_map --args '{"center":"48.8584,2.2945","zoom":14,"size":"320x240","markers":["color:red|48.8584,2.2945"]}'
+```
+
+
+## maps_batch_geocode {#maps_batch_geocode}
+
+קידוד גאוגרפי של עד 50 כתובות עם הצלחה או שגיאה לכל כתובת ומקביליות מוגבלת.
+
+קידוד גאוגרפי של רשימת כתובות מוגבלת תוך שמירה על סדר הקלט והצלחת או כישלון כל פריט.
+
+**פקודת CLI:** `batch-geocode`. **גישה ל-Google:** נדרש מפתח API במימוש זה.
+
+### פרמטרים
+
+| פרמטר / אפשרות CLI | סוג וגבולות הסכמה | נדרש | ערך כשמושמט | תיאור |
+| --- | --- | --- | --- | --- |
+| `addresses` / `--addresses` | מערך מחרוזות; `1–50` פריטים; כל פריט לפחות 1 תווים | כן | <bdi dir="auto">—</bdi> | מחרוזות כתובות או אתרים לציון לפתרון. |
+
+### התנהגות ומגבלות
+
+- משתמש במקביליות מוגבלת של עד חמש בקשות Google פעילות לתהליך.
+- כשלי פריטים אינם מחייבים קוד יציאה שאינו אפס; בדקו success ו-error בכל שורה.
+
+### תוצאה
+
+מערך בסדר הקלט. כל שורה מכילה `address`, `success` ו-`data` (אובייקט קידוד גאוגרפי) או `error`.
+
+### דוגמה
+
+ארגומנטי MCP:
+
+```json
+{
+  "addresses": [
+    "Paris, France",
+    "London, UK"
+  ]
+}
+```
+
+קריאת CLI מקבילה:
+
+```sh
+mcp-gmap-rs call maps_batch_geocode --args '{"addresses":["Paris, France","London, UK"]}'
+```
+
+
+## maps_explore_area {#maps_explore_area}
+
+פתרון מיקום וחקירת קטגוריות עם פרטים לתוצאות המובילות. השתמשו באתרים מוגדרים לתכנון נסיעה.
+
+פתרון מיקום אחד, חיפוש קטגוריות נבחרות סביבו והרחבת התוצאות המובילות בלבד בכל קטגוריה.
+
+**פקודת CLI:** `explore-area`. **גישה ל-Google:** Places מקבל מפתח API או OAuth. מיקומים בשמות דורשים גם מפתח API ל-Geocoding.
+
+### פרמטרים
+
+| פרמטר / אפשרות CLI | סוג וגבולות הסכמה | נדרש | ערך כשמושמט | תיאור |
+| --- | --- | --- | --- | --- |
+| `location` / `--location` | מחרוזת; לפחות 1 תווים | כן | <bdi dir="auto">—</bdi> | כתובת, אתר לציון או מחרוזת latitude,longitude מדויקת. |
+| `radius` / `--radius` | מספר; `0.1–50000.0` | לא | <bdi dir="auto">1000</bdi> | רדיוס חיפוש קטגוריה במטרים. |
+| `topN` / `--top-n` | מספר שלם; `1–20` | לא | <bdi dir="auto">3</bdi> | מספר מרבי של מקומות בכל קטגוריה להרחבה עם פרטים. |
+| `types` / `--types` | מערך מחרוזות; `1–10` פריטים; כל פריט לפחות 1 תווים | לא | <bdi dir="auto">restaurant, cafe, tourist_attraction</bdi> | קטגוריות מקומות Google לחיפוש. |
+
+### התנהגות ומגבלות
+
+- כל קטגוריה מחפשת עד 20 מקומות; count הוא ספירת העמוד שהוחזר ולא מלאי מצטבר.
+- כשלי קטגוריות ופרטים נשארים גלויים בפלט עליון מוצלח.
+- הקריאה המשולבת שולחת כמה בקשות Google; הגבילו קטגוריות ו-topN לצורכי המשימה.
+
+### תוצאה
+
+אובייקט עם `location` שנפתר, `radius` ו-`categories`. לכל קטגוריה type/count/top או שגיאה; מקומות מורחבים עשויים לכלול details_error.
+
+### דוגמה
+
+ארגומנטי MCP:
+
+```json
+{
+  "location": "48.8584,2.2945",
+  "types": [
+    "cafe"
+  ],
+  "radius": 500,
+  "topN": 1
+}
+```
+
+קריאת CLI מקבילה:
+
+```sh
+mcp-gmap-rs call maps_explore_area --args '{"location":"48.8584,2.2945","types":["cafe"],"radius":500,"topN":1}'
+```
+
+
+## maps_plan_route {#maps_plan_route}
+
+תכנון מסלול דרך 2–27 עצירות. אופטימיזציה של 2–25 עצירות ביניים, למעט תחבורה ציבורית. קואורדינטות מדויקות נשמרות.
+
+תכנון מסלול אחד דרך עצירות מסודרות, עם בקשה אופציונלית מ-Google לסדר מחדש עצירות ביניים תוך שמירת נקודות הקצה.
+
+**פקודת CLI:** `plan-route`. **גישה ל-Google:** Routes ו-Places מקבלים מפתח API או OAuth. פתרון מיקומים בשמות דורש גם מפתח API ל-Geocoding; מחרוזות קואורדינטות מדויקות מונעות זאת.
+
+### פרמטרים
+
+| פרמטר / אפשרות CLI | סוג וגבולות הסכמה | נדרש | ערך כשמושמט | תיאור |
+| --- | --- | --- | --- | --- |
+| `avoid_highways` / `--avoid-highways` | בוליאני | לא | <bdi dir="auto">false</bdi> | הימנעות מכבישים מהירים; true נתמך רק בנהיגה. |
+| `avoid_tolls` / `--avoid-tolls` | בוליאני | לא | <bdi dir="auto">false</bdi> | הימנעות מכבישי אגרה; true נתמך רק בנהיגה. |
+| `departure_time` / `--departure-time` | מחרוזת; לפחות 1 תווים | לא | <bdi dir="auto">לא מסופק</bdi> | רגע יציאה בפורמט RFC 3339 עם Z או היסט UTC מפורש. |
+| `mode` / `--mode` | מחרוזת; ערכים: `driving`, `walking`, `bicycling`, `transit` | לא | <bdi dir="auto">driving</bdi> | אופן נסיעה. נהיגה משתמשת בניתוב המתחשב בתנועה. |
+| `optimize` / `--optimize` | בוליאני | לא | <bdi dir="auto">true, בכפוף לתנאים אלה</bdi> | בקשת אופטימיזציה לעצירות ביניים כשיש יותר משלוש עצירות בסך הכול והמצב אינו transit. |
+| `stops` / `--stops` | מערך מחרוזות; `2–27` פריטים; כל פריט לפחות 1 תווים | כן | <bdi dir="auto">—</bdi> | כתובות או אתרים לציון מסודרים, או מחרוזות latitude,longitude מדויקות; הראשון והאחרון נשארים נקודות קצה. |
+
+### התנהגות ומגבלות
+
+- תחבורה ציבורית תומכת רק בשתי נקודות קצה, ללא עצירות ביניים.
+- האופטימיזציה חלה רק מארבע עצירות בסך הכול (לפחות שתי עצירות ביניים).
+- הכלי ממטב סדר עצירות במסלול יחיד, ולא שיוך כלי רכב או משימות בצי.
+
+### תוצאה
+
+אובייקט עם `mode`, ערך `optimized` אפקטיבי, `stops` פתורים ומסודרים, `legs` להצגה, total_distance, total_duration, polyline ואזהרות. durationSeconds של מקטע הוא מספר שניות.
+
+### דוגמה
+
+ארגומנטי MCP:
+
+```json
+{
+  "stops": [
+    "48.8584,2.2945",
+    "48.8606,2.3376",
+    "48.8530,2.3499"
+  ],
+  "mode": "walking",
+  "optimize": false
+}
+```
+
+קריאת CLI מקבילה:
+
+```sh
+mcp-gmap-rs call maps_plan_route --args '{"stops":["48.8584,2.2945","48.8606,2.3376","48.8530,2.3499"],"mode":"walking","optimize":false}'
+```
+
+
+## maps_compare_places {#maps_compare_places}
+
+חיפוש והשוואת מקומות עם פרטים ומרחק נהיגה אופציונלי מ-userLocation.
+
+מציאת רשימת מקומות מצומצמת והעשרתה, עם השוואת מרחק נהיגה מקואורדינטות משתמש מדויקות לפי בחירה.
+
+**פקודת CLI:** `compare-places`. **גישה ל-Google:** Places ו-Routes האופציונלי מקבלים מפתח API או OAuth.
+
+### פרמטרים
+
+| פרמטר / אפשרות CLI | סוג וגבולות הסכמה | נדרש | ערך כשמושמט | תיאור |
+| --- | --- | --- | --- | --- |
+| `limit` / `--limit` | מספר שלם; `1–20` | לא | <bdi dir="auto">5</bdi> | מספר מרבי של מקומות מתאימים להעשרה. |
+| `query` / `--query` | מחרוזת; לפחות 1 תווים | כן | <bdi dir="auto">—</bdi> | שאילתת חיפוש טקסט של Places. |
+| `userLocation` / `--user-location` | אובייקט | לא | <bdi dir="auto">ללא השוואת מרחק או זמן</bdi> | קואורדינטות משתמש מדויקות להשוואת מרחק אופציונלית. |
+| `userLocation.latitude` | מספר; `-90.0–90.0` | כשהאובייקט ההורה מסופק | <bdi dir="auto">—</bdi> | קו רוחב WGS84 במעלות עשרוניות; צפון חיובי. |
+| `userLocation.longitude` | מספר; `-180.0–180.0` | כשהאובייקט ההורה מסופק | <bdi dir="auto">—</bdi> | קו אורך WGS84 במעלות עשרוניות; מזרח חיובי. |
+
+### התנהגות ומגבלות
+
+- ההשוואה משתמשת בנהיגה; אין לכלי פרמטר לשינוי אופן הנסיעה.
+- כשלי פרטים ומרחק נשמרים במקום למחוק מקומות שימושיים אחרת.
+- רק הרשימה המצומצמת המבוקשת מועשרת.
+
+### תוצאה
+
+אובייקט עם `places` ו-`distance_error` אופציונלי. מקומות עשויים לכלול details/details_error, distance, drive_time ו-distance_errors לכל מקום.
+
+### דוגמה
+
+ארגומנטי MCP:
+
+```json
+{
+  "query": "cafes near Eiffel Tower, Paris",
+  "userLocation": {
+    "latitude": 48.8584,
+    "longitude": 2.2945
+  },
+  "limit": 3
+}
+```
+
+קריאת CLI מקבילה:
+
+```sh
+mcp-gmap-rs call maps_compare_places --args '{"query":"cafes near Eiffel Tower, Paris","userLocation":{"latitude":48.8584,"longitude":2.2945},"limit":3}'
+```
+
+
+## maps_search_along_route {#maps_search_along_route}
+
+מציאת מקומות לאורך מסלול באמצעות הקו המקודד שלו.
+
+חישוב מסלול וחיפוש Places באמצעות הקו המקודד שלו, במקום לקירוב הנסיעה בחיפוש מעגלי יחיד.
+
+**פקודת CLI:** `search-along-route`. **גישה ל-Google:** Routes ו-Places מקבלים מפתח API או OAuth. פתרון מיקומים בשמות דורש גם מפתח API ל-Geocoding; מחרוזות קואורדינטות מדויקות מונעות זאת.
+
+### פרמטרים
+
+| פרמטר / אפשרות CLI | סוג וגבולות הסכמה | נדרש | ערך כשמושמט | תיאור |
+| --- | --- | --- | --- | --- |
+| `destination` / `--destination` | מחרוזת; לפחות 1 תווים | כן | <bdi dir="auto">—</bdi> | כתובת או אתר יעד המסלול, או מחרוזת latitude,longitude מדויקת. |
+| `maxResults` / `--max-results` | מספר שלם; `1–20` | לא | <bdi dir="auto">5</bdi> | מספר מרבי של תוצאות Places המבוקשות בעמוד התשובה. |
+| `mode` / `--mode` | מחרוזת; ערכים: `driving`, `walking`, `bicycling`, `transit` | לא | <bdi dir="auto">walking</bdi> | אופן הנסיעה למסלול המשמש בחיפוש. |
+| `origin` / `--origin` | מחרוזת; לפחות 1 תווים | כן | <bdi dir="auto">—</bdi> | כתובת או אתר מוצא המסלול, או מחרוזת latitude,longitude מדויקת. |
+| `textQuery` / `--text-query` | מחרוזת; לפחות 1 תווים | כן | <bdi dir="auto">—</bdi> | שאילתת Places לעצירות לאורך המסלול, כגון בתי קפה או עמדות טעינה. |
+
+### התנהגות ומגבלות
+
+- ברירת המחדל היא walking, בניגוד ל-directions, matrix ו-plan-route שברירת המחדל שלהם driving.
+- אין עימוד אוטומטי או הרחבת Place Details.
+- הכלי אינו חושף פרמטרי יציאה, הגעה או הימנעות של directions.
+
+### תוצאה
+
+אובייקט עם `places`, `routingSummaries` אופציונלי וה-`route` המחושב, כולל נתוני מסלול Google נבחרים וסיכומים מנורמלים.
+
+### דוגמה
+
+ארגומנטי MCP:
+
+```json
+{
+  "textQuery": "cafes",
+  "origin": "48.8584,2.2945",
+  "destination": "48.8606,2.3376",
+  "mode": "walking",
+  "maxResults": 3
+}
+```
+
+קריאת CLI מקבילה:
+
+```sh
+mcp-gmap-rs call maps_search_along_route --args '{"textQuery":"cafes","origin":"48.8584,2.2945","destination":"48.8606,2.3376","mode":"walking","maxResults":3}'
+```
+
+
+## maps_local_rank_tracker {#maps_local_rank_tracker}
+
+מעקב דירוג חיפוש ברשת גאוגרפית ל-1–3 מילות מפתח; מחזיר ARP, ATRP, SoLV ושגיאות לכל נקודה.
+
+מדידת הופעת מקום יעד ב-20 תוצאות Text Search הראשונות בכל נקודת רשת גאוגרפית.
+
+**פקודת CLI:** `local-rank-tracker`. **גישה ל-Google:** מפתח API או OAuth לממשק המרכזי.
+
+### פרמטרים
+
+| פרמטר / אפשרות CLI | סוג וגבולות הסכמה | נדרש | ערך כשמושמט | תיאור |
+| --- | --- | --- | --- | --- |
+| `center` / `--center` | אובייקט | כן | <bdi dir="auto">—</bdi> | מרכז מדויק של רשת הסריקה. |
+| `center.latitude` | מספר; `-90.0–90.0` | כשהאובייקט ההורה מסופק | <bdi dir="auto">—</bdi> | קו רוחב WGS84 במעלות עשרוניות; צפון חיובי. |
+| `center.longitude` | מספר; `-180.0–180.0` | כשהאובייקט ההורה מסופק | <bdi dir="auto">—</bdi> | קו אורך WGS84 במעלות עשרוניות; מזרח חיובי. |
+| `gridSize` / `--grid-size` | מספר שלם; `3–7` | לא | <bdi dir="auto">3</bdi> | מספר שורות ועמודות; כל המספרים השלמים 3–7 מתקבלים. |
+| `gridSpacing` / `--grid-spacing` | מספר; `100.0–10000.0` | לא | <bdi dir="auto">1000</bdi> | מרחק במטרים בין נקודות רשת שכנות. |
+| `keyword` / `--keyword` | מחרוזת; לפחות 1 תווים | לא | <bdi dir="auto">לא מסופק</bdi> | מילת חיפוש אחת; השתמשו ב-keyword או keywords. |
+| `keywords` / `--keywords` | מערך מחרוזות; `1–3` פריטים; כל פריט לפחות 1 תווים | לא | <bdi dir="auto">לא מסופק</bdi> | אחת עד שלוש מילות חיפוש; מקבל קדימות אם שני השדות סופקו. |
+| `placeId` / `--place-id` | מחרוזת; לפחות 1 תווים | כן | <bdi dir="auto">—</bdi> | מזהה מקום היעד, עם קידומת places/ אופציונלית. |
+
+### התנהגות ומגבלות
+
+- נדרש לפחות keyword או keywords; שורות הסכמה הבודדות אינן מבטאות חלופה זו.
+- מספר בקשות החיפוש גדל כמספר המילים × gridSize² (עד 147 לפני ניסיונות חוזרים).
+- נקודות כושלות מוחרגות ממדדי הדירוג ולא מטופלות כהיעדר תקין. המדדים עשויים להיות null כשאין תצפיות שימושיות.
+- דירוג חיפוש אינו ציון ביקורות המשתמשים של המקום. התוצאות הן דגימות מחיפושי טקסט מוטים, ולא הבטחה לדירוג משתמש ב-Google Maps.
+
+### תוצאה
+
+אובייקט עם target, grid_size, grid_spacing_m ומדדים/רשת לכל מילה. ARP הוא ממוצע דירוגים שנמצאו; ATRP משתמש בדירוג 21 לשאילתות מוצלחות שהיעד נעדר מהן; SoLV הוא אחוז הנקודות המוצלחות בדירוג שלוש הראשונות. failed_points ו-found_in חושפים כיסוי.
+
+### דוגמה
+
+ארגומנטי MCP:
+
+```json
+{
+  "keyword": "cafe",
+  "placeId": "ChIJLU7jZClu5kcR4PcOOO6p3I0",
+  "center": {
+    "latitude": 48.8584,
+    "longitude": 2.2945
+  },
+  "gridSize": 3,
+  "gridSpacing": 500
+}
+```
+
+קריאת CLI מקבילה:
+
+```sh
+mcp-gmap-rs call maps_local_rank_tracker --args '{"keyword":"cafe","placeId":"ChIJLU7jZClu5kcR4PcOOO6p3I0","center":{"latitude":48.8584,"longitude":2.2945},"gridSize":3,"gridSpacing":500}'
+```

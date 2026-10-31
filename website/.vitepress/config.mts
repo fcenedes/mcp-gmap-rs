@@ -1,5 +1,6 @@
 import { defineConfig } from "vitepress";
 import { readFileSync } from "node:fs";
+import postcssRTLCSS from "postcss-rtlcss";
 
 const release = readFileSync(
   new URL("../../Cargo.toml", import.meta.url),
@@ -7,95 +8,42 @@ const release = readFileSync(
 ).match(/^version = "([^"]+)"/m)![1];
 const origin = "https://fcenedes.github.io";
 const base = "/mcp-gmap-rs/";
-const titles = {
-  en: [
-    "Start here",
-    "Run it your way",
-    "Go deeper",
-    "Reference",
-    "Quick start",
-    "Google Cloud setup",
-    "Authentication",
-    "Configuration",
-    "Command line",
-    "MCP transports",
-    "Docker & Kubernetes",
-    "Production & TLS",
-    "Recipes",
-    "Troubleshooting",
-    "Agent skill",
-    "Development & releases",
-    "All 23 tools",
-    "All configuration settings",
-  ],
-  fr: [
-    "Bien démarrer",
-    "Exécuter et déployer",
-    "Aller plus loin",
-    "Référence",
-    "Démarrage rapide",
-    "Configurer Google Cloud",
-    "Authentification",
-    "Configuration",
-    "Ligne de commande",
-    "Transports MCP",
-    "Docker et Kubernetes",
-    "Production et TLS",
-    "Recettes",
-    "Dépannage",
-    "Skill pour agents",
-    "Développement et versions",
-    "Les 23 outils",
-    "Tous les paramètres",
-  ],
-  it: [
-    "Per iniziare",
-    "Eseguire e distribuire",
-    "Approfondimenti",
-    "Riferimento",
-    "Avvio rapido",
-    "Configurare Google Cloud",
-    "Autenticazione",
-    "Configurazione",
-    "Riga di comando",
-    "Trasporti MCP",
-    "Docker e Kubernetes",
-    "Produzione e TLS",
-    "Ricette",
-    "Risoluzione dei problemi",
-    "Skill per agenti",
-    "Sviluppo e release",
-    "Tutti i 23 strumenti",
-    "Tutte le impostazioni",
-  ],
-};
+const languages: string[] = JSON.parse(
+  readFileSync(new URL("../i18n/locales.json", import.meta.url), "utf8"),
+);
+const strings = Object.fromEntries(
+  languages.map((key) => [
+    key,
+    JSON.parse(
+      readFileSync(new URL(`../i18n/${key}.json`, import.meta.url), "utf8"),
+    ),
+  ]),
+);
+const prefix = (key: string) => (key === "en" ? "" : `/${key}`);
 
-function locale(lang: keyof typeof titles) {
-  const t = titles[lang];
-  const prefix = lang === "en" ? "" : `/${lang}`;
+function locale(key: string) {
+  const data = strings[key];
+  const t = data.titles;
   const item = (index: number, slug: string) => ({
     text: t[index],
-    link: `${prefix}/guide/${slug}`,
+    link: `${prefix(key)}/guide/${slug}`,
   });
   return {
-    label: { en: "English", fr: "Français", it: "Italiano" }[lang],
-    lang,
-    description: {
-      en: "The complete manual for the standalone Rust Google Maps CLI and MCP server. Setup, OAuth, 23 tools, TLS and Kubernetes.",
-      fr: "Le manuel complet du CLI et serveur MCP Google Maps autonome en Rust. Configuration, OAuth, 23 outils, TLS et Kubernetes.",
-      it: "Il manuale completo del CLI e server MCP Google Maps autonomo in Rust. Configurazione, OAuth, 23 strumenti, TLS e Kubernetes.",
-    }[lang],
+    label: data.label,
+    lang: data.lang,
+    dir: data.dir,
+    description: data.description,
     themeConfig: {
       nav: [
         {
-          text: { en: "Manual", fr: "Manuel", it: "Manuale" }[lang],
-          link: `${prefix}/guide/getting-started`,
-          activeMatch: `${prefix}/guide/`,
+          text: data.nav.manual,
+          link: `${prefix(key)}/guide/getting-started`,
+          activeMatch: `${prefix(key)}/guide/`,
         },
         {
-          text: { en: "Tools", fr: "Outils", it: "Strumenti" }[lang],
-          link: `${prefix}/reference/tools`,
-          activeMatch: `${prefix}/reference/`,
+          text: data.nav.tools,
+          link: `${prefix(key)}/reference/tools`,
+          activeMatch: `${prefix(key)}/reference/`,
         },
         {
           text: `v${release}`,
@@ -133,60 +81,24 @@ function locale(lang: keyof typeof titles) {
         {
           text: t[3],
           items: [
-            { text: t[16], link: `${prefix}/reference/tools` },
-            { text: t[17], link: `${prefix}/reference/configuration` },
+            { text: t[16], link: `${prefix(key)}/reference/tools` },
+            { text: t[17], link: `${prefix(key)}/reference/configuration` },
           ],
         },
       ],
-      outline: {
-        level: 2 as const,
-        label: {
-          en: "On this page",
-          fr: "Sur cette page",
-          it: "In questa pagina",
-        }[lang],
-      },
-      docFooter: {
-        prev: { en: "Previous", fr: "Précédent", it: "Precedente" }[lang],
-        next: { en: "Next", fr: "Suivant", it: "Successivo" }[lang],
-      },
-      returnToTopLabel: {
-        en: "Back to top",
-        fr: "Retour en haut",
-        it: "Torna in alto",
-      }[lang],
-      sidebarMenuLabel: { en: "Contents", fr: "Sommaire", it: "Indice" }[lang],
-      lightModeSwitchTitle: {
-        en: "Switch to light theme",
-        fr: "Passer au thème clair",
-        it: "Passa al tema chiaro",
-      }[lang],
-      darkModeSwitchTitle: {
-        en: "Switch to dark theme",
-        fr: "Passer au thème sombre",
-        it: "Passa al tema scuro",
-      }[lang],
-      darkModeSwitchLabel: { en: "Appearance", fr: "Apparence", it: "Aspetto" }[
-        lang
-      ],
-      skipToContentLabel: {
-        en: "Skip to content",
-        fr: "Aller au contenu",
-        it: "Vai al contenuto",
-      }[lang],
-      langMenuLabel: {
-        en: "Change language",
-        fr: "Changer de langue",
-        it: "Cambia lingua",
-      }[lang],
+      outline: { level: 2 as const, label: data.ui.outline },
+      docFooter: { prev: data.ui.previous, next: data.ui.next },
+      returnToTopLabel: data.ui.top,
+      sidebarMenuLabel: data.ui.contents,
+      lightModeSwitchTitle: data.ui.light,
+      darkModeSwitchTitle: data.ui.dark,
+      darkModeSwitchLabel: data.ui.appearance,
+      skipToContentLabel: data.ui.skip,
+      langMenuLabel: data.ui.language,
       editLink: {
         pattern:
           "https://github.com/fcenedes/mcp-gmap-rs/edit/main/website/:path",
-        text: {
-          en: "Improve this page",
-          fr: "Améliorer cette page",
-          it: "Migliora questa pagina",
-        }[lang],
+        text: data.ui.edit,
       },
     },
   };
@@ -200,6 +112,11 @@ export default defineConfig({
   srcExclude: ["README.md", "node_modules/**"],
   appearance: { initialValue: "dark" },
   lastUpdated: false,
+  // VitePress 1.6 uses physical CSS properties. Mirror its styles for RTL locales.
+  // Revisit this plugin when upgrading to a theme that uses logical properties.
+  vite: {
+    css: { postcss: { plugins: [postcssRTLCSS({ safeBothPrefix: true })] } },
+  },
   head: [
     ["link", { rel: "icon", type: "image/svg+xml", href: `${base}mark.svg` }],
     ["meta", { name: "theme-color", content: "#151a18" }],
@@ -207,24 +124,31 @@ export default defineConfig({
     ["meta", { property: "og:site_name", content: "mcp-gmap-rs — The manual" }],
     ["meta", { property: "og:image", content: `${origin}${base}social.png` }],
   ],
+  transformPageData(pageData) {
+    pageData.title = pageData.title.replace(/\s*\{#[^}]+\}\s*$/, "");
+  },
   transformHead({ pageData }) {
     if (pageData.relativePath === "404.md")
       return [["meta", { name: "robots", content: "noindex" }]];
     const path = pageData.relativePath
       .replace(/index\.md$/, "")
       .replace(/\.md$/, "");
+    const first = path.split("/")[0];
+    const localPath =
+      languages.includes(first) && first !== "en"
+        ? path.slice(first.length + 1)
+        : path;
     const url = `${origin}${base}${path}`;
-    const localPath = path.replace(/^(fr|it)\//, "");
     return [
       ["link", { rel: "canonical", href: url }],
-      ...(["en", "fr", "it"] as const).map(
-        (lang) =>
+      ...languages.map(
+        (key) =>
           [
             "link",
             {
               rel: "alternate",
-              hreflang: lang,
-              href: `${origin}${base}${lang === "en" ? "" : lang + "/"}${localPath}`,
+              hreflang: strings[key].lang,
+              href: `${origin}${base}${key === "en" ? "" : key + "/"}${localPath}`,
             },
           ] as [string, Record<string, string>],
       ),
@@ -233,11 +157,21 @@ export default defineConfig({
         "meta",
         { property: "og:title", content: `${pageData.title} · mcp-gmap-rs` },
       ],
-      ["meta", { property: "og:description", content: pageData.description }],
+      [
+        "meta",
+        {
+          property: "og:description",
+          content:
+            pageData.description ||
+            strings[languages.includes(first) ? first : "en"].description,
+        },
+      ],
     ];
   },
   sitemap: { hostname: `${origin}${base}` },
-  locales: { root: locale("en"), fr: locale("fr"), it: locale("it") },
+  locales: Object.fromEntries(
+    languages.map((key) => [key === "en" ? "root" : key, locale(key)]),
+  ),
   themeConfig: {
     logo: "/mark.svg",
     siteTitle: "mcp-gmap-rs",
@@ -247,52 +181,31 @@ export default defineConfig({
     search: {
       provider: "local",
       options: {
-        locales: {
-          fr: {
-            translations: {
-              button: {
-                buttonText: "Rechercher",
-                buttonAriaLabel: "Rechercher dans le manuel",
-              },
-              modal: {
-                displayDetails: "Afficher les détails",
-                resetButtonTitle: "Effacer",
-                backButtonTitle: "Fermer",
-                noResultsText: "Aucun résultat pour",
-                footer: {
-                  selectText: "sélectionner",
-                  selectKeyAriaLabel: "entrée",
-                  navigateText: "parcourir",
-                  navigateUpKeyAriaLabel: "flèche haut",
-                  navigateDownKeyAriaLabel: "flèche bas",
-                  closeText: "fermer",
-                  closeKeyAriaLabel: "échap",
-                },
-              },
+        locales: Object.fromEntries(
+          languages.map((key) => [
+            key === "en" ? "root" : key,
+            { translations: strings[key].search },
+          ]),
+        ),
+        miniSearch: {
+          options: {
+            // Keep indexing and browser queries identical, including languages without spaces.
+            tokenize(text: string) {
+              if (typeof Intl.Segmenter === "function") {
+                const segmenter = new Intl.Segmenter("en", {
+                  granularity: "word",
+                });
+                return Array.from(segmenter.segment(text))
+                  .filter((part) => part.isWordLike)
+                  .map((part) => part.segment);
+              }
+              return (
+                text.match(
+                  /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]|[\p{L}\p{N}_]+/gu,
+                ) || []
+              );
             },
-          },
-          it: {
-            translations: {
-              button: {
-                buttonText: "Cerca",
-                buttonAriaLabel: "Cerca nel manuale",
-              },
-              modal: {
-                displayDetails: "Mostra dettagli",
-                resetButtonTitle: "Cancella",
-                backButtonTitle: "Chiudi",
-                noResultsText: "Nessun risultato per",
-                footer: {
-                  selectText: "seleziona",
-                  selectKeyAriaLabel: "invio",
-                  navigateText: "naviga",
-                  navigateUpKeyAriaLabel: "freccia su",
-                  navigateDownKeyAriaLabel: "freccia giù",
-                  closeText: "chiudi",
-                  closeKeyAriaLabel: "esc",
-                },
-              },
-            },
+            processTerm: (term: string) => term.normalize("NFKC").toLowerCase(),
           },
         },
       },

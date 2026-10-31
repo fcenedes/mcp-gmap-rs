@@ -11,11 +11,14 @@
     "format:check": "prettier --check .vitepress/config.mts \".vitepress/theme/**/*.{ts,vue,css}\" \"package*.json\""
   },
   "devDependencies": {
-    "vitepress": "1.6.4",
-    "vue": "3.5.44",
     "@fontsource-variable/manrope": "5.3.0",
+    "@fontsource-variable/noto-sans-arabic": "5.3.0",
+    "@fontsource-variable/noto-sans-hebrew": "5.3.0",
     "@fontsource/ibm-plex-mono": "5.3.0",
-    "prettier": "3.9.10"
+    "postcss-rtlcss": "6.0.0",
+    "prettier": "3.9.10",
+    "vitepress": "1.6.4",
+    "vue": "3.5.44"
   },
   "engines": {
     "node": ">=22.12"

@@ -1,0 +1,941 @@
+{
+  "maps_geocode": {
+    "purpose": "حل عنوان أو معلم إلى أول تطابق Geocoding للحصول على إحداثيات قابلة لإعادة الاستخدام ومعرّف مكان؛ ولا يتحقق ذلك من قابلية التسليم البريدي.",
+    "parameters": {
+      "address": {
+        "description": "العنوان أو المدينة أو المعلم المراد ترميزه جغرافيًا.",
+        "default": "—"
+      }
+    },
+    "result": "كائن يتضمن `location.lat` و`location.lng` و`formatted_address` و`place_id`. تُعاد النتيجة الأولى فقط.",
+    "example": {
+      "address": "Eiffel Tower, Paris, France"
+    },
+    "notes": [
+      "عدم العثور على تطابق خطأ أداة، وليس موقعًا فارغًا ناجحًا.",
+      "تستخدم هذه الأداة المباشرة Geocoding v3 ؛ ويُستخدم بديل Places في الأدوات المركبة التي تحل المواقع، وليس في هذا الاستدعاء."
+    ],
+    "authentication": "يلزم مفتاح API في هذا التنفيذ.",
+    "summary": "تحويل عنوان أو معلم إلى إحداثيات."
+  },
+  "maps_validate_address": {
+    "purpose": "تحقق من مكونات البريد وأعد التصحيحات والعنوان الموحّد وحكم Google. أبقِ الحكم والمكونات غير المحسومة ظاهرين للمستدعي.",
+    "parameters": {
+      "addressLines": {
+        "description": "سطر عنوان بريدي واحد أو أكثر بالترتيب.",
+        "default": "—"
+      },
+      "regionCode": {
+        "description": "رمز بلد أو منطقة من حرفين كبيرين؛ يوصى به لتمييز العنوان.",
+        "default": "غير مزوّد؛ قد تستنتجه Google"
+      },
+      "locality": {
+        "description": "المدينة أو البلدة.",
+        "default": "غير مزوّد"
+      },
+      "administrativeArea": {
+        "description": "الولاية أو المقاطعة أو الوحدة الإدارية المقابلة.",
+        "default": "غير مزوّد"
+      },
+      "postalCode": {
+        "description": "الرمز البريدي أو ZIP.",
+        "default": "غير مزوّد"
+      },
+      "enableUspsCass": {
+        "description": "طلب معالجة USPS CASS؛ يتطلب هذا التنفيذ أن يكون regionCode بقيمة US أو PR عند true.",
+        "default": "false"
+      }
+    },
+    "result": "استجابة التحقق الكاملة، وتتضمن عادة `result.verdict` و`result.address` و`result.geocode` و`responseId`؛ وقد تحذف Google الحقول غير المتاحة.",
+    "example": {
+      "addressLines": [
+        "5 Avenue Anatole France"
+      ],
+      "regionCode": "FR",
+      "locality": "Paris",
+      "postalCode": "75007"
+    },
+    "notes": [
+      "حكم التحقق ليس ضمان توصيل.",
+      "تختلف التغطية الإقليمية وتغطية API. لا ترسل هذه الأداة ملاحظات تحقق ولا تقبل التصحيحات تلقائيًا."
+    ],
+    "authentication": "مفتاح API أو OAuth للواجهة الأساسية.",
+    "summary": "التحقق من عنوان بريدي وتوحيده؛ يعيد حكم Google وتصحيحاته ومكوناته وترميزه الجغرافي. الحكم دليل وليس ضمان توصيل."
+  },
+  "maps_pollen": {
+    "purpose": "استرجاع توقع يومي قصير لحبوب اللقاح لإحداثيات دقيقة. تحافظ الاستجابة على الأنواع والمؤشرات ومعلومات النباتات وتوصيات المزوّد.",
+    "parameters": {
+      "latitude": {
+        "description": "خط عرض WGS84 بالدرجات العشرية؛ الشمال موجب.",
+        "default": "—"
+      },
+      "longitude": {
+        "description": "خط طول WGS84 بالدرجات العشرية؛ الشرق موجب.",
+        "default": "—"
+      },
+      "days": {
+        "description": "عدد سجلات التوقع اليومي المطلوب.",
+        "default": "1"
+      },
+      "plantsDescription": {
+        "description": "تضمين أوصاف النباتات المفصلة والمعلومات المرتبطة عند توفرها.",
+        "default": "false"
+      }
+    },
+    "result": "استجابة Pollen الأصلية، بما فيها `regionCode` و`dailyInfo` وأي `nextPageToken`. قد يتضمن كل يوم معلومات أنواع حبوب اللقاح والنباتات.",
+    "example": {
+      "latitude": 48.8584,
+      "longitude": 2.2945,
+      "days": 3,
+      "plantsDescription": false
+    },
+    "notes": [
+      "تستخدم الطلبات حجم صفحة 5 ، وهو كافٍ للحد الأقصى وهو خمسة أيام؛ ولا تُجلب صفحات إضافية تلقائيًا.",
+      "تعتمد الإتاحة على الموقع والموسم وتغطية Google."
+    ],
+    "authentication": "يلزم مفتاح API في هذا التنفيذ.",
+    "summary": "جلب توقعات حبوب اللقاح ومؤشراتها والتوصيات الصحية لـ 1–5 أيام لإحداثيات دقيقة. تختلف التغطية بحسب الموقع والموسم."
+  },
+  "maps_area_insights": {
+    "purpose": "عدّ الأماكن المطابقة في دائرة أو منطقة أو مضلع عبر Places Aggregate. هذا استعلام تجميعي، وليس عدّ صفحة بحث Places محدودة.",
+    "parameters": {
+      "area": {
+        "description": "واحد فقط من circle أو region أو customArea.",
+        "default": "—"
+      },
+      "area.circle": {
+        "description": "منطقة دائرية؛ لا تجتمع مع region أو customArea.",
+        "default": "غير مزوّد"
+      },
+      "area.circle.latLng": {
+        "description": "مركز الدائرة كإحداثيات دقيقة.",
+        "default": "—"
+      },
+      "area.circle.latLng.latitude": {
+        "description": "خط عرض WGS84 بالدرجات العشرية؛ الشمال موجب.",
+        "default": "—"
+      },
+      "area.circle.latLng.longitude": {
+        "description": "خط طول WGS84 بالدرجات العشرية؛ الشرق موجب.",
+        "default": "—"
+      },
+      "area.circle.radius": {
+        "description": "نصف قطر الدائرة بالأمتار.",
+        "default": "—"
+      },
+      "area.region": {
+        "description": "منطقة إدارية أو جغرافية يحددها مورد مكان Google.",
+        "default": "غير مزوّد"
+      },
+      "area.region.place": {
+        "description": "مورد المنطقة بصيغة places/PLACE_ID، وليس اسم منطقة نصيًا حرًا.",
+        "default": "—"
+      },
+      "area.customArea": {
+        "description": "منطقة مضلع مخصص؛ لا تجتمع مع circle أو region.",
+        "default": "غير مزوّد"
+      },
+      "area.customArea.polygon": {
+        "description": "حد المضلع.",
+        "default": "—"
+      },
+      "area.customArea.polygon.coordinates": {
+        "description": "حلقة مرتبة من كائنات الإحداثيات؛ يجب تطابق أول إحداثية وآخرها.",
+        "default": "—"
+      },
+      "area.customArea.polygon.coordinates[].latitude": {
+        "description": "خط عرض WGS84 بالدرجات العشرية؛ الشمال موجب.",
+        "default": "—"
+      },
+      "area.customArea.polygon.coordinates[].longitude": {
+        "description": "خط طول WGS84 بالدرجات العشرية؛ الشرق موجب.",
+        "default": "—"
+      },
+      "includedTypes": {
+        "description": "أنواع أماكن Google المراد تضمينها، مثل restaurant أو cafe.",
+        "default": "—"
+      },
+      "excludedTypes": {
+        "description": "أنواع أماكن Google المراد استبعادها.",
+        "default": "دون مرشح أنواع مستبعدة"
+      },
+      "includePlaces": {
+        "description": "طلب معرّفات موارد الأماكن المطابقة إضافة إلى العدد.",
+        "default": "false"
+      },
+      "minRating": {
+        "description": "حد أدنى شامل للتقييم؛ لا يمكن أن يتجاوز maxRating.",
+        "default": "دون حد أدنى للتقييم"
+      },
+      "maxRating": {
+        "description": "حد أعلى شامل للتقييم.",
+        "default": "دون حد أعلى للتقييم"
+      },
+      "operatingStatus": {
+        "description": "حالات التشغيل المسموحة.",
+        "default": "تفترض Google الأماكن العاملة"
+      },
+      "priceLevels": {
+        "description": "مستويات الأسعار المسموحة.",
+        "default": "كل مستويات الأسعار"
+      }
+    },
+    "result": "استجابة Google مع `count` (عادة نص int64) وموارد `placeInsights[].place` الاختيارية عند طلب المعرّفات وتوفرها.",
+    "example": {
+      "area": {
+        "circle": {
+          "latLng": {
+            "latitude": 48.8584,
+            "longitude": 2.2945
+          },
+          "radius": 500
+        }
+      },
+      "includedTypes": [
+        "restaurant"
+      ],
+      "minRating": 4
+    },
+    "notes": [
+      "وفّر شكل منطقة واحدًا بالضبط. الكائنات المتداخلة قيم JSON في CLI؛ وليس لمعاملاتها الفرعية خيارات مستقلة.",
+      "يجب إغلاق حلقات المضلع. تفحص Google أيضًا هندسة المضلع والأنواع المدعومة والمساحة والتغطية.",
+      "تتوفر معرّفات الأماكن فقط عند عدد 100 أو أقل. لا تطلب الأداة Place Details تلقائيًا."
+    ],
+    "authentication": "مفتاح API أو OAuth للواجهة الأساسية.",
+    "summary": "عدّ الأماكن ضمن دائرة أو منطقة أو مضلع باستخدام Places Aggregate. تتوفر معرّفات اختيارية عند عدد 100 أو أقل فقط؛ ولا تُطلب التفاصيل تلقائيًا."
+  },
+  "maps_snap_to_roads": {
+    "purpose": "مطابقة تتبع GPS مرتب بهندسة الطريق الأرجح. استخدم Nearest Roads للنقاط المستقلة بدل مسار سفر.",
+    "parameters": {
+      "path": {
+        "description": "كائنات إحداثيات GPS بحسب ترتيب السفر.",
+        "default": "—"
+      },
+      "path[].latitude": {
+        "description": "خط عرض WGS84 بالدرجات العشرية؛ الشمال موجب.",
+        "default": "—"
+      },
+      "path[].longitude": {
+        "description": "خط طول WGS84 بالدرجات العشرية؛ الشرق موجب.",
+        "default": "—"
+      },
+      "interpolate": {
+        "description": "إضافة هندسة الطريق الوسيطة بين النقاط المزوّدة.",
+        "default": "false"
+      }
+    },
+    "result": "استجابة Roads الأصلية بما فيها `snappedPoints` وأي `warningMessage`. تحافظ النقاط على `placeId` و`location` و`originalIndex` عند توفرها.",
+    "example": {
+      "path": [
+        {
+          "latitude": -35.27801,
+          "longitude": 149.12958
+        },
+        {
+          "latitude": -35.28032,
+          "longitude": 149.12907
+        }
+      ],
+      "interpolate": true
+    },
+    "notes": [
+      "ينبغي أن تكون نقاط الإدخال المتتالية ضمن نحو 300 متر لمطابقة جيدة.",
+      "قد لا تحتوي النقاط المستوفاة على originalIndex. لا تطلب هذه الأداة حدود السرعة."
+    ],
+    "authentication": "يلزم مفتاح API في هذا التنفيذ.",
+    "summary": "مطابقة مسار GPS مرتب من 2–100 نقطة بالطرق. اجعل النقاط المتتالية ضمن نحو 300 متر لنتائج جيدة. يضيف الاستيفاء الاختياري هندسة الطريق."
+  },
+  "maps_nearest_roads": {
+    "purpose": "العثور على مقاطع طرق قرب نقاط GPS مستقلة دون تفسيرها كتتبع واحد متصل.",
+    "parameters": {
+      "points": {
+        "description": "كائنات إحداثيات مستقلة للمطابقة.",
+        "default": "—"
+      },
+      "points[].latitude": {
+        "description": "خط عرض WGS84 بالدرجات العشرية؛ الشمال موجب.",
+        "default": "—"
+      },
+      "points[].longitude": {
+        "description": "خط طول WGS84 بالدرجات العشرية؛ الشرق موجب.",
+        "default": "—"
+      }
+    },
+    "result": "استجابة Roads الأصلية مع `snappedPoints` و`placeId` للطريق و`location` و`originalIndex` الذي يربط النتيجة بنقاط الإدخال.",
+    "example": {
+      "points": [
+        {
+          "latitude": -35.27801,
+          "longitude": 149.12958
+        },
+        {
+          "latitude": -35.28032,
+          "longitude": 149.12907
+        }
+      ]
+    },
+    "notes": [
+      "قد تطابق النقطة أكثر من مقطع طريق واحد؛ احتفظ بـ originalIndex بدل افتراض نتيجة واحدة لكل مدخل.",
+      "لا تطلب هذه الأداة حدود السرعة."
+    ],
+    "authentication": "يلزم مفتاح API في هذا التنفيذ.",
+    "summary": "العثور على أقرب مقاطع طرق لـ 1–100 نقطة GPS مستقلة؛ يحافظ على originalIndex ومعرّفات طرق Google."
+  },
+  "maps_reverse_geocode": {
+    "purpose": "تحويل إحداثيات دقيقة إلى أول نتيجة Geocoding عكسية. استخدم مكونات النتيجة عندما لا يكفي العنوان المنسق وحده.",
+    "parameters": {
+      "latitude": {
+        "description": "خط عرض WGS84 بالدرجات العشرية؛ الشمال موجب.",
+        "default": "—"
+      },
+      "longitude": {
+        "description": "خط طول WGS84 بالدرجات العشرية؛ الشرق موجب.",
+        "default": "—"
+      }
+    },
+    "result": "أول نتيجة Geocoding أصلية، بما فيها `formatted_address` و`address_components` و`geometry` و`place_id` عند توفرها.",
+    "example": {
+      "latitude": 48.8584,
+      "longitude": 2.2945
+    },
+    "notes": [
+      "تُعاد النتيجة الأولى فقط. عدم التطابق خطأ أداة."
+    ],
+    "authentication": "يلزم مفتاح API في هذا التنفيذ.",
+    "summary": "تحويل الإحداثيات إلى عنوان شارع."
+  },
+  "maps_search_places": {
+    "purpose": "البحث في Places (New) بالنص ومرشحات موقع وتقييم ونوع اختيارية. استخدم المعرّفات المُعادة لطلبات تفاصيل انتقائية.",
+    "parameters": {
+      "query": {
+        "description": "استعلام مكان باللغة الطبيعية.",
+        "default": "—"
+      },
+      "locationBias": {
+        "description": "انحياز بحث دائري اختياري؛ الانحياز ليس قيدًا جغرافيًا صارمًا.",
+        "default": "دون انحياز موقع"
+      },
+      "locationBias.latitude": {
+        "description": "خط عرض WGS84 بالدرجات العشرية؛ الشمال موجب.",
+        "default": "—"
+      },
+      "locationBias.longitude": {
+        "description": "خط طول WGS84 بالدرجات العشرية؛ الشرق موجب.",
+        "default": "—"
+      },
+      "locationBias.radius": {
+        "description": "نصف قطر الانحياز بالأمتار.",
+        "default": "5000"
+      },
+      "openNow": {
+        "description": "الحصر في الأماكن المفتوحة حاليًا عند true.",
+        "default": "دون قيد حالة الفتح"
+      },
+      "minRating": {
+        "description": "الحد الأدنى لتقييم المستخدم المطلوب من Google.",
+        "default": "دون مرشح تقييم"
+      },
+      "includedType": {
+        "description": "نوع مكان Google، مثل cafe.",
+        "default": "دون مرشح نوع"
+      }
+    },
+    "result": "مصفوفة تصل إلى 20 كائن Google Place مع حقول بحث مختارة وروابط Maps والمصدر وبيانات النسب.",
+    "example": {
+      "query": "coffee near Gare de Lyon, Paris",
+      "openNow": true,
+      "minRating": 4
+    },
+    "notes": [
+      "تطلب الأداة صفحة واحدة من 20 نتيجة ولا تعيد رمز صفحة ولا تتبعه تلقائيًا.",
+      "يعتمد غياب بيانات الفتح والتقييم على تغطية Google؛ لا تستنتج جردًا شاملًا من هذا البحث."
+    ],
+    "authentication": "مفتاح API أو OAuth للواجهة الأساسية.",
+    "summary": "بحث نصي في Places (New) مع مرشحات اختيارية للموقع والتقييم."
+  },
+  "maps_search_nearby": {
+    "purpose": "العثور على أماكن داخل نصف قطر محدد حول مركز محلول. خلافًا للبحث النصي، يستخدم قيد موقع دائريًا صارمًا.",
+    "parameters": {
+      "center": {
+        "description": "مدخل المركز والمؤشر الذي يصف طريقة تفسيره.",
+        "default": "—"
+      },
+      "center.value": {
+        "description": "عنوان أو معلم، أو نص latitude,longitude عندما يكون isCoordinates بالقيمة true.",
+        "default": "—"
+      },
+      "center.isCoordinates": {
+        "description": "معاملة value كإحداثيات دقيقة دون ترميز جغرافي.",
+        "default": "false"
+      },
+      "keyword": {
+        "description": "نوع مكان Google يُمرر كـ includedTypes، مثل cafe؛ وليس كلمة بحث نصية حرة.",
+        "default": "دون مرشح نوع"
+      },
+      "radius": {
+        "description": "نصف قطر البحث بالأمتار.",
+        "default": "1000"
+      },
+      "openNow": {
+        "description": "إبقاء النتائج التي يكون currentOpeningHours.openNow فيها true فقط.",
+        "default": "false"
+      },
+      "minRating": {
+        "description": "الحد الأدنى للتقييم الذي يطبّق محليًا على الأماكن المُعادة.",
+        "default": "دون مرشح تقييم"
+      }
+    },
+    "result": "مصفوفة تصل إلى 20 كائن Place مختار. قد تقلص مرشحات الفتح والتقييم المحلية المصفوفة أكثر.",
+    "example": {
+      "center": {
+        "value": "48.8584,2.2945",
+        "isCoordinates": true
+      },
+      "keyword": "cafe",
+      "radius": 500
+    },
+    "notes": [
+      "عند التصفية، لا تُحسب حالة الفتح المفقودة مفتوحة ويُعامل التقييم المفقود كـ 0.",
+      "تحتاج مراكز العناوين إلى حل الموقع؛ وتتجنب الإحداثيات ذلك الاستدعاء الإضافي."
+    ],
+    "authentication": "تقبل Places مفتاح API أو OAuth. تحتاج مراكز العناوين والمعالم أيضًا مفتاح API للتحويل عبر Geocoding.",
+    "summary": "العثور على أماكن حول عنوان أو إحداثيات دقيقة، مع تصفية النوع والتقييم وحالة الفتح."
+  },
+  "maps_place_details": {
+    "purpose": "توسيع معرّف مكان معروف إلى تفاصيل مختارة ومراجعات وروابط صور اختيارية. احتفظ بالمؤلف والمصدر وأي نص إفصاح للذكاء الاصطناعي.",
+    "parameters": {
+      "placeId": {
+        "description": "معرّف مكان Google، مع بادئة places/ اختياريًا.",
+        "default": "—"
+      },
+      "maxPhotos": {
+        "description": "الحد الأقصى لعمليات جلب روابط وسائط الصور.",
+        "default": "0"
+      }
+    },
+    "result": "كائن Google Place أصلي لقناع الحقول المطلوب. عند طلب الصور، يحمل `photoUrls` روابط الوسائط ونسب مؤلفي الصور وروابط المصادر.",
+    "example": {
+      "placeId": "ChIJLU7jZClu5kcR4PcOOO6p3I0",
+      "maxPhotos": 1
+    },
+    "notes": [
+      "قد تنتج كل صورة مختارة طلبًا إضافيًا؛ ويمنع صفر صور هذه الاستدعاءات.",
+      "تستخدم الأداة قناع حقول ثابتًا للتفاصيل، لا كل حقول Google Place الممكنة. قد تغيب الحقول غير المتاحة."
+    ],
+    "authentication": "مفتاح API أو OAuth للواجهة الأساسية.",
+    "summary": "جلب تفاصيل المكان والمراجعات والنسب. تحافظ روابط الصور الاختيارية على نسب المؤلف. اعرض بيانات المصدر والإفصاح بجانب المحتوى."
+  },
+  "maps_directions": {
+    "purpose": "حساب مسار بين نقطتي نهاية وعرض بيانات مسار Google المختارة والإجماليات الموحّدة.",
+    "parameters": {
+      "origin": {
+        "description": "عنوان أو معلم البداية أو نص latitude,longitude دقيق.",
+        "default": "—"
+      },
+      "destination": {
+        "description": "عنوان أو معلم الوجهة أو نص latitude,longitude دقيق.",
+        "default": "—"
+      },
+      "mode": {
+        "description": "وسيلة التنقل. تستخدم القيادة توجيهًا يراعي حركة المرور.",
+        "default": "driving"
+      },
+      "departure_time": {
+        "description": "لحظة المغادرة بصيغة RFC 3339 مع Z أو إزاحة UTC صريحة.",
+        "default": "غير مزوّد"
+      },
+      "avoid_tolls": {
+        "description": "تجنب طرق الرسوم؛ تُدعم true للقيادة فقط.",
+        "default": "false"
+      },
+      "avoid_highways": {
+        "description": "تجنب الطرق السريعة؛ تُدعم true للقيادة فقط.",
+        "default": "false"
+      },
+      "arrival_time": {
+        "description": "الوصول المرغوب بصيغة RFC 3339 مع منطقة زمنية؛ للنقل العام فقط.",
+        "default": "غير مزوّد"
+      }
+    },
+    "result": "كائن يحتوي `routes` و`summary` و`total_distance` (بالأمتار) و`total_duration` (بالثواني) وفهارس تحسين اختيارية. تتضمن المسارات مقاطع وخطوات وخطًا مشفرًا وتحذيرات مختارة.",
+    "example": {
+      "origin": "48.8584,2.2945",
+      "destination": "48.8606,2.3376",
+      "mode": "walking"
+    },
+    "notes": [
+      "لا يمكن توفير departure_time وarrival_time معًا. يُقبل arrival_time للنقل العام فقط.",
+      "تتطلب خيارات التجنب وضع القيادة. تفرض Google قيودًا إضافية بحسب الوسيلة والوقت والمنطقة.",
+      "عدم وجود مسار متاح خطأ صريح."
+    ],
+    "authentication": "تقبل Routes وPlaces مفتاح API أو OAuth. يحتاج حل أسماء المواقع أيضًا مفتاح API لـ Geocoding؛ وتتجنب نصوص الإحداثيات الدقيقة ذلك البحث.",
+    "summary": "جلب الاتجاهات وهندسة المسار وتعليمات الملاحة ومدة التنقل."
+  },
+  "maps_distance_matrix": {
+    "purpose": "مقارنة مسافة ومدة التنقل لكل زوج بداية ووجهة. افحص الخلايا والأخطاء منفردة بدل اعتبار الاستجابة الناجحة مكتملة.",
+    "parameters": {
+      "origins": {
+        "description": "نصوص البداية: عناوين أو أزواج latitude,longitude دقيقة.",
+        "default": "—"
+      },
+      "destinations": {
+        "description": "نصوص الوجهات: عناوين أو أزواج latitude,longitude دقيقة.",
+        "default": "—"
+      },
+      "mode": {
+        "description": "وسيلة التنقل. تستخدم القيادة توجيهًا يراعي حركة المرور.",
+        "default": "driving"
+      },
+      "departure_time": {
+        "description": "لحظة المغادرة بصيغة RFC 3339 مع Z أو إزاحة UTC صريحة.",
+        "default": "غير مزوّد"
+      },
+      "avoid_tolls": {
+        "description": "تجنب طرق الرسوم؛ تُدعم true للقيادة فقط.",
+        "default": "false"
+      },
+      "avoid_highways": {
+        "description": "تجنب الطرق السريعة؛ تُدعم true للقيادة فقط.",
+        "default": "false"
+      }
+    },
+    "result": "كائن يتضمن `origin_addresses` و`destination_addresses` ومصفوفتي `distances` و`durations` بترتيب الصفوف ومصفوفة `errors`. قيم الخلايا الناجحة بالأمتار والثواني؛ وتبقى الخلايا الفاشلة أو المفقودة null.",
+    "example": {
+      "origins": [
+        "48.8584,2.2945"
+      ],
+      "destinations": [
+        "48.8606,2.3376",
+        "48.8530,2.3499"
+      ],
+      "mode": "walking"
+    },
+    "notes": [
+      "625 زوج بداية × وجهة كحد أقصى؛ ويُحد النقل العام بـ 100 زوج.",
+      "50 نص بداية أو وجهة غير إحداثي كحد أقصى إجمالًا. لا تلغي حدود المخطط لكل مصفوفة هذه الحدود المشتركة.",
+      "ينطبق تجنب الرسوم والطرق السريعة على القيادة فقط. لا تعرض هذه الأداة arrival_time.",
+      "قد يُفوَّتر طلب HTTP واحد للمصفوفة كعدة عناصر."
+    ],
+    "authentication": "مفتاح API أو OAuth للواجهة الأساسية.",
+    "summary": "حساب مسافات التنقل ومدده لعدة نقاط بداية ووجهات."
+  },
+  "maps_elevation": {
+    "purpose": "جلب الارتفاع الجغرافي لنقاط إحداثيات دقيقة.",
+    "parameters": {
+      "locations": {
+        "description": "كائنات الإحداثيات المطلوب ارتفاعها.",
+        "default": "—"
+      },
+      "locations[].latitude": {
+        "description": "خط عرض WGS84 بالدرجات العشرية؛ الشمال موجب.",
+        "default": "—"
+      },
+      "locations[].longitude": {
+        "description": "خط طول WGS84 بالدرجات العشرية؛ الشرق موجب.",
+        "default": "—"
+      }
+    },
+    "result": "مصفوفة Elevation الأصلية `results`. قد تتضمن العناصر `elevation` بالأمتار و`location` و`resolution`.",
+    "example": {
+      "locations": [
+        {
+          "latitude": 48.8584,
+          "longitude": 2.2945
+        }
+      ]
+    },
+    "notes": [
+      "تعيد الأداة بيانات Google المبلغ عنها دون تحويل وحدات الارتفاع."
+    ],
+    "authentication": "يلزم مفتاح API في هذا التنفيذ.",
+    "summary": "جلب الارتفاع بالأمتار لإحداثيات جغرافية."
+  },
+  "maps_timezone": {
+    "purpose": "حل هوية المنطقة الزمنية وإزاحات UTC والتوقيت الصيفي في لحظة، ثم اشتقاق طابع زمني محلي.",
+    "parameters": {
+      "latitude": {
+        "description": "خط عرض WGS84 بالدرجات العشرية؛ الشمال موجب.",
+        "default": "—"
+      },
+      "longitude": {
+        "description": "خط طول WGS84 بالدرجات العشرية؛ الشرق موجب.",
+        "default": "—"
+      },
+      "timestamp": {
+        "description": "مللي ثانية منذ بدء Unix، وليست ثواني.",
+        "default": "وقت UTC الحالي بالمللي ثانية"
+      }
+    },
+    "result": "حقول المنطقة الزمنية مثل `timeZoneId` و`timeZoneName` و`rawOffset` و`dstOffset` بالثواني، إضافة إلى `localTime` مشتق بصيغة RFC 3339.",
+    "example": {
+      "latitude": 48.8584,
+      "longitude": 2.2945,
+      "timestamp": 1793448000000
+    },
+    "notes": [
+      "يحوّل الطلب المللي ثانية إلى ثوانٍ كاملة؛ ولا تُحفظ دقة أجزاء الثانية.",
+      "يستخدم الوقت المحلي الإزاحة الأساسية وإزاحة التوقيت الصيفي المُعادتين للحظة المطلوبة."
+    ],
+    "authentication": "يلزم مفتاح API في هذا التنفيذ.",
+    "summary": "جلب المنطقة الزمنية وإزاحات UTC والتوقيت الصيفي والوقت المحلي. timestamp بمللي ثانية Unix."
+  },
+  "maps_weather": {
+    "purpose": "طلب الظروف الحالية أو صفحة واحدة من التوقعات اليومية أو الساعية لإحداثيات دقيقة.",
+    "parameters": {
+      "latitude": {
+        "description": "خط عرض WGS84 بالدرجات العشرية؛ الشمال موجب.",
+        "default": "—"
+      },
+      "longitude": {
+        "description": "خط طول WGS84 بالدرجات العشرية؛ الشرق موجب.",
+        "default": "—"
+      },
+      "type": {
+        "description": "اختيار الظروف الحالية أو التوقع اليومي أو الساعي.",
+        "default": "current"
+      },
+      "forecastDays": {
+        "description": "عدد أيام التوقع المطلوب؛ يُستخدم مع forecast_daily فقط.",
+        "default": "5"
+      },
+      "forecastHours": {
+        "description": "عدد ساعات التوقع المطلوب؛ يُستخدم مع forecast_hourly فقط.",
+        "default": "24"
+      }
+    },
+    "result": "استجابة Weather الأصلية: حقول الظروف الحالية أو `forecastDays` أو `forecastHours` بحسب النوع. احتفظ بالوحدات والطوابع الزمنية وأي nextPageToken.",
+    "example": {
+      "latitude": 48.8584,
+      "longitude": 2.2945,
+      "type": "forecast_daily",
+      "forecastDays": 3
+    },
+    "notes": [
+      "يُتجاهل forecastDays للأنواع الأخرى؛ ويُتجاهل forecastHours خارج forecast_hourly.",
+      "لا تتبع الأداة رموز الصفحات تلقائيًا. قد تتجاوز الفترة المطلوبة السجلات الموجودة في صفحة استجابة واحدة.",
+      "تعتمد التغطية وإتاحة التوقعات على Google."
+    ],
+    "authentication": "مفتاح API أو OAuth للواجهة الأساسية.",
+    "summary": "جلب الطقس الحالي أو التوقعات اليومية أو الساعية."
+  },
+  "maps_air_quality": {
+    "purpose": "جلب مؤشرات جودة الهواء الحالية مع تركيزات ملوثات وتوصيات صحية من المزوّد اختياريًا.",
+    "parameters": {
+      "latitude": {
+        "description": "خط عرض WGS84 بالدرجات العشرية؛ الشمال موجب.",
+        "default": "—"
+      },
+      "longitude": {
+        "description": "خط طول WGS84 بالدرجات العشرية؛ الشرق موجب.",
+        "default": "—"
+      },
+      "includeHealthRecommendations": {
+        "description": "طلب حساب توصيات Google الصحية.",
+        "default": "true"
+      },
+      "includePollutants": {
+        "description": "طلب تركيزات الملوثات.",
+        "default": "false"
+      }
+    },
+    "result": "استجابة Air Quality الأصلية للظروف الحالية، بما فيها المؤشرات و`healthRecommendations` و`pollutants` اختياريًا عندما توفرها Google.",
+    "example": {
+      "latitude": 48.8584,
+      "longitude": 2.2945,
+      "includePollutants": true
+    },
+    "notes": [
+      "التوصيات بيانات من المزوّد، وليست تقييمًا طبيًا شخصيًا.",
+      "تعرض الأداة الظروف الحالية، وليس نقاط نهاية تاريخية أو توقعات."
+    ],
+    "authentication": "مفتاح API أو OAuth للواجهة الأساسية.",
+    "summary": "جلب مؤشرات جودة الهواء وتركيزات ملوثات اختيارية وتوصيات صحية."
+  },
+  "maps_static_map": {
+    "purpose": "رسم خريطة PNG مع علامات ومواصفات مسارات اختيارية.",
+    "parameters": {
+      "center": {
+        "description": "المركز كعنوان أو نص latitude,longitude.",
+        "default": "غير مزوّد"
+      },
+      "zoom": {
+        "description": "مستوى تقريب صريح.",
+        "default": "مُغفل؛ تختاره Google أو تستنتجه"
+      },
+      "size": {
+        "description": "الأبعاد بالبكسل WIDTHxHEIGHT؛ يحد التنفيذ كل بُعد إلى 1–640.",
+        "default": "600x400"
+      },
+      "maptype": {
+        "description": "نمط الخريطة الأساسية.",
+        "default": "roadmap"
+      },
+      "markers": {
+        "description": "مواصفات علامات Google Static Maps المتكررة، مثل color:red|48.8584,2.2945.",
+        "default": "دون علامات"
+      },
+      "path": {
+        "description": "مواصفات مسارات Google Static Maps المتكررة، مثل color:blue|48.8584,2.2945|48.8606,2.3376.",
+        "default": "دون مسارات"
+      }
+    },
+    "result": "يعيد MCP محتوى image/png مضمنًا. يعيد CLI كائن JSON بصيغة `{mimeType,base64}`، أو بايتات PNG خامًا عند توفير --output.",
+    "example": {
+      "center": "48.8584,2.2945",
+      "zoom": 14,
+      "size": "320x240",
+      "markers": [
+        "color:red|48.8584,2.2945"
+      ]
+    },
+    "notes": [
+      "يلزم واحد على الأقل من center أو markers أو path.",
+      "يجب ألا يتجاوز عنوان URL الكامل للطلب 16,384 محرفًا. نمط size في المخطط أوسع من حد 640 بكسل وقت التشغيل.",
+      "يتبع تنسيق العلامات والمسارات صياغة Google Static Maps. تبقى نسبة Google في الصورة الناتجة."
+    ],
+    "authentication": "يلزم مفتاح API في هذا التنفيذ.",
+    "summary": "جلب خريطة PNG بعلامات ومسارات. يعيد MCP صورة مضمنة؛ ويعيد CLI بصيغة base64 JSON أو يكتب --output."
+  },
+  "maps_batch_geocode": {
+    "purpose": "ترميز قائمة عناوين محدودة جغرافيًا مع الحفاظ على ترتيب الإدخال ونجاح كل عنصر أو إخفاقه.",
+    "parameters": {
+      "addresses": {
+        "description": "نصوص العناوين أو المعالم المطلوب حلّها.",
+        "default": "—"
+      }
+    },
+    "result": "مصفوفة بحسب ترتيب الإدخال. يتضمن كل صف `address` و`success` وإما `data` (كائن الترميز الجغرافي) أو `error`.",
+    "example": {
+      "addresses": [
+        "Paris, France",
+        "London, UK"
+      ]
+    },
+    "notes": [
+      "يستخدم تزامنًا محدودًا مع خمسة طلبات Google فعالة كحد أقصى لكل عملية.",
+      "لا تفرض إخفاقات العناصر حالة خروج CLI غير صفرية؛ افحص success وerror في كل صف."
+    ],
+    "authentication": "يلزم مفتاح API في هذا التنفيذ.",
+    "summary": "ترميز جغرافي لما يصل إلى 50 عنوانًا، مع نجاح أو خطأ لكل عنوان وتزامن محدود."
+  },
+  "maps_explore_area": {
+    "purpose": "حل موقع واحد والبحث في فئات مختارة حوله وتوسيع النتائج الأولى فقط في كل فئة.",
+    "parameters": {
+      "location": {
+        "description": "عنوان أو معلم أو نص latitude,longitude دقيق.",
+        "default": "—"
+      },
+      "types": {
+        "description": "فئات أماكن Google المراد البحث عنها.",
+        "default": "restaurant, cafe, tourist_attraction"
+      },
+      "radius": {
+        "description": "نصف قطر بحث الفئة بالأمتار.",
+        "default": "1000"
+      },
+      "topN": {
+        "description": "الحد الأقصى للأماكن في كل فئة المطلوب توسيع تفاصيلها.",
+        "default": "3"
+      }
+    },
+    "result": "كائن يتضمن `location` المحلول و`radius` و`categories`. لكل فئة type/count/top أو خطأ؛ وقد تحتوي الأماكن الموسعة details_error.",
+    "example": {
+      "location": "48.8584,2.2945",
+      "types": [
+        "cafe"
+      ],
+      "radius": 500,
+      "topN": 1
+    },
+    "notes": [
+      "تبحث كل فئة في حتى 20 مكانًا؛ والعدد count هو عدد الصفحة المُعادة لا جردًا تجميعيًا.",
+      "تبقى إخفاقات الفئات والتفاصيل ظاهرة ضمن مخرجات المستوى الأعلى الناجحة.",
+      "يجري هذا الاستدعاء المركب عدة طلبات Google؛ قلل الفئات وtopN بما يناسب المهمة."
+    ],
+    "authentication": "تقبل Places مفتاح API أو OAuth. تحتاج المواقع المسماة مفتاح API لـ Geocoding أيضًا.",
+    "summary": "حل موقع واستكشاف فئات مع تفاصيل لأفضل النتائج. استخدم معالم محددة لتخطيط الرحلة."
+  },
+  "maps_plan_route": {
+    "purpose": "تخطيط مسار واحد عبر توقفات مرتبة، مع طلب اختياري من Google لإعادة ترتيب الوسيطة وإبقاء النهايتين ثابتتين.",
+    "parameters": {
+      "stops": {
+        "description": "عناوين أو معالم مرتبة أو نصوص latitude,longitude دقيقة؛ يبقى الأول والأخير نقطتي النهاية.",
+        "default": "—"
+      },
+      "mode": {
+        "description": "وسيلة التنقل. تستخدم القيادة توجيهًا يراعي حركة المرور.",
+        "default": "driving"
+      },
+      "departure_time": {
+        "description": "لحظة المغادرة بصيغة RFC 3339 مع Z أو إزاحة UTC صريحة.",
+        "default": "غير مزوّد"
+      },
+      "avoid_tolls": {
+        "description": "تجنب طرق الرسوم؛ تُدعم true للقيادة فقط.",
+        "default": "false"
+      },
+      "avoid_highways": {
+        "description": "تجنب الطرق السريعة؛ تُدعم true للقيادة فقط.",
+        "default": "false"
+      },
+      "optimize": {
+        "description": "طلب تحسين التوقفات الوسطية عندما يزيد مجموع التوقفات على ثلاثة ولا تكون الوسيلة transit.",
+        "default": "true، وفق تلك الشروط"
+      }
+    },
+    "result": "كائن يتضمن `mode` و`optimized` الفعّال و`stops` المحلولة المرتبة و`legs` للعرض وtotal_distance وtotal_duration وpolyline والتحذيرات. القيمة durationSeconds لكل مقطع عدد ثوانٍ رقمي.",
+    "example": {
+      "stops": [
+        "48.8584,2.2945",
+        "48.8606,2.3376",
+        "48.8530,2.3499"
+      ],
+      "mode": "walking",
+      "optimize": false
+    },
+    "notes": [
+      "يدعم النقل العام نقطتي نهاية فقط ودون توقفات وسيطة.",
+      "يسري التحسين فقط عند أربعة توقفات إجمالًا أو أكثر (توقفان وسيطان على الأقل).",
+      "يحسّن هذا ترتيب التوقفات لمسار واحد، وليس توزيع المركبات أو المهام على أسطول."
+    ],
+    "authentication": "تقبل Routes وPlaces مفتاح API أو OAuth. يحتاج حل أسماء المواقع أيضًا مفتاح API لـ Geocoding؛ وتتجنب نصوص الإحداثيات الدقيقة ذلك البحث.",
+    "summary": "تخطيط مسار يمر بـ 2–27 توقفًا. تحسين 2–25 توقفًا وسيطًا عدا النقل العام. تبقى الإحداثيات الدقيقة محفوظة."
+  },
+  "maps_compare_places": {
+    "purpose": "العثور على قائمة أماكن مختصرة وإثراؤها، مع مقارنة مسافة القيادة من إحداثيات مستخدم دقيقة اختياريًا.",
+    "parameters": {
+      "query": {
+        "description": "استعلام بحث نصي عن الأماكن.",
+        "default": "—"
+      },
+      "userLocation": {
+        "description": "إحداثيات مستخدم دقيقة لمقارنة مسافة اختيارية.",
+        "default": "دون مقارنة مسافة أو وقت"
+      },
+      "userLocation.latitude": {
+        "description": "خط عرض WGS84 بالدرجات العشرية؛ الشمال موجب.",
+        "default": "—"
+      },
+      "userLocation.longitude": {
+        "description": "خط طول WGS84 بالدرجات العشرية؛ الشرق موجب.",
+        "default": "—"
+      },
+      "limit": {
+        "description": "الحد الأقصى للأماكن المطابقة المطلوب إثراؤها.",
+        "default": "5"
+      }
+    },
+    "result": "كائن يتضمن `places` و`distance_error` اختياريًا. قد تحتوي الأماكن details/details_error وdistance وdrive_time وdistance_errors لكل مكان.",
+    "example": {
+      "query": "cafes near Eiffel Tower, Paris",
+      "userLocation": {
+        "latitude": 48.8584,
+        "longitude": 2.2945
+      },
+      "limit": 3
+    },
+    "notes": [
+      "تكون المقارنة بالقيادة؛ وليس للأداة معامل لتغيير وسيلة التنقل.",
+      "تُحفظ إخفاقات التفاصيل والمسافات بدل حذف أماكن قابلة للاستخدام بخلاف ذلك.",
+      "تُثرى القائمة المختصرة المطلوبة فقط."
+    ],
+    "authentication": "تقبل Places وRoutes الاختيارية مفتاح API أو OAuth.",
+    "summary": "البحث عن أماكن ومقارنتها بمعلومات مفصلة ومسافة قيادة اختيارية من userLocation."
+  },
+  "maps_search_along_route": {
+    "purpose": "حساب مسار والبحث في Places باستخدام خطه المشفر، بدل تقريب الرحلة ببحث دائري واحد.",
+    "parameters": {
+      "textQuery": {
+        "description": "استعلام Places لتوقفات على المسار، مثل المقاهي أو محطات الشحن.",
+        "default": "—"
+      },
+      "origin": {
+        "description": "عنوان أو معلم بداية المسار أو نص latitude,longitude دقيق.",
+        "default": "—"
+      },
+      "destination": {
+        "description": "عنوان أو معلم وجهة المسار أو نص latitude,longitude دقيق.",
+        "default": "—"
+      },
+      "mode": {
+        "description": "وسيلة التنقل للمسار المستخدم في البحث.",
+        "default": "walking"
+      },
+      "maxResults": {
+        "description": "الحد الأقصى لنتائج Places المطلوبة في صفحة الاستجابة.",
+        "default": "5"
+      }
+    },
+    "result": "كائن يتضمن `places` و`routingSummaries` الاختيارية و`route` المحسوب، بما فيه بيانات Google المختارة وإجماليات موحّدة.",
+    "example": {
+      "textQuery": "cafes",
+      "origin": "48.8584,2.2945",
+      "destination": "48.8606,2.3376",
+      "mode": "walking",
+      "maxResults": 3
+    },
+    "notes": [
+      "الوسيلة الافتراضية هي walking، خلافًا لـ directions وmatrix وplan-route التي تفترض driving.",
+      "لا يحدث انتقال تلقائي بين الصفحات أو توسيع Place Details.",
+      "لا تعرض الأداة معاملات المغادرة والوصول أو التجنب المتاحة في directions."
+    ],
+    "authentication": "تقبل Routes وPlaces مفتاح API أو OAuth. يحتاج حل أسماء المواقع أيضًا مفتاح API لـ Geocoding؛ وتتجنب نصوص الإحداثيات الدقيقة ذلك البحث.",
+    "summary": "العثور على أماكن على طول مسار باستخدام خطه المشفر."
+  },
+  "maps_local_rank_tracker": {
+    "purpose": "قياس ظهور المكان المستهدف ضمن أول 20 نتيجة Text Search عند كل نقطة في شبكة جغرافية.",
+    "parameters": {
+      "keyword": {
+        "description": "كلمة بحث واحدة؛ استخدم keyword أو keywords.",
+        "default": "غير مزوّد"
+      },
+      "keywords": {
+        "description": "من كلمة إلى ثلاث كلمات؛ لها الأولوية عند توفير الشكلين معًا.",
+        "default": "غير مزوّد"
+      },
+      "placeId": {
+        "description": "معرّف المكان المستهدف، مع بادئة places/ اختيارية.",
+        "default": "—"
+      },
+      "center": {
+        "description": "المركز الدقيق لشبكة المسح.",
+        "default": "—"
+      },
+      "center.latitude": {
+        "description": "خط عرض WGS84 بالدرجات العشرية؛ الشمال موجب.",
+        "default": "—"
+      },
+      "center.longitude": {
+        "description": "خط طول WGS84 بالدرجات العشرية؛ الشرق موجب.",
+        "default": "—"
+      },
+      "gridSize": {
+        "description": "عدد الصفوف والأعمدة؛ تُقبل كل الأعداد الصحيحة 3–7.",
+        "default": "3"
+      },
+      "gridSpacing": {
+        "description": "المسافة بالأمتار بين نقاط الشبكة المتجاورة.",
+        "default": "1000"
+      }
+    },
+    "result": "كائن يتضمن target وgrid_size وgrid_spacing_m ومقاييس وشبكة لكل كلمة. يوسّط ARP الترتيبات الموجودة؛ ويستخدم ATRP الترتيب 21 للطلبات الناجحة التي غاب فيها الهدف؛ وSoLV هو النسبة المئوية للنقاط الناجحة المصنفة ضمن أفضل 3. يكشف failed_points وfound_in التغطية.",
+    "example": {
+      "keyword": "cafe",
+      "placeId": "ChIJLU7jZClu5kcR4PcOOO6p3I0",
+      "center": {
+        "latitude": 48.8584,
+        "longitude": 2.2945
+      },
+      "gridSize": 3,
+      "gridSpacing": 500
+    },
+    "notes": [
+      "يلزم keyword أو keywords على الأقل؛ ولا تعبّر صفوف المخطط المنفردة عن هذا البديل.",
+      "يتناسب عدد طلبات البحث مع عدد الكلمات × gridSize² (حتى 147 قبل الإعادات).",
+      "تُستبعد النقاط الفاشلة من مقاييس الترتيب، ولا تُعامل كغياب صالح. قد تكون المقاييس null عند عدم وجود مشاهدات قابلة للاستخدام.",
+      "ترتيب البحث ليس تقييم مراجعات المستخدمين للمكان. النتائج عينات من عمليات بحث نصي منحازة، وليست ضمانًا لترتيب المستخدم في Google Maps."
+    ],
+    "authentication": "مفتاح API أو OAuth للواجهة الأساسية.",
+    "summary": "تتبع ترتيب البحث عبر شبكة جغرافية لـ 1–3 كلمات؛ يعيد ARP وATRP وSoLV وأخطاء لكل نقطة."
+  }
+}

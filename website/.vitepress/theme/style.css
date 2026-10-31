@@ -189,7 +189,7 @@ input:focus-visible {
   display: none;
 }
 .atlas-home {
-  font-family: "Manrope Variable", sans-serif;
+  font-family: var(--vp-font-family-base);
 }
 .atlas-hero {
   position: relative;
@@ -1214,4 +1214,195 @@ input:focus-visible {
   .category-tabs button {
     font-size: 10px;
   }
+}
+
+/* Script-aware typography; machine interfaces always retain their LTR order. */
+html:lang(zh) {
+  --vp-font-family-base:
+    "PingFang SC", "Noto Sans CJK SC", system-ui, sans-serif;
+}
+html:lang(ja) {
+  --vp-font-family-base:
+    "Hiragino Kaku Gothic ProN", "Noto Sans CJK JP", system-ui, sans-serif;
+}
+html:lang(ar) {
+  --vp-font-family-base: "Noto Sans Arabic Variable", sans-serif;
+}
+html:lang(he) {
+  --vp-font-family-base: "Noto Sans Hebrew Variable", sans-serif;
+}
+html:lang(ar) .hero-inner h1,
+html:lang(he) .hero-inner h1,
+html:lang(zh) .hero-inner h1,
+html:lang(ja) .hero-inner h1,
+.VPNavBarTitle .title,
+.footer-brand {
+  font-family: "Manrope Variable", sans-serif;
+}
+html:lang(ar)
+  :is(
+    .hero-tagline,
+    .hero-description,
+    .section-kicker,
+    .section-intro h2,
+    .section-intro > p,
+    .ways-list h3,
+    .ways-list p,
+    .journey-layout > h2,
+    .journey-links h3,
+    .journey-links p,
+    .atlas-finale h2,
+    .atlas-footer p,
+    .vp-doc h1,
+    .vp-doc h2,
+    .vp-doc h3
+  ),
+html:lang(he)
+  :is(
+    .hero-tagline,
+    .hero-description,
+    .section-kicker,
+    .section-intro h2,
+    .section-intro > p,
+    .ways-list h3,
+    .ways-list p,
+    .journey-layout > h2,
+    .journey-links h3,
+    .journey-links p,
+    .atlas-finale h2,
+    .atlas-footer p,
+    .vp-doc h1,
+    .vp-doc h2,
+    .vp-doc h3
+  ),
+html:lang(zh)
+  :is(
+    .hero-tagline,
+    .section-intro h2,
+    .journey-layout > h2,
+    .atlas-finale h2,
+    .vp-doc h1,
+    .vp-doc h2,
+    .vp-doc h3
+  ),
+html:lang(ja)
+  :is(
+    .hero-tagline,
+    .section-intro h2,
+    .journey-layout > h2,
+    .atlas-finale h2,
+    .vp-doc h1,
+    .vp-doc h2,
+    .vp-doc h3
+  ) {
+  letter-spacing: normal;
+  line-height: 1.55;
+}
+html:lang(ar)
+  :is(
+    .hero-edition,
+    .section-kicker,
+    .manual-eyebrow,
+    .sidebar-intro,
+    .VPSidebarItem.level-0 > .item > .text
+  ),
+html:lang(he)
+  :is(
+    .hero-edition,
+    .section-kicker,
+    .manual-eyebrow,
+    .sidebar-intro,
+    .VPSidebarItem.level-0 > .item > .text
+  ) {
+  font-family: var(--vp-font-family-base);
+  letter-spacing: normal;
+}
+[dir="rtl"] .vp-doc {
+  text-align: start;
+}
+[dir="rtl"]
+  :is(
+    pre,
+    pre code,
+    .vp-doc :not(pre) > code,
+    .install-line,
+    .ways-list code,
+    .tool-list h3,
+    .route-map
+  ) {
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+[dir="rtl"]
+  :is(pre, pre code, .vp-doc :not(pre) > code, .ways-list code, .tool-list h3) {
+  text-align: left;
+}
+[dir="rtl"] .vp-doc :not(pre) > code {
+  display: inline-block;
+  max-width: 100%;
+  vertical-align: baseline;
+}
+[dir="rtl"] .hero-inner h1 {
+  direction: ltr;
+  text-align: right;
+}
+[dir="rtl"] .hero-description {
+  margin-right: 0;
+  margin-left: auto;
+}
+[dir="rtl"] .install-line {
+  width: fit-content;
+  margin-left: auto;
+  margin-right: 0;
+}
+[dir="rtl"] .copy-feedback {
+  left: 14px;
+  right: auto;
+  direction: rtl;
+}
+[dir="rtl"] :is(.hero-rs, .footer-brand, .VPNavBarTitle .title) {
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+[dir="rtl"] .vp-doc table {
+  text-align: right;
+}
+[dir="rtl"] .tool-filter input {
+  direction: rtl;
+}
+[dir="rtl"] .hero-bottom > span {
+  direction: ltr;
+  unicode-bidi: plaintext;
+}
+[dir="rtl"] .hero-edition {
+  letter-spacing: normal;
+}
+[dir="rtl"] .VPLocalSearchBox input {
+  direction: rtl;
+}
+[dir="rtl"] .VPDocFooter :is(.prev .vpi-arrow-right, .next .vpi-arrow-left) {
+  transform: scaleX(-1);
+}
+@media (max-width: 639px) {
+  html:lang(ar) .hero-inner,
+  html:lang(he) .hero-inner {
+    padding-top: 50px;
+  }
+  html:lang(ar) .hero-inner h1,
+  html:lang(he) .hero-inner h1 {
+    margin-top: 35px;
+  }
+  html:lang(ar) .hero-actions,
+  html:lang(he) .hero-actions {
+    gap: 16px;
+  }
+  html:lang(ar) .atlas-button,
+  html:lang(he) .atlas-button {
+    gap: 16px;
+    padding-inline: 14px;
+  }
+}
+
+[dir="rtl"] .tool-list h3 {
+  text-align: right;
 }

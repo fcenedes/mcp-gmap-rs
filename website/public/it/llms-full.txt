@@ -779,7 +779,7 @@ Valida i componenti postali e restituisce correzioni, indirizzo normalizzato e v
 
 | Parametro / opzione CLI | Tipo e limiti dello schema | Obbligatorio | Valore se omesso | Descrizione |
 | --- | --- | --- | --- | --- |
-| `addressLines` / `--address-lines` | array di stringahe; 1–10 elementi; ogni elemento contiene almeno 1 carattere/i | Sì | — | Una o più righe dell’indirizzo postale, in ordine. |
+| `addressLines` / `--address-lines` | array di stringhe; 1–10 elementi; ogni elemento contiene almeno 1 carattere/i | Sì | — | Una o più righe dell’indirizzo postale, in ordine. |
 | `administrativeArea` / `--administrative-area` | stringa; almeno 1 carattere/i | No | Non fornito | Stato, provincia o area amministrativa corrispondente. |
 | `enableUspsCass` / `--enable-usps-cass` | booleano | No | false | Richiede l’elaborazione USPS CASS; questa implementazione richiede regionCode US oppure PR quando true. |
 | `locality` / `--locality` | stringa; almeno 1 carattere/i | No | Non fornito | Città o località. |
@@ -888,13 +888,13 @@ Conta i luoghi corrispondenti in un cerchio, una regione o un poligono tramite P
 | `area.customArea.polygon.coordinates[].longitude` | numero; -180.0–180.0 | Se il genitore è presente | — | Longitudine WGS84 in gradi decimali; positiva verso est. |
 | `area.region` | oggetto | No | Non fornito | Regione amministrativa o geografica identificata da una risorsa luogo Google. |
 | `area.region.place` | stringa; modello: `^places/[A-Za-z0-9_-]+$` | Se il genitore è presente | — | Risorsa della regione in formato places/PLACE_ID, non un nome di regione libero. |
-| `excludedTypes` / `--excluded-types` | array di stringahe; 1–50 elementi; ogni elemento contiene almeno 1 carattere/i | No | Nessun filtro sui tipi esclusi | Tipi di luogo Google da escludere. |
+| `excludedTypes` / `--excluded-types` | array di stringhe; 1–50 elementi; ogni elemento contiene almeno 1 carattere/i | No | Nessun filtro sui tipi esclusi | Tipi di luogo Google da escludere. |
 | `includePlaces` / `--include-places` | booleano | No | false | Richiede gli identificativi delle risorse luogo corrispondenti oltre al conteggio. |
-| `includedTypes` / `--included-types` | array di stringahe; 1–50 elementi; ogni elemento contiene almeno 1 carattere/i | Sì | — | Tipi di luogo Google da includere, per esempio restaurant o cafe. |
+| `includedTypes` / `--included-types` | array di stringhe; 1–50 elementi; ogni elemento contiene almeno 1 carattere/i | Sì | — | Tipi di luogo Google da includere, per esempio restaurant o cafe. |
 | `maxRating` / `--max-rating` | numero; 1.0–5.0 | No | Nessun limite superiore di valutazione | Limite superiore inclusivo della valutazione. |
 | `minRating` / `--min-rating` | numero; 1.0–5.0 | No | Nessun limite inferiore di valutazione | Limite inferiore inclusivo della valutazione; non può superare maxRating. |
-| `operatingStatus` / `--operating-status` | array di stringahe; 1–3 elementi; valori: `OPERATING_STATUS_OPERATIONAL`, `OPERATING_STATUS_PERMANENTLY_CLOSED`, `OPERATING_STATUS_TEMPORARILY_CLOSED` | No | Google usa come valore predefinito i luoghi operativi | Stati operativi consentiti. |
-| `priceLevels` / `--price-levels` | array di stringahe; 1–5 elementi; valori: `PRICE_LEVEL_FREE`, `PRICE_LEVEL_INEXPENSIVE`, `PRICE_LEVEL_MODERATE`, `PRICE_LEVEL_EXPENSIVE`, `PRICE_LEVEL_VERY_EXPENSIVE` | No | Tutti i livelli di prezzo | Livelli di prezzo consentiti. |
+| `operatingStatus` / `--operating-status` | array di stringhe; 1–3 elementi; valori: `OPERATING_STATUS_OPERATIONAL`, `OPERATING_STATUS_PERMANENTLY_CLOSED`, `OPERATING_STATUS_TEMPORARILY_CLOSED` | No | Google usa come valore predefinito i luoghi operativi | Stati operativi consentiti. |
+| `priceLevels` / `--price-levels` | array di stringhe; 1–5 elementi; valori: `PRICE_LEVEL_FREE`, `PRICE_LEVEL_INEXPENSIVE`, `PRICE_LEVEL_MODERATE`, `PRICE_LEVEL_EXPENSIVE`, `PRICE_LEVEL_VERY_EXPENSIVE` | No | Tutti i livelli di prezzo | Livelli di prezzo consentiti. |
 
 ### Comportamento e restrizioni
 
@@ -1286,9 +1286,9 @@ Confronta distanza e durata di viaggio per ogni coppia origine/destinazione. Con
 | `avoid_highways` / `--avoid-highways` | booleano | No | false | Evita autostrade; true è supportato soltanto con driving. |
 | `avoid_tolls` / `--avoid-tolls` | booleano | No | false | Evita strade a pedaggio; true è supportato soltanto con driving. |
 | `departure_time` / `--departure-time` | stringa; almeno 1 carattere/i | No | Non fornito | Istante di partenza in RFC 3339, con Z o un offset UTC esplicito. |
-| `destinations` / `--destinations` | array di stringahe; 1–50 elementi; ogni elemento contiene almeno 1 carattere/i | Sì | — | Stringhe delle destinazioni: indirizzi o coppie esatte latitude,longitude. |
+| `destinations` / `--destinations` | array di stringhe; 1–50 elementi; ogni elemento contiene almeno 1 carattere/i | Sì | — | Stringhe delle destinazioni: indirizzi o coppie esatte latitude,longitude. |
 | `mode` / `--mode` | stringa; valori: `driving`, `walking`, `bicycling`, `transit` | No | driving | Modalità di viaggio. driving utilizza il traffico nel calcolo del percorso. |
-| `origins` / `--origins` | array di stringahe; 1–50 elementi; ogni elemento contiene almeno 1 carattere/i | Sì | — | Stringhe delle origini: indirizzi o coppie esatte latitude,longitude. |
+| `origins` / `--origins` | array di stringhe; 1–50 elementi; ogni elemento contiene almeno 1 carattere/i | Sì | — | Stringhe delle origini: indirizzi o coppie esatte latitude,longitude. |
 
 ### Comportamento e restrizioni
 
@@ -1522,8 +1522,8 @@ Genera una mappa PNG con specifiche facoltative di indicatori e tracciati.
 | --- | --- | --- | --- | --- |
 | `center` / `--center` | stringa; almeno 1 carattere/i | No | Non fornito | Centro espresso come indirizzo o stringa latitude,longitude. |
 | `maptype` / `--maptype` | stringa; valori: `roadmap`, `satellite`, `terrain`, `hybrid` | No | roadmap | Stile della mappa di base. |
-| `markers` / `--markers` | array di stringahe; 1–100 elementi; ogni elemento contiene almeno 1 carattere/i | No | Nessun indicatore | Specifiche ripetute di indicatori Google Static Maps, per esempio color:red\|48.8584,2.2945. |
-| `path` / `--path` | array di stringahe; 1–100 elementi; ogni elemento contiene almeno 1 carattere/i | No | Nessun tracciato | Specifiche ripetute di tracciati Google Static Maps, per esempio color:blue\|48.8584,2.2945\|48.8606,2.3376. |
+| `markers` / `--markers` | array di stringhe; 1–100 elementi; ogni elemento contiene almeno 1 carattere/i | No | Nessun indicatore | Specifiche ripetute di indicatori Google Static Maps, per esempio color:red\|48.8584,2.2945. |
+| `path` / `--path` | array di stringhe; 1–100 elementi; ogni elemento contiene almeno 1 carattere/i | No | Nessun tracciato | Specifiche ripetute di tracciati Google Static Maps, per esempio color:blue\|48.8584,2.2945\|48.8606,2.3376. |
 | `size` / `--size` | stringa; modello: `^[1-9][0-9]{0,2}x[1-9][0-9]{0,2}$` | No | 600x400 | Dimensioni in pixel WIDTHxHEIGHT; durante l’esecuzione ogni dimensione è limitata a 1–640. |
 | `zoom` / `--zoom` | intero; 0–21 | No | Omesso; Google lo sceglie o lo deduce | Livello di zoom esplicito. |
 
@@ -1571,7 +1571,7 @@ Geocodifica una lista limitata di indirizzi mantenendo l’ordine di ingresso e 
 
 | Parametro / opzione CLI | Tipo e limiti dello schema | Obbligatorio | Valore se omesso | Descrizione |
 | --- | --- | --- | --- | --- |
-| `addresses` / `--addresses` | array di stringahe; 1–50 elementi; ogni elemento contiene almeno 1 carattere/i | Sì | — | Stringhe di indirizzi o punti di interesse da risolvere. |
+| `addresses` / `--addresses` | array di stringhe; 1–50 elementi; ogni elemento contiene almeno 1 carattere/i | Sì | — | Stringhe di indirizzi o punti di interesse da risolvere. |
 
 ### Comportamento e restrizioni
 
@@ -1617,7 +1617,7 @@ Risolve una posizione, cerca le categorie selezionate nelle vicinanze e approfon
 | `location` / `--location` | stringa; almeno 1 carattere/i | Sì | — | Indirizzo o punto di interesse, oppure stringa di coordinate esatte latitude,longitude. |
 | `radius` / `--radius` | numero; 0.1–50000.0 | No | 1000 | Raggio di ricerca delle categorie in metri. |
 | `topN` / `--top-n` | intero; 1–20 | No | 3 | Numero massimo di luoghi per categoria da approfondire con dettagli. |
-| `types` / `--types` | array di stringahe; 1–10 elementi; ogni elemento contiene almeno 1 carattere/i | No | restaurant, cafe, tourist_attraction | Categorie di luoghi Google da cercare. |
+| `types` / `--types` | array di stringhe; 1–10 elementi; ogni elemento contiene almeno 1 carattere/i | No | restaurant, cafe, tourist_attraction | Categorie di luoghi Google da cercare. |
 
 ### Comportamento e restrizioni
 
@@ -1668,7 +1668,7 @@ Pianifica un solo percorso attraverso tappe ordinate, chiedendo facoltativamente
 | `departure_time` / `--departure-time` | stringa; almeno 1 carattere/i | No | Non fornito | Istante di partenza in RFC 3339, con Z o un offset UTC esplicito. |
 | `mode` / `--mode` | stringa; valori: `driving`, `walking`, `bicycling`, `transit` | No | driving | Modalità di viaggio. driving utilizza il traffico nel calcolo del percorso. |
 | `optimize` / `--optimize` | booleano | No | true, alle condizioni indicate | Richiede l’ottimizzazione delle tappe intermedie quando le tappe totali sono più di tre e mode non è transit. |
-| `stops` / `--stops` | array di stringahe; 2–27 elementi; ogni elemento contiene almeno 1 carattere/i | Sì | — | Indirizzi o punti di interesse ordinati, oppure stringhe di coordinate esatte latitude,longitude; primo e ultimo restano gli estremi. |
+| `stops` / `--stops` | array di stringhe; 2–27 elementi; ogni elemento contiene almeno 1 carattere/i | Sì | — | Indirizzi o punti di interesse ordinati, oppure stringhe di coordinate esatte latitude,longitude; primo e ultimo restano gli estremi. |
 
 ### Comportamento e restrizioni
 
@@ -1820,7 +1820,7 @@ Misura la comparsa di un luogo obiettivo tra i primi 20 risultati Text Search in
 | `gridSize` / `--grid-size` | intero; 3–7 | No | 3 | Numero di righe e colonne; sono accettati tutti gli interi da 3 a 7. |
 | `gridSpacing` / `--grid-spacing` | numero; 100.0–10000.0 | No | 1000 | Distanza in metri tra punti adiacenti della griglia. |
 | `keyword` / `--keyword` | stringa; almeno 1 carattere/i | No | Non fornito | Singola parola chiave di ricerca; usa keyword oppure keywords. |
-| `keywords` / `--keywords` | array di stringahe; 1–3 elementi; ogni elemento contiene almeno 1 carattere/i | No | Non fornito | Da una a tre parole chiave; ha precedenza se entrambe le forme sono fornite. |
+| `keywords` / `--keywords` | array di stringhe; 1–3 elementi; ogni elemento contiene almeno 1 carattere/i | No | Non fornito | Da una a tre parole chiave; ha precedenza se entrambe le forme sono fornite. |
 | `placeId` / `--place-id` | stringa; almeno 1 carattere/i | Sì | — | Identificativo del luogo obiettivo, facoltativamente preceduto da places/. |
 
 ### Comportamento e restrizioni
