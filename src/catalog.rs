@@ -132,6 +132,54 @@ fn builtin_definitions() -> Vec<(&'static str, &'static str, Value)> {
             object(json!({"address":string()}), &["address"]),
         ),
         (
+            "maps_validate_address",
+            "Validate and standardize a postal address; returns Google's verdict, corrections, components and geocode. A verdict is evidence, not a delivery guarantee.",
+            object(
+                json!({
+                    "addressLines":array(string(),1,10),
+                    "regionCode":{"type":"string","pattern":"^[A-Z]{2}$"},
+                    "locality":string(),"administrativeArea":string(),"postalCode":string(),
+                    "enableUspsCass":boolean()
+                }),
+                &["addressLines"],
+            ),
+        ),
+        (
+            "maps_pollen",
+            "Get 1-5 days of pollen forecasts, indices and health recommendations for exact coordinates. Coverage varies by location and season.",
+            object(
+                json!({"latitude":lat,"longitude":lng,"days":integer(1,5),"plantsDescription":boolean()}),
+                &["latitude", "longitude"],
+            ),
+        ),
+        (
+            "maps_area_insights",
+            "Count places within a circle, region or polygon using Places Aggregate. Optional place IDs are available only for counts of 100 or less; no automatic details requests.",
+            object(
+                json!({
+                    "area":area_schema(),
+                    "includedTypes":array(string(),1,50),"excludedTypes":array(string(),1,50),
+                    "includePlaces":boolean(),"minRating":number(1.,5.),"maxRating":number(1.,5.),
+                    "operatingStatus":array(json!({"type":"string","enum":["OPERATING_STATUS_OPERATIONAL","OPERATING_STATUS_PERMANENTLY_CLOSED","OPERATING_STATUS_TEMPORARILY_CLOSED"]}),1,3),
+                    "priceLevels":array(json!({"type":"string","enum":["PRICE_LEVEL_FREE","PRICE_LEVEL_INEXPENSIVE","PRICE_LEVEL_MODERATE","PRICE_LEVEL_EXPENSIVE","PRICE_LEVEL_VERY_EXPENSIVE"]}),1,5)
+                }),
+                &["area", "includedTypes"],
+            ),
+        ),
+        (
+            "maps_snap_to_roads",
+            "Snap an ordered GPS path of 2-100 points to roads. Keep consecutive points within about 300 metres for good results. Optional interpolation adds road geometry.",
+            object(
+                json!({"path":array(coordinate(),2,100),"interpolate":boolean()}),
+                &["path"],
+            ),
+        ),
+        (
+            "maps_nearest_roads",
+            "Find the nearest road segments for 1-100 independent GPS points; preserves Google's originalIndex and road place IDs.",
+            object(json!({"points":array(coordinate(),1,100)}), &["points"]),
+        ),
+        (
             "maps_reverse_geocode",
             "Convert coordinates to a street address.",
             object(
@@ -260,4 +308,19 @@ fn builtin_definitions() -> Vec<(&'static str, &'static str, Value)> {
             },
         ),
     ]
+}
+
+fn area_schema() -> Value {
+    let place = json!({"type":"string","pattern":"^places/[A-Za-z0-9_-]+$"});
+    let mut area = object(
+        json!({
+            "circle":object(json!({"latLng":coordinate(),"radius":integer(23,50000)}), &["latLng","radius"]),
+            "region":object(json!({"place":place}), &["place"]),
+            "customArea":object(json!({"polygon":object(json!({"coordinates":array(coordinate(),4,1000)}), &["coordinates"])}), &["polygon"])
+        }),
+        &[],
+    );
+    area["oneOf"] =
+        json!([{"required":["circle"]},{"required":["region"]},{"required":["customArea"]}]);
+    area
 }

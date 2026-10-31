@@ -122,6 +122,82 @@ fn live_oauth_air_quality() {
     assert!(!air["indexes"].as_array().unwrap().is_empty());
 }
 
+fn address() -> Value {
+    json!({"addressLines":["5 Avenue Anatole France"],"locality":"Paris","postalCode":"75007","regionCode":"FR"})
+}
+
+fn area() -> Value {
+    json!({"area":{"circle":{"latLng":location(),"radius":500}},"includedTypes":["restaurant"]})
+}
+
+fn road_points() -> Value {
+    json!([{"latitude":-35.27801,"longitude":149.12958},{"latitude":-35.28032,"longitude":149.12907},{"latitude":-35.28099,"longitude":149.12929}])
+}
+
+#[test]
+#[ignore = "requires Address Validation API and billable Google requests"]
+fn live_maps_validate_address() {
+    let value = invoke("maps_validate_address", address());
+    assert!(value.pointer("/result/verdict").is_some());
+    assert!(nonempty_string(&value["responseId"]));
+}
+
+#[test]
+#[ignore = "requires Pollen API and billable Google requests"]
+fn live_maps_pollen() {
+    let value = invoke("maps_pollen", location());
+    assert!(!value["dailyInfo"].as_array().unwrap().is_empty());
+}
+
+#[test]
+#[ignore = "requires Places Aggregate API and billable Google requests"]
+fn live_maps_area_insights() {
+    let value = invoke("maps_area_insights", area());
+    assert!(
+        value["count"]
+            .as_str()
+            .is_some_and(|count| count.parse::<u64>().is_ok())
+            || value["count"].as_u64().is_some()
+    );
+}
+
+#[test]
+#[ignore = "requires Roads API and billable Google requests"]
+fn live_maps_snap_to_roads() {
+    let value = invoke(
+        "maps_snap_to_roads",
+        json!({"path":road_points(),"interpolate":true}),
+    );
+    assert!(!value["snappedPoints"].as_array().unwrap().is_empty());
+    assert!(nonempty_string(&value["snappedPoints"][0]["placeId"]));
+}
+
+#[test]
+#[ignore = "requires Roads API and billable Google requests"]
+fn live_maps_nearest_roads() {
+    let value = invoke("maps_nearest_roads", json!({"points":road_points()}));
+    assert!(!value["snappedPoints"].as_array().unwrap().is_empty());
+    assert!(
+        value["snappedPoints"][0]["originalIndex"]
+            .as_u64()
+            .is_some()
+    );
+}
+
+#[test]
+#[ignore = "requires service-account OAuth, Address Validation API and billable Google requests"]
+fn live_oauth_address_validation() {
+    let value = invoke_oauth("maps_validate_address", address());
+    assert!(value.pointer("/result/verdict").is_some());
+}
+
+#[test]
+#[ignore = "requires service-account OAuth, Places Aggregate API and billable Google requests"]
+fn live_oauth_area_insights() {
+    let value = invoke_oauth("maps_area_insights", area());
+    assert!(value.get("count").is_some());
+}
+
 fn collect_failures(value: &Value, path: &str, failures: &mut Vec<String>) {
     match value {
         Value::Object(object) => {

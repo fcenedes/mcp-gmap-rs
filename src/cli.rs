@@ -11,7 +11,7 @@ use tracing_subscriber::EnvFilter;
 use crate::{
     catalog::Catalog,
     client::MapsClient,
-    server,
+    doctor, server,
     settings::Settings,
     tools::{EngineState, Output},
 };
@@ -20,13 +20,16 @@ pub(crate) async fn run() -> anyhow::Result<()> {
     let catalog = Catalog::new(None)?;
     let matches = command(&catalog).get_matches();
     let settings = Settings::load(&matches)?;
-    tracing_subscriber::fmt()
+    let logging = tracing_subscriber::fmt()
         .with_writer(io::stderr)
         .with_env_filter(
             EnvFilter::try_new(&settings.log_filter).unwrap_or_else(|_| EnvFilter::new("warn")),
-        )
-        .try_init()
-        .ok();
+        );
+    if settings.log_format == "json" {
+        logging.json().try_init().ok();
+    } else {
+        logging.try_init().ok();
+    }
     let catalog = Catalog::new(Some(&settings.enabled_tools))?;
     let mut client = MapsClient::new(
         settings.api_key.clone(),
@@ -34,8 +37,18 @@ pub(crate) async fn run() -> anyhow::Result<()> {
         settings.language.clone(),
     )?;
     client.oauth = settings.oauth.clone();
+    client.policy = settings.policy.clone();
     let engine = EngineState { client, catalog };
     match matches.subcommand() {
+        Some(("doctor", args)) => {
+            let report = doctor::report(&engine, &settings, args.get_flag("live")).await;
+            let healthy = report["ok"] == true;
+            print_json(&report)?;
+            if !healthy {
+                anyhow::bail!("doctor found failed checks; see JSON report");
+            }
+            Ok(())
+        }
         None => server::serve_stdio(engine).await,
         Some(("serve", args)) => match args.subcommand() {
             Some(("stdio", _)) | None => server::serve_stdio(engine).await,
@@ -97,10 +110,21 @@ fn command(catalog: &Catalog) -> Command {
         .arg(Arg::new("enabled-tools").long("enabled-tools").global(true).help("Override GOOGLE_MAPS_ENABLED_TOOLS; comma-separated MCP names (default: all)"))
         .arg(Arg::new("timeout").long("timeout").global(true).value_parser(clap::value_parser!(u64).range(1..=600)).help("Override GOOGLE_MAPS_TIMEOUT; seconds per request (default: 30)"))
         .arg(Arg::new("language").long("language").global(true).help("Override GOOGLE_MAPS_LANGUAGE (default: en)"))
+        .arg(Arg::new("log-format").long("log-format").global(true).value_parser(["text","json"]).help("Override MCP_LOG_FORMAT (default: text); diagnostics always go to stderr"))
+        .arg(Arg::new("max-requests").long("max-requests").global(true).value_parser(clap::value_parser!(u32).range(1..=10000)).help("Google HTTP attempt budget per tool call, including retries (default: 200)"))
+        .arg(Arg::new("max-retries").long("max-retries").global(true).value_parser(clap::value_parser!(u32).range(0..=5)).help("Transient Google request retries within --timeout (default: 2)"))
+        .arg(Arg::new("tool-timeout").long("tool-timeout").global(true).value_parser(clap::value_parser!(u32).range(1..=3600)).help("Overall tool deadline, including authentication, queueing and retries (default: 120 seconds)"))
+        .subcommand(Command::new("doctor").about("Check local configuration; --live also makes billable Google API probes")
+            .arg(Arg::new("live").long("live").action(ArgAction::SetTrue).help("Opt in to billable checks of each API used by enabled tools")))
         .subcommand(Command::new("serve").about("Launch an MCP server (defaults to stdio)")
             .subcommand(Command::new("stdio").about("MCP over standard input/output"))
             .subcommand(Command::new("http").about("MCP Streamable HTTP at /mcp")
                 .arg(Arg::new("listen").long("listen").help("Override MCP_HTTP_LISTEN; IP:port (default: 127.0.0.1:3000)"))
+                .arg(Arg::new("tls-cert").long("tls-cert").help("PEM server certificate chain (MCP_TLS_CERT); requires --tls-key or MCP_TLS_KEY"))
+                .arg(Arg::new("tls-key").long("tls-key").help("PEM server private key file (MCP_TLS_KEY)"))
+                .arg(Arg::new("tls-client-ca").long("tls-client-ca").help("PEM CA bundle; require client certificates (MCP_TLS_CLIENT_CA)"))
+                .arg(Arg::new("rate-limit").long("rate-limit").value_parser(clap::value_parser!(u32).range(0..=1000000)).help("Authenticated /mcp HTTP requests per minute per process, burst of the same size; 0 disables (default: 120)"))
+                .arg(Arg::new("metrics").long("metrics").num_args(0..=1).default_missing_value("true").value_parser(["true","false"]).help("Enable protected Prometheus /metrics; overrides MCP_METRICS_ENABLED (default: false)"))
                 .arg(Arg::new("allowed-host").long("allowed-host").action(ArgAction::Append).help("Replace MCP_HTTP_ALLOWED_HOSTS; repeat for multiple hosts. Defaults to loopback hosts"))
                 .arg(Arg::new("allowed-origin").long("allowed-origin").action(ArgAction::Append).help("Replace MCP_HTTP_ALLOWED_ORIGINS; repeat. Present Origin headers are rejected by default"))))
         .subcommand(Command::new("tools").about("List enabled tools and JSON schemas; no API key needed"))

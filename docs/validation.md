@@ -182,3 +182,69 @@ The checks cover small Paris-based scenarios. Live service-account token expiry
 and refresh over an hour, GKE metadata authentication and external federation
 remain untested against live infrastructure. Cached token reuse and refresh
 request handling remain covered by the local token/API fixtures.
+
+## v0.3.0 production features and additional APIs
+
+Validated on 2026-10-31. The offline suite passes 53 tests, with 29 live tests
+ignored by default, plus one compile-checked Rust documentation example. The
+five added tools have local request/response fixtures and live API-key checks.
+
+All 23 API-key tool scenarios passed. The first full run passed 22 and received
+an explicit API-disabled 403 for Address Validation. After the user enabled that
+service in the key's project, the focused Address Validation rerun passed.
+All six service-account OAuth tests passed with the API key removed, including
+the added Address Validation and Places Aggregate scenarios. `doctor --live`
+also passed representative probes for all twelve Google API families in use.
+No real credential values were printed, packaged or committed.
+
+Local tests verify TLS/mTLS handshakes, rejection of untrusted or missing client
+certificates, bearer authentication, native HTTPS MCP initialization, protected
+metrics, request limits, SIGHUP certificate replacement, failed-reload retention
+and graceful SIGTERM. Fixtures cover API request shape, OAuth versus key routing,
+parallel per-invocation budgets, retry/backoff/Retry-After handling, overall
+deadlines, metrics, diagnostic redaction and offline/live doctor behavior.
+
+Strict Clippy, formatting, Rust 1.88 checks, stable/nightly rustdoc, workflow lint,
+Cargo package compilation and package/credential auditing passed locally. Public
+Rust documentation coverage is 100% for both items and eligible examples. An
+LLVM coverage run reports the following line coverage for the new modules:
+
+| Module | Covered lines | Percentage |
+| --- | --- | --- |
+| Additional Google tools | 113/113 | 100.00% |
+| Doctor | 109/122 | 89.34% |
+| Metrics | 64/68 | 94.12% |
+| Limits and budgets | 55/57 | 96.49% |
+| Native TLS | 41/46 | 89.13% |
+
+Coverage is an offline-test measurement, not a claim of complete branch coverage.
+The package contains the production guide and both deployment examples while
+excluding `.env`, `sa_key.json`, TLS keys and generated output. The service-account
+file remains ignored, untracked and mode 0600.
+
+Kubeconform strictly validates all three base Kubernetes resources and both
+Gateway API resources without skipped schemas. No Kubernetes workload or gateway
+was deployed. Local Docker Desktop was unresponsive. The isolated Linux amd64
+[CI container job](https://github.com/fcenedes/mcp-gmap-rs/actions/runs/41197569281/job/124526718430)
+built the image and passed native TLS, protected metrics, rate limits, doctor,
+SIGHUP and SIGTERM checks in addition to the existing CLI/stdio/HTTP cases.
+The first CI run also passed Linux/macOS tests, both documentation builds, package
+verification and Rust 1.88 checks. Its Rust 1.99 Clippy deprecation was corrected
+using a compatible compare-and-exchange loop; strict local Clippy on 1.99 passes.
+No v0.3.0 release or container-registry publication was made during preparation.
+
+## Agent skill packaging
+
+The `skills/mcp-gmap/` skill and its installed local copy pass the skill-creator
+frontmatter/structure validator. Fifteen discovery, MCP-argument and CLI examples
+were exercised against the executable with dotenv loading disabled, Google
+credentials removed and API-key mode explicitly selected. Discovery succeeded;
+data calls reached the expected missing-key boundary after argument validation.
+No live Google requests were made for this skill check.
+
+Cargo packaging compiled successfully and includes all four skill files. The
+release packager was exercised in a temporary source fixture using the current
+debug executable: version/discovery checks passed, the archive contained identical
+skill files, and local credentials were excluded. That fixture was removed; it
+was not a published release binary. Strict rustdoc also passes with the skill
+source link and installation guidance.

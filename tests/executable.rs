@@ -23,6 +23,15 @@ fn binary() -> Command {
         "MCP_HTTP_ALLOWED_HOSTS",
         "MCP_HTTP_ALLOWED_ORIGINS",
         "RUST_LOG",
+        "MCP_LOG_FORMAT",
+        "GOOGLE_MAPS_MAX_REQUESTS",
+        "GOOGLE_MAPS_MAX_RETRIES",
+        "GOOGLE_MAPS_TOOL_TIMEOUT",
+        "MCP_HTTP_RATE_LIMIT",
+        "MCP_METRICS_ENABLED",
+        "MCP_TLS_CERT",
+        "MCP_TLS_KEY",
+        "MCP_TLS_CLIENT_CA",
     ] {
         command.env_remove(name);
     }
@@ -80,7 +89,7 @@ async fn cli_discovers_tools_without_a_key_and_reports_failures() {
             .as_array()
             .unwrap()
             .len(),
-        18
+        23
     );
     let filtered = binary()
         .args(["--enabled-tools", "maps_geocode", "tools"])
@@ -200,7 +209,7 @@ async fn stdio_executable_initializes_lists_tools_and_returns_tool_errors() {
             }
         };
         if id == 2 {
-            assert_eq!(response["result"]["tools"].as_array().unwrap().len(), 18);
+            assert_eq!(response["result"]["tools"].as_array().unwrap().len(), 23);
         } else {
             assert_eq!(response["result"]["isError"], true);
         }

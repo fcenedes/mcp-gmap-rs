@@ -1,0 +1,3 @@
+interface:
+  display_name: "Google Maps MCP and CLI"
+  short_description: "Find places, routes and conditions with Google Maps"

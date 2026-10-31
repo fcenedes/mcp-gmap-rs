@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.3.0 - Unreleased
+
+- Include a reusable agent skill for MCP/CLI usage, with capability discovery, tool selection, credential boundaries and partial-result handling.
+- Add Address Validation, Pollen, Places Aggregate, Snap to Roads and Nearest Roads tools across CLI and both MCP transports (23 tools total).
+- Extend service-account/ADC OAuth to Address Validation and Places Aggregate.
+- Serve native TLS 1.2/1.3 with optional client certificates and atomic SIGHUP certificate/CA reload; retain the last good configuration on failure.
+- Add per-invocation Google request budgets, overall tool deadlines and bounded transient retries with Retry-After/backoff handling.
+- Add a process-wide authenticated HTTP request rate limit, opt-in protected Prometheus metrics and structured JSON diagnostic events.
+- Add offline `doctor` diagnostics and explicitly opted-in live API probes.
+- Document production settings and provide an optional Kubernetes HTTPS Gateway/HTTPRoute example, with schema validation and TLS/container smoke checks in CI.
+
 ## 0.2.0 - 2026-10-31
 
 - Support service-account/ADC OAuth for Places (New), Routes, Weather and Air Quality, with key authentication retained for current legacy endpoints.

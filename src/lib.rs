@@ -1,4 +1,5 @@
 #![doc = include_str!("../docs/crate.md")]
+#![doc = include_str!("../docs/production.md")]
 #![deny(missing_docs, rustdoc::broken_intra_doc_links)]
 
 mod auth;
@@ -6,9 +7,14 @@ mod catalog;
 mod cli;
 mod client;
 mod composite;
+mod doctor;
+mod extended;
+mod metrics;
+mod policy;
 mod routes;
 mod server;
 mod settings;
+mod tls;
 mod tools;
 
 #[cfg(test)]

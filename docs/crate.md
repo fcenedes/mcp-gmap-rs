@@ -1,6 +1,6 @@
 # Google Maps CLI and MCP server
 
-`mcp-gmap-rs` provides 18 Google Maps tools through one Rust executable:
+`mcp-gmap-rs` provides 23 Google Maps tools through one Rust executable:
 a JSON CLI, an MCP stdio server, and an MCP Streamable HTTP server. All three
 interfaces share argument validation and Google API execution.
 
@@ -61,8 +61,8 @@ the bundled `docs/google-cloud-setup.md` or the
 [repository setup guide](https://github.com/fcenedes/mcp-gmap-rs/blob/main/docs/google-cloud-setup.md).
 OAuth mode uses Google's official Rust auth library, the `cloud-platform` scope,
 cached/refreshed access tokens and a quota-project header for Places (New), Routes,
-Weather and Air Quality. Other current endpoints (Geocoding v3, Elevation, Time
-Zone and Static Maps) still use `GOOGLE_MAPS_API_KEY`; composite flows may need it.
+Weather, Air Quality, Address Validation and Places Aggregate. Other current endpoints (Geocoding v3, Elevation, Time
+Zone, Static Maps, Pollen and Roads) still use `GOOGLE_MAPS_API_KEY`; composite flows may need it.
 With no credential file selected, ADC can discover local credentials or use the
 attached service/workload account. Credential loading is lazy for discovery.
 Tokens are not MCP client credentials: the HTTP server still uses `MCP_HTTP_TOKEN`.
@@ -119,7 +119,7 @@ mcp-gmap-rs serve http --listen 127.0.0.1:3000
 The MCP endpoint is `http://127.0.0.1:3000/mcp`. `GET /health` checks process
 liveness only. HTTP validates Host and Origin headers. For a non-loopback bind,
 configure `MCP_HTTP_TOKEN` and allowed hosts/origins using the server's flags;
-clients send `Authorization: Bearer <token>`. External HTTPS requires a TLS proxy.
+clients send `Authorization: Bearer <token>`. External HTTPS can use native TLS or a TLS gateway; see Production configuration below.
 The server uses one configured Google key per process.
 
 ## Tool catalog
@@ -127,6 +127,11 @@ The server uses one configured Google key per process.
 | MCP name | CLI command | Capability |
 | --- | --- | --- |
 | `maps_geocode` | `geocode` | Address to coordinates |
+| `maps_validate_address` | `validate-address` | Address validation and corrections |
+| `maps_pollen` | `pollen` | Daily pollen forecasts |
+| `maps_area_insights` | `area-insights` | Place counts and filtered area insights |
+| `maps_snap_to_roads` | `snap-to-roads` | Match an ordered GPS path to roads |
+| `maps_nearest_roads` | `nearest-roads` | Nearest roads for independent coordinates |
 | `maps_reverse_geocode` | `reverse-geocode` | Coordinates to address |
 | `maps_search_places` | `search-places` | Places text search |
 | `maps_search_nearby` | `search-nearby` | Nearby places by type |
@@ -153,9 +158,16 @@ content, following [Google's Places policies](https://developers.google.com/maps
 
 ## Documentation and tests
 
+The source package and release archives include `skills/mcp-gmap/`, a reusable
+agent skill for MCP and CLI usage. It covers capability discovery, tool selection,
+partial failures, attribution and authentication. See the
+[skill entry point](https://docs.rs/crate/mcp-gmap-rs/latest/source/skills/mcp-gmap/SKILL.md)
+and the README's installation instructions. Installing the skill does not configure
+an MCP connection or supply Google credentials.
+
 The public Rust API is checked for missing documentation and broken symbol links.
 The example on [`run`] is compile-checked without making Google requests. The
-offline tests exercise all 18 tools and both MCP transports. An opt-in live suite
+offline tests exercise all 23 tools and both MCP transports. An opt-in live suite
 requires a key, enabled Google APIs, billing and network access.
 
 For the full CLI guide and release procedures, consult the README and documentation
