@@ -90,6 +90,12 @@ layouts, tables, search, copy controls and language navigation before delivery.
 Do not ship partially translated references or silently fall back to English
 prose for a locale advertised as complete.
 
+## Fonts and attribution
+
+Manrope and IBM Plex Mono are self-hosted through Fontsource. Their license
+notices are distributed under `public/font-licenses/`. The cartographic cover is
+an original illustration, not Google map imagery or live routing data.
+
 ## Build output and packaging
 
 VitePress output is in `.vitepress/dist/`; its cache and `node_modules/` are
