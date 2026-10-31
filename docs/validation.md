@@ -214,7 +214,7 @@ LLVM coverage run reports the following line coverage for the new modules:
 | Additional Google tools | 113/113 | 100.00% |
 | Doctor | 109/122 | 89.34% |
 | Metrics | 64/68 | 94.12% |
-| Limits and budgets | 53/54 | 98.15% |
+| Limits and budgets | 55/57 | 96.49% |
 | Native TLS | 41/46 | 89.13% |
 
 Coverage is an offline-test measurement, not a claim of complete branch coverage.
@@ -224,8 +224,11 @@ file remains ignored, untracked and mode 0600.
 
 Kubeconform strictly validates all three base Kubernetes resources and both
 Gateway API resources without skipped schemas. No Kubernetes workload or gateway
-was deployed. Local Docker Desktop was unresponsive, so image build/runtime
-verification is delegated to the isolated CI container job, which now checks
-native TLS, protected metrics, rate limits, doctor, SIGHUP and SIGTERM in addition
-to the existing CLI/stdio/HTTP cases. Its result is recorded in the pull request.
+was deployed. Local Docker Desktop was unresponsive. The isolated Linux amd64
+[CI container job](https://github.com/fcenedes/mcp-gmap-rs/actions/runs/41197569281/job/124526718430)
+built the image and passed native TLS, protected metrics, rate limits, doctor,
+SIGHUP and SIGTERM checks in addition to the existing CLI/stdio/HTTP cases.
+The first CI run also passed Linux/macOS tests, both documentation builds, package
+verification and Rust 1.88 checks. Its Rust 1.99 Clippy deprecation was corrected
+using a compatible compare-and-exchange loop; strict local Clippy on 1.99 passes.
 No v0.3.0 release or container-registry publication was made during preparation.

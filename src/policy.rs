@@ -35,12 +35,20 @@ impl CallBudget {
     }
 
     pub fn take(&self) -> Result<()> {
-        self.0
-            .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |remaining| {
-                remaining.checked_sub(1)
-            })
-            .map(|_| ())
-            .map_err(|_| Error::Budget)
+        // A CAS loop works on both the MSRV and newer Rust versions that renamed fetch_update.
+        let mut remaining = self.0.load(Ordering::Relaxed);
+        loop {
+            let next = remaining.checked_sub(1).ok_or(Error::Budget)?;
+            match self.0.compare_exchange_weak(
+                remaining,
+                next,
+                Ordering::Relaxed,
+                Ordering::Relaxed,
+            ) {
+                Ok(_) => return Ok(()),
+                Err(actual) => remaining = actual,
+            }
+        }
     }
 }
 
