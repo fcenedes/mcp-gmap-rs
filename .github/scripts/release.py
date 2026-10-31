@@ -55,6 +55,7 @@ def package(target, output):
             shutil.copy2(ROOT / filename, folder / filename)
         for directory_name in ["licenses", "docs"]:
             shutil.copytree(ROOT / directory_name, folder / directory_name)
+        shutil.copytree(ROOT / "skills" / "mcp-gmap", folder / "skills" / "mcp-gmap")
         with tarfile.open(destination, "w:gz") as archive:
             archive.add(folder, arcname=folder.name)
     digest = hashlib.sha256(destination.read_bytes()).hexdigest()
@@ -70,14 +71,14 @@ def audit_package():
         "Cargo.toml", "Cargo.toml.orig", "Cargo.lock", "README.md", "LICENSE",
         "CHANGELOG.md", ".env.example", ".cargo_vcs_info.json", "Dockerfile", ".dockerignore",
     }
-    required = {"Cargo.lock", "LICENSE", "licenses/cablate-mcp-google-map-MIT.txt", ".env.example", "docs/crate.md", "docs/google-cloud-setup.md", "docs/production.md", "Dockerfile", ".dockerignore", "deploy/kubernetes.yaml", "deploy/gateway.yaml"}
+    required = {"Cargo.lock", "LICENSE", "licenses/cablate-mcp-google-map-MIT.txt", ".env.example", "docs/crate.md", "docs/google-cloud-setup.md", "docs/production.md", "Dockerfile", ".dockerignore", "deploy/kubernetes.yaml", "deploy/gateway.yaml", "skills/mcp-gmap/SKILL.md", "skills/mcp-gmap/agents/openai.yaml", "skills/mcp-gmap/references/cli.md", "skills/mcp-gmap/references/tool-selection.md"}
     seen = set()
     with tarfile.open(path, "r:gz") as archive:
         for member in archive.getmembers():
             if not member.isfile():
                 raise SystemExit(f"unexpected non-file package entry: {member.name}")
             name = member.name.removeprefix(f"{NAME}-{VERSION}/")
-            if name not in allowed_files and not name.startswith(("src/", "tests/", "docs/", "deploy/", "licenses/")):
+            if name not in allowed_files and not name.startswith(("src/", "tests/", "docs/", "deploy/", "licenses/", "skills/mcp-gmap/")):
                 raise SystemExit(f"unexpected package file: {name}")
             if any(part == ".env" or (part.startswith(".env.") and part != ".env.example") for part in Path(name).parts):
                 raise SystemExit("credential file found in crate")

@@ -15,6 +15,8 @@ standalone Rust CLI and MCP server.
   explicitly opted-in billable API probes.
 - Include production configuration documentation and a Kubernetes TLS Gateway
   example; Google service-account OAuth remains separate from inbound MCP auth.
+- Bundle the reusable `mcp-gmap` agent skill with MCP/CLI usage guidance and
+  installation instructions; no assistant plugin is required.
 
 The default Google request budget is 200 attempts per tool call, including retries.
 The default overall tool deadline is 120 seconds, with up to two transient retries

@@ -232,6 +232,27 @@ associated content, following [Google's Places policies](https://developers.goog
 MCP map calls return inline PNG image content; CLI map calls print base64 JSON
 unless `--output` is provided.
 
+## Agent skill
+
+The reusable [mcp-gmap skill](skills/mcp-gmap/SKILL.md) teaches agents to choose
+the appropriate Maps tools, use MCP or CLI, inspect partial failures, preserve
+attribution and handle authentication without exposing credentials. It discovers
+available tools before using version-specific capabilities. It supplies instructions;
+the executable or MCP connection must be configured separately.
+
+The source package and release archives include `skills/mcp-gmap/`. To install
+it for Codex from a checkout or extracted release archive:
+
+```sh
+mkdir -p "${CODEX_HOME:-$HOME/.codex}/skills"
+cp -R skills/mcp-gmap "${CODEX_HOME:-$HOME/.codex}/skills/"
+```
+
+Invoke it as `$mcp-gmap`, for example: “Use $mcp-gmap to find cafes near Gare de
+Lyon and compare walking routes.” For other agents, place the same folder in their
+supported skill directory or load its `SKILL.md` and linked references. The body
+is agent-independent; `agents/openai.yaml` adds optional Codex UI metadata.
+
 ## Development
 
 ```sh

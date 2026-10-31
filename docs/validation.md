@@ -232,3 +232,19 @@ The first CI run also passed Linux/macOS tests, both documentation builds, packa
 verification and Rust 1.88 checks. Its Rust 1.99 Clippy deprecation was corrected
 using a compatible compare-and-exchange loop; strict local Clippy on 1.99 passes.
 No v0.3.0 release or container-registry publication was made during preparation.
+
+## Agent skill packaging
+
+The `skills/mcp-gmap/` skill and its installed local copy pass the skill-creator
+frontmatter/structure validator. Fifteen discovery, MCP-argument and CLI examples
+were exercised against the executable with dotenv loading disabled, Google
+credentials removed and API-key mode explicitly selected. Discovery succeeded;
+data calls reached the expected missing-key boundary after argument validation.
+No live Google requests were made for this skill check.
+
+Cargo packaging compiled successfully and includes all four skill files. The
+release packager was exercised in a temporary source fixture using the current
+debug executable: version/discovery checks passed, the archive contained identical
+skill files, and local credentials were excluded. That fixture was removed; it
+was not a published release binary. Strict rustdoc also passes with the skill
+source link and installation guidance.

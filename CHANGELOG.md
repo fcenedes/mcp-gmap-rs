@@ -2,6 +2,7 @@
 
 ## 0.3.0 - Unreleased
 
+- Include a reusable agent skill for MCP/CLI usage, with capability discovery, tool selection, credential boundaries and partial-result handling.
 - Add Address Validation, Pollen, Places Aggregate, Snap to Roads and Nearest Roads tools across CLI and both MCP transports (23 tools total).
 - Extend service-account/ADC OAuth to Address Validation and Places Aggregate.
 - Serve native TLS 1.2/1.3 with optional client certificates and atomic SIGHUP certificate/CA reload; retain the last good configuration on failure.

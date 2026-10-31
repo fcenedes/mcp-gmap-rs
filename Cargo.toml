@@ -11,7 +11,7 @@ keywords = ["mcp", "google-maps", "geocoding", "cli", "maps"]
 categories = ["command-line-utilities", "api-bindings"]
 license = "MIT"
 readme = "README.md"
-include = ["Cargo.toml", "Cargo.lock", "src/**", "tests/**", "docs/**", "deploy/**", "licenses/**", "LICENSE", "README.md", "CHANGELOG.md", ".env.example", "Dockerfile", ".dockerignore"]
+include = ["Cargo.toml", "Cargo.lock", "src/**", "tests/**", "docs/**", "deploy/**", "skills/mcp-gmap/**", "licenses/**", "LICENSE", "README.md", "CHANGELOG.md", ".env.example", "Dockerfile", ".dockerignore"]
 
 [package.metadata.docs.rs]
 all-features = true

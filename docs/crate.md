@@ -158,6 +158,13 @@ content, following [Google's Places policies](https://developers.google.com/maps
 
 ## Documentation and tests
 
+The source package and release archives include `skills/mcp-gmap/`, a reusable
+agent skill for MCP and CLI usage. It covers capability discovery, tool selection,
+partial failures, attribution and authentication. See the
+[skill entry point](https://docs.rs/crate/mcp-gmap-rs/latest/source/skills/mcp-gmap/SKILL.md)
+and the README's installation instructions. Installing the skill does not configure
+an MCP connection or supply Google credentials.
+
 The public Rust API is checked for missing documentation and broken symbol links.
 The example on [`run`] is compile-checked without making Google requests. The
 offline tests exercise all 23 tools and both MCP transports. An opt-in live suite
