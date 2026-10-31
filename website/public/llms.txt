@@ -1,0 +1,28 @@
+# mcp-gmap-rs
+
+All 23 tools, with every parameter, default, constraint and example. The same interface is available through MCP and the CLI.
+
+## Tools
+
+- [Agent skill](https://fcenedes.github.io/mcp-gmap-rs/guide/agent-skill)
+- [Authentication](https://fcenedes.github.io/mcp-gmap-rs/guide/authentication)
+- [Command-line interface](https://fcenedes.github.io/mcp-gmap-rs/guide/cli)
+- [Configuration](https://fcenedes.github.io/mcp-gmap-rs/guide/configuration)
+- [Deployment](https://fcenedes.github.io/mcp-gmap-rs/guide/deployment)
+- [Development and releases](https://fcenedes.github.io/mcp-gmap-rs/guide/development)
+- [Getting started](https://fcenedes.github.io/mcp-gmap-rs/guide/getting-started)
+- [Google Cloud setup](https://fcenedes.github.io/mcp-gmap-rs/guide/google-cloud)
+- [MCP integration](https://fcenedes.github.io/mcp-gmap-rs/guide/mcp)
+- [Production operations](https://fcenedes.github.io/mcp-gmap-rs/guide/production)
+- [Recipes](https://fcenedes.github.io/mcp-gmap-rs/guide/recipes)
+- [Troubleshooting](https://fcenedes.github.io/mcp-gmap-rs/guide/troubleshooting)
+- [Configuration reference](https://fcenedes.github.io/mcp-gmap-rs/reference/configuration)
+- [Tool reference](https://fcenedes.github.io/mcp-gmap-rs/reference/tools)
+
+- [Full text](https://fcenedes.github.io/mcp-gmap-rs/llms-full.txt)
+
+## Languages
+
+- [English](https://fcenedes.github.io/mcp-gmap-rs/llms.txt)
+- [Français](https://fcenedes.github.io/mcp-gmap-rs/fr/llms.txt)
+- [Italiano](https://fcenedes.github.io/mcp-gmap-rs/it/llms.txt)

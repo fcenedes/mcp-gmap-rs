@@ -1,0 +1,1858 @@
+# mcp-gmap-rs / it
+
+https://fcenedes.github.io/mcp-gmap-rs/it/
+
+
+<!-- https://fcenedes.github.io/mcp-gmap-rs/it/guide/agent-skill -->
+
+# Usare la skill per agenti
+
+La skill riutilizzabile `mcp-gmap` aiuta gli agenti a scegliere gli strumenti Maps, usare MCP o CLI, controllare errori parziali e mantenere le attribuzioni Google. Contiene istruzioni e riferimenti: non installa il binario e non crea una connessione MCP.
+
+## Installazione
+
+Gli archivi di release e il pacchetto sorgente includono `skills/mcp-gmap/`. Da un checkout o archivio estratto, installala nella directory di skill supportata dal tuo agente. Per Codex:
+
+```sh
+mkdir -p "${CODEX_HOME:-$HOME/.codex}/skills"
+cp -R skills/mcp-gmap "${CODEX_HOME:-$HOME/.codex}/skills/"
+```
+
+Il [file principale](https://github.com/fcenedes/mcp-gmap-rs/blob/main/skills/mcp-gmap/SKILL.md) è indipendente dall'agente. `agents/openai.yaml` aggiunge metadati facoltativi per l'interfaccia Codex; non trasforma il progetto in un plugin.
+
+Configura prima la [CLI](./cli) o la [connessione MCP](./mcp), con credenziali Google appropriate. La skill deve scoprire gli strumenti effettivamente disponibili prima di usare funzionalità dipendenti dalla versione. Un'istanza può esporre solo la propria allowlist.
+
+## Esempio di richiesta
+
+> Usa $mcp-gmap per cercare tre caffè vicino al Colosseo e confrontare i tragitti a piedi. Conserva i link Google e segnala eventuali dati mancanti.
+
+L'agente può cercare luoghi, recuperare dettagli soltanto per i candidati utili e confrontare percorsi con modalità esplicita `walking`. Non deve presumere che `compare-places` permetta una modalità diversa da `driving`, né interpretare un risultato composito senza controllarne gli errori per elemento.
+
+Per riprodurre una chiamata usa `schema TOOL` e il [riferimento completo](../reference/tools). I parametri di strumento non contengono chiavi o token: le credenziali restano configurazione del processo. Per richieste ambientali, l'agente deve conservare unità, orari e limiti di copertura, senza presentare le raccomandazioni del fornitore come una diagnosi personale.
+
+
+<!-- https://fcenedes.github.io/mcp-gmap-rs/it/guide/authentication -->
+
+# Chiavi API e OAuth 2.0
+
+L'autenticazione verso Google è separata da quella dei client MCP. `GOOGLE_MAPS_AUTH_MODE` seleziona la credenziale in uscita; `MCP_HTTP_TOKEN` protegge il server HTTP in ingresso.
+
+## Service account con file JSON
+
+Crea un service account dedicato e concedigli **Service Usage Consumer** sul progetto di fatturazione/quota. Il ruolo include `serviceusage.services.use`; non concede il diritto di abilitare servizi.
+
+```sh
+export PROJECT_ID='your-project-id'
+export SA_EMAIL="mcp-gmap@${PROJECT_ID}.iam.gserviceaccount.com"
+gcloud iam service-accounts create mcp-gmap --project="$PROJECT_ID"
+gcloud projects add-iam-policy-binding "$PROJECT_ID"   --member="serviceAccount:${SA_EMAIL}"   --role='roles/serviceusage.serviceUsageConsumer'
+```
+
+Se la tua organizzazione ammette chiavi JSON, creane una da **IAM e amministrazione → Service account → Chiavi**. Conserva il file fuori dal repository, leggibile solo dall'identità del processo:
+
+```sh
+chmod 600 /secure/service-account.json
+```
+
+```dotenv
+GOOGLE_MAPS_AUTH_MODE=oauth
+GOOGLE_APPLICATION_CREDENTIALS=/secure/service-account.json
+GOOGLE_CLOUD_QUOTA_PROJECT=your-project-id
+```
+
+Il percorso punta a un file, non al contenuto JSON. I percorsi relativi partono dalla directory di lavoro. La libreria Google acquisisce, memorizza temporaneamente e rinnova i token; le richieste supportate inviano anche `X-Goog-User-Project`. Riavvia il processo dopo una modifica delle credenziali.
+
+## ADC e identità senza chiavi
+
+Lascia `GOOGLE_APPLICATION_CREDENTIALS` non impostata sia nell'ambiente del processo **sia** nel file dotenv o Secret/ConfigMap selezionato per usare Application Default Credentials locali o l'identità collegata al workload. `unset` da solo non rimuove un valore nel file: elimina la voce invece di impostare un percorso vuoto. Per sviluppo con impersonazione:
+
+```sh
+gcloud services enable iamcredentials.googleapis.com --project="$PROJECT_ID"
+gcloud iam service-accounts add-iam-policy-binding "$SA_EMAIL"   --project="$PROJECT_ID" --member='user:you@example.com'   --role='roles/iam.serviceAccountTokenCreator'
+gcloud auth application-default login --impersonate-service-account="$SA_EMAIL"
+```
+
+Imposta comunque modalità `oauth` e progetto quota. Su GKE usa Workload Identity Federation, un Kubernetes ServiceAccount associato all'identità IAM e il metadata server; non impostare un percorso JSON per questo flusso. Questi comandi assumono cluster e service account IAM nello stesso `PROJECT_ID`, con il Deployment nel namespace `default`. Abilita prima Workload Identity sul cluster e sul node pool; GKE Autopilot lo abilita già.
+
+```sh
+gcloud services enable iamcredentials.googleapis.com --project="$PROJECT_ID"
+kubectl create serviceaccount mcp-gmap-rs --namespace default
+gcloud iam service-accounts add-iam-policy-binding "$SA_EMAIL" \
+  --project="$PROJECT_ID" --role='roles/iam.workloadIdentityUser' \
+  --member="serviceAccount:${PROJECT_ID}.svc.id.goog[default/mcp-gmap-rs]"
+kubectl annotate serviceaccount mcp-gmap-rs --namespace default \
+  "iam.gke.io/gcp-service-account=${SA_EMAIL}"
+kubectl patch deployment mcp-gmap-rs --namespace default --type=merge \
+  -p '{"spec":{"template":{"spec":{"serviceAccountName":"mcp-gmap-rs"}}}}'
+kubectl set env deployment/mcp-gmap-rs --namespace default \
+  GOOGLE_MAPS_AUTH_MODE=oauth GOOGLE_CLOUD_QUOTA_PROJECT="$PROJECT_ID"
+```
+
+Adatta namespace e progetti alla tua installazione. Il pod acquisisce token dal metadata server GKE; non impostare `GOOGLE_APPLICATION_CREDENTIALS` per questo flusso. Su Kubernetes generico puoi montare il JSON in sola lettura con le tre variabili della sezione precedente. All'esterno di GKE, Workload Identity Federation può usare una configurazione ADC `external_account` e il token proiettato del provider.
+
+Il loader ammette anche configurazioni ADC JSON `impersonated_service_account` e `authorized_user`. Non impostare il percorso delle credenziali a una stringa vuota. La scoperta `tools` e `schema` è lazy: non acquisisce token. Il primo accesso OAuth richiede invece quota project, identità valida e connettività agli endpoint del flusso scelto.
+
+Per creare una chiave JSON da CLI, se consentito dalle policy:
+
+```sh
+mkdir -p "$HOME/.config/mcp-gmap-rs"
+gcloud iam service-accounts keys create \
+  "$HOME/.config/mcp-gmap-rs/service-account.json" \
+  --iam-account="$SA_EMAIL" --project="$PROJECT_ID"
+chmod 600 "$HOME/.config/mcp-gmap-rs/service-account.json"
+```
+
+Le chiavi dei service account sono credenziali di lunga durata: escludile da Git e dalle immagini, controllane gli accessi e revoca quelle inutilizzate. Dove disponibile, un'identità del workload o l'impersonazione evita la distribuzione di chiavi private.
+
+## Confini del supporto
+
+OAuth copre Places (New), Routes, Weather, Air Quality, Address Validation e Places Aggregate. Geocoding v3, Elevation, Time Zone, Static Maps, Pollen e Roads richiedono ancora una chiave in questa implementazione. Mantieni una chiave limitata se utilizzi questi endpoint; coordinate esatte evitano alcune risoluzioni Geocoding nei compositi.
+
+Un errore OAuth non provoca mai un ripiego silenzioso sulla chiave. Per un'istanza esclusivamente OAuth, rimuovi la chiave e limita strumenti e input alle API supportate. Verifica una chiamata reale con `--auth-mode oauth search-places --query 'caffè a Roma'`; è potenzialmente fatturabile.
+
+
+<!-- https://fcenedes.github.io/mcp-gmap-rs/it/guide/cli -->
+
+# Usare la CLI
+
+La CLI condivide i parametri con MCP. Ogni comando stampa JSON su stdout; errori e diagnostica vanno su stderr. Gli errori di chiamata producono un codice d'uscita diverso da zero. I risultati compositi possono comunque contenere errori parziali con codice d'uscita zero.
+
+## Scoprire comandi e schemi
+
+```sh
+mcp-gmap-rs --help
+mcp-gmap-rs tools
+mcp-gmap-rs schema directions
+mcp-gmap-rs directions --help
+```
+
+La scoperta non richiede credenziali. Usa lo schema della versione installata: un server remoto può esporre soltanto un sottoinsieme del catalogo.
+
+## Opzioni dirette o JSON condiviso
+
+```sh
+mcp-gmap-rs geocode --address 'Roma, Italia'
+mcp-gmap-rs search-places --query 'caffè a Roma' --open-now --min-rating 4
+mcp-gmap-rs call maps_geocode --args '{"address":"Roma, Italia"}'
+printf '%s' '{"address":"Roma, Italia"}' | mcp-gmap-rs call geocode --args -
+```
+
+I nomi camelCase diventano opzioni con trattini, per esempio `placeId` → `--place-id`. Solo i parametri di primo livello hanno opzioni proprie. Oggetti e array si passano come JSON:
+
+```sh
+mcp-gmap-rs search-nearby   --center '{"value":"41.8902,12.4922","isCoordinates":true}'   --keyword cafe --radius 500
+```
+
+Un'opzione booleana senza valore significa `true`; usa `--open-now false` per impostare `false`. Gli orari di percorso usano RFC 3339 con fuso esplicito. Il parametro `timestamp` di `timezone` usa invece millisecondi Unix.
+
+## Salvare i risultati
+
+```sh
+mcp-gmap-rs geocode --address Roma --output roma.json
+mcp-gmap-rs static-map --center '41.8902,12.4922' --zoom 14 --output roma.png
+```
+
+`--output` salva JSON, oppure PNG grezzo per Static Maps. Senza tale opzione, la mappa CLI usa JSON `{mimeType,base64}`. Non stampare credenziali negli script e non inserirle negli oggetti JSON degli strumenti.
+
+Per batch, matrici e compositi, controlla `success`, `error`, `errors`, `details_error` e campi analoghi prima di usare il risultato. La [referenza strumenti](../reference/tools) descrive esattamente output, limiti ed errori per ogni operazione.
+
+
+<!-- https://fcenedes.github.io/mcp-gmap-rs/it/guide/configuration -->
+
+# Configurazione a livelli
+
+L'ordine di precedenza è **valori predefiniti → file dotenv facoltativo → variabili d'ambiente → opzioni CLI**. Lo stesso modello vale per CLI, stdio e HTTP.
+
+## Selezionare il file
+
+Per impostazione predefinita, viene cercato solo `.env` nella directory di lavoro, senza risalire le directory superiori. La sua assenza è consentita. Un file scelto esplicitamente deve esistere:
+
+```sh
+mcp-gmap-rs --env-file /etc/mcp-gmap/runtime.env serve http
+mcp-gmap-rs --no-env-file tools
+```
+
+`MCP_ENV_FILE` seleziona un percorso, ma `--env-file` ha precedenza. `--no-env-file` disabilita completamente il caricamento. File illeggibili o malformati interrompono l'avvio senza stamparne il contenuto. Il parser non modifica l'ambiente del processo.
+
+## Sovrascrivere solo ciò che serve
+
+```dotenv
+GOOGLE_MAPS_LANGUAGE=it
+GOOGLE_MAPS_TIMEOUT=30
+GOOGLE_MAPS_MAX_REQUESTS=100
+MCP_LOG_FORMAT=json
+```
+
+```sh
+GOOGLE_MAPS_LANGUAGE=fr mcp-gmap-rs --language it tools
+```
+
+In questo esempio prevale `it`. Anche una variabile d'ambiente esplicitamente vuota sostituisce il valore nel file: può cancellare un token facoltativo, ma un timeout vuoto non è valido. Opzioni ripetute come `--allowed-host` e `--allowed-origin` sostituiscono l'intera lista configurata, senza aggiungersi ai valori del file.
+
+## Limitare gli strumenti esposti
+
+```sh
+mcp-gmap-rs --enabled-tools maps_search_places,maps_place_details serve stdio
+```
+
+I nomi sono quelli MCP `maps_*`; nomi sconosciuti impediscono l'avvio. `*` abilita l'intero catalogo. Ridurre il catalogo aiuta il client a scegliere gli strumenti pertinenti; non sostituisce le restrizioni della credenziale Google.
+
+Le impostazioni si leggono all'avvio: riavvia il processo o i pod dopo una modifica a Secret e ConfigMap. I file di certificato, chiave TLS e CA client fanno eccezione: supportano il ricaricamento con SIGHUP, descritto in [produzione](./production). Il [riferimento completo](../reference/configuration) elenca tutte le variabili, i valori predefiniti e le opzioni corrispondenti.
+
+
+<!-- https://fcenedes.github.io/mcp-gmap-rs/it/guide/deployment -->
+
+# Docker e Kubernetes
+
+Il [Dockerfile](https://github.com/fcenedes/mcp-gmap-rs/blob/main/Dockerfile) compila un eseguibile Rust e usa un runtime Debian con certificati CA. Il processo gira come UID/GID 10001; le credenziali vengono fornite all'esecuzione, mai durante la build.
+
+## Costruire ed eseguire l'immagine
+
+```sh
+docker build -t mcp-gmap-rs:local .
+docker run --rm --read-only --cap-drop ALL   --security-opt no-new-privileges --env-file .env   -p 127.0.0.1:3000:3000 mcp-gmap-rs:local
+```
+
+L'immagine predefinita avvia HTTP su `0.0.0.0:3000`: `.env` deve quindi contenere `MCP_HTTP_TOKEN`, oltre alla configurazione Google. Docker `--env-file` inietta variabili; per provare il loader applicativo, monta invece un file leggibile e usa `--env-file /etc/mcp-gmap/runtime.env` dopo il nome dell'immagine.
+
+```sh
+docker run --rm mcp-gmap-rs:local tools
+docker run --rm -i --env-file .env mcp-gmap-rs:local serve stdio
+```
+
+Per pubblicare la tua immagine multiarchitettura:
+
+```sh
+docker buildx build --platform linux/amd64,linux/arm64   -t registry.example.com/team/mcp-gmap-rs:0.3.1 --push .
+```
+
+La pubblicazione automatica in un registro di container non è configurata.
+
+## Distribuire su Kubernetes
+
+Il [manifest base](https://github.com/fcenedes/mcp-gmap-rs/blob/main/deploy/kubernetes.yaml) usa ConfigMap, Secret esistente, Deployment e Service ClusterIP. Da un checkout, sostituisci l'immagine locale con la tua immagine di registro:
+
+```sh
+kubectl create secret generic mcp-gmap-rs --from-env-file=/secure/credentials.env
+kubectl apply -f deploy/kubernetes.yaml
+kubectl rollout status deployment/mcp-gmap-rs
+kubectl port-forward service/mcp-gmap-rs 3000:3000
+```
+
+Il file del Secret contiene le credenziali Google e `MCP_HTTP_TOKEN`. Il manifest usa `--no-env-file` e `envFrom`; i valori modificati richiedono il riavvio dei pod. Per OAuth JSON, monta la credenziale in sola lettura con permessi adatti a UID 10001. Su GKE preferisci [Workload Identity](./authentication).
+
+Mantieni una replica con il session store predefinito, oppure configura affinità. Consenti DNS e HTTPS in uscita; le restrizioni IP della chiave devono riconoscere l'egress pubblico del cluster. Adatta gli host consentiti al namespace e al proxy effettivi. Il [Gateway HTTPS facoltativo](https://github.com/fcenedes/mcp-gmap-rs/blob/main/deploy/gateway.yaml) richiede CRD Gateway API, controller conforme, dominio e Secret TLS. I dettagli su streaming, probe e cifratura del collegamento al pod sono in [produzione](./production).
+
+
+## OAuth e file montati nel container
+
+Un file dotenv montato viene letto dall'applicazione, mentre le variabili iniettate con `-e` lo sovrascrivono. L'immagine imposta già `MCP_HTTP_LISTEN=0.0.0.0:3000`, quindi un valore diverso nel file non prevale su quello dell'immagine: usa ambiente oppure `--listen`.
+
+```sh
+docker run --rm --read-only \
+  --mount type=bind,src="$(pwd)/runtime.env",dst=/etc/mcp-gmap/runtime.env,readonly \
+  --mount type=bind,src=/secure/service-account.json,dst=/credentials/service-account.json,readonly \
+  -e GOOGLE_MAPS_AUTH_MODE=oauth \
+  -e GOOGLE_APPLICATION_CREDENTIALS=/credentials/service-account.json \
+  -e GOOGLE_CLOUD_QUOTA_PROJECT=your-project-id \
+  -p 127.0.0.1:3000:3000 mcp-gmap-rs:local \
+  --env-file /etc/mcp-gmap/runtime.env serve http
+```
+
+`runtime.env` deve contenere il token MCP; il JSON deve essere leggibile da UID 10001. Una chiave API rimane necessaria per gli endpoint supportati solo con chiave se vengono usati. Non copiare il JSON nel Dockerfile e non inserire credenziali nella riga di comando.
+
+Per salvare risultati CLI con `--output`, monta una directory scrivibile dall'utente del container. Le impostazioni di risorse del manifest sono valori iniziali da adattare al carico. Per rollout con sessioni esistenti prevedi riconnessione dei client: lo stato in memoria non migra tra pod. Le probe HTTP verificano il processo, non validità della credenziale o disponibilità dell'API Google.
+
+
+<!-- https://fcenedes.github.io/mcp-gmap-rs/it/guide/development -->
+
+# Sviluppo, CI e release
+
+Il prodotto distribuito è un eseguibile Rust indipendente. Il sito e gli strumenti di generazione della documentazione sono strumenti di sviluppo separati; non sono richiesti per eseguire CLI o MCP.
+
+## Verifica locale
+
+Da un checkout con Rust 1.88 o successivo:
+
+```sh
+cargo fmt --check
+cargo clippy --all-targets --all-features --locked -- -D warnings
+cargo test --locked
+cargo test --doc --all-features --locked
+cargo build --release --locked
+```
+
+I test ordinari usano fixture locali e non richiedono Google. Coprono i 23 strumenti, sottoprocessi CLI, stdio e HTTP. I test live sono esplicitamente ignorati per impostazione predefinita: richiedono credenziali, API abilitate e fatturazione e possono generare costi.
+
+```sh
+cargo test --locked --test live live_maps_ -- --ignored --test-threads=1
+cargo test --locked --test live live_oauth_ -- --ignored --test-threads=1
+```
+
+La seconda suite rimuove la chiave dai processi figli per verificare realmente OAuth. Non eseguire queste suite quando bastano i test offline. Dopo le verifiche, `cargo clean` recupera lo spazio generato; la build successiva ricompilerà.
+
+## Mantenere il riferimento strumenti
+
+```sh
+python3 .github/scripts/tool-reference.py --binary /path/to/mcp-gmap-rs
+python3 .github/scripts/tool-reference.py --binary /path/to/mcp-gmap-rs --check --verify-examples
+```
+
+Gli schemi forniscono tipi, obbligatorietà e limiti; le note JSON revisionate descrivono valori predefiniti e comportamento. La verifica rimuove le credenziali, disabilita dotenv e controlla tutti gli esempi senza chiamare Google. Aggiorna insieme manuale, traduzioni e note quando cambia l'interfaccia.
+
+## Pubblicare
+
+La CI verifica Linux/macOS, Clippy, MSRV 1.88, rustdoc stable/nightly, pacchetto Cargo, container e manifest Kubernetes. Il workflow Release ricontrolla il tag esatto, costruisce tre binari nativi e pubblica archivi con checksum solo dopo il successo completo. Il workflow manuale **Publish crate** pubblica quel tag su crates.io; questo caricamento avvia automaticamente docs.rs.
+
+Aggiorna versione Cargo, lockfile, changelog e guide prima di creare un nuovo tag annotato. I tag pubblicati non vengono spostati e le versioni crates.io non si sovrascrivono. Mantieni `CARGO_REGISTRY_TOKEN` nel Secret GitHub dedicato. Consulta la [procedura di release](https://github.com/fcenedes/mcp-gmap-rs/blob/main/docs/releases.md) e la [documentazione Rust](https://docs.rs/mcp-gmap-rs/latest/mcp_gmap_rs/) per i dettagli.
+
+
+<!-- https://fcenedes.github.io/mcp-gmap-rs/it/guide/getting-started -->
+
+# Primi passi
+
+Un solo eseguibile Rust offre 23 strumenti Google Maps attraverso CLI, MCP stdio e MCP Streamable HTTP. Non richiede un runtime JavaScript né un plugin per l'assistente dopo l'installazione.
+
+## Installare
+
+Con Rust 1.88 o successivo:
+
+```sh
+cargo install mcp-gmap-rs --version 0.3.1 --locked
+mcp-gmap-rs --version
+```
+
+In alternativa, scarica l'archivio Linux x86_64, macOS Apple Silicon o macOS Intel dalle [release](https://github.com/fcenedes/mcp-gmap-rs/releases/tag/v0.3.1), verifica `SHA256SUMS` e colloca il binario nel `PATH`. L'host deve disporre di certificati CA e accesso HTTPS a Google.
+
+## Esplorare senza credenziali
+
+```sh
+mcp-gmap-rs tools
+mcp-gmap-rs schema search-nearby
+mcp-gmap-rs doctor
+```
+
+La scoperta degli strumenti e degli schemi non contatta Google. `doctor` esegue controlli locali; non dimostra che una chiave sia autorizzata.
+
+## Eseguire la prima chiamata
+
+Configura prima progetto, fatturazione, API e chiave seguendo [Google Cloud](./google-cloud). Salva una chiave limitata in un file `.env` locale escluso da Git:
+
+```dotenv
+GOOGLE_MAPS_API_KEY=your-restricted-api-key
+```
+
+Poi esegui una chiamata reale, potenzialmente fatturabile:
+
+```sh
+mcp-gmap-rs geocode --address 'Roma, Italia'
+```
+
+Il risultato JSON contiene coordinate, indirizzo e identificativo del primo luogo corrispondente. Per [OAuth con service account](./authentication), scegli esplicitamente `oauth` e usa un'operazione supportata, ad esempio `search-places`.
+
+## Scegliere l'interfaccia
+
+Usa la [CLI](./cli) per script e automazioni, [stdio](./mcp) per un agente locale, oppure HTTP per client remoti. Tutte le interfacce condividono gli stessi schemi, limiti e risultati. Il [riferimento degli strumenti](../reference/tools) descrive ogni parametro, valore predefinito ed esempio.
+
+
+<!-- https://fcenedes.github.io/mcp-gmap-rs/it/guide/google-cloud -->
+
+# Preparare Google Cloud
+
+Le chiamate usano il tuo progetto Google Cloud e possono generare costi. Abilitazione dell'API, fatturazione e restrizioni della chiave sono controlli distinti.
+
+## Progetto e servizi
+
+Nella [console Google Cloud](https://console.cloud.google.com/), seleziona o crea un progetto, collega un account di fatturazione attivo e apri **API e servizi → Libreria**. Abilita solo i servizi necessari.
+
+| API | Servizio | Autenticazione in questa versione |
+| --- | --- | --- |
+| Places API (New) | `places.googleapis.com` | Chiave oppure OAuth |
+| Routes | `routes.googleapis.com` | Chiave oppure OAuth |
+| Weather | `weather.googleapis.com` | Chiave oppure OAuth |
+| Air Quality | `airquality.googleapis.com` | Chiave oppure OAuth |
+| Address Validation | `addressvalidation.googleapis.com` | Chiave oppure OAuth |
+| Places Aggregate | `areainsights.googleapis.com` | Chiave oppure OAuth |
+| Pollen | `pollen.googleapis.com` | Chiave |
+| Roads | `roads.googleapis.com` | Chiave |
+| Geocoding v3 | `geocoding-backend.googleapis.com` | Chiave |
+| Elevation | `elevation-backend.googleapis.com` | Chiave |
+| Time Zone | `timezone-backend.googleapis.com` | Chiave |
+| Maps Static | `static-maps-backend.googleapis.com` | Chiave |
+
+Un amministratore può abilitare tutti e dodici i servizi:
+
+```sh
+export PROJECT_ID='your-project-id'
+gcloud services enable --project="$PROJECT_ID"   places.googleapis.com routes.googleapis.com weather.googleapis.com   airquality.googleapis.com addressvalidation.googleapis.com   areainsights.googleapis.com pollen.googleapis.com roads.googleapis.com   geocoding-backend.googleapis.com elevation-backend.googleapis.com   timezone-backend.googleapis.com static-maps-backend.googleapis.com
+```
+
+`directions` e `distance-matrix` usano Routes API: non occorrono le API legacy omonime. La risoluzione di indirizzi negli strumenti compositi può richiedere anche Geocoding.
+
+## Creare una chiave
+
+Apri [Google Maps Platform → Chiavi e credenziali](https://console.cloud.google.com/google/maps-apis/credentials), scegli **Crea credenziali → Chiave API**, quindi modifica subito le restrizioni. Consenti solo le API utilizzate. Per questa applicazione server, limita gli indirizzi IP agli IP pubblici di uscita del server o del cluster, non agli IP privati dei pod.
+
+Salva la chiave in un Secret o in `.env`, mai negli argomenti degli strumenti:
+
+```dotenv
+GOOGLE_MAPS_AUTH_MODE=api-key
+GOOGLE_MAPS_API_KEY=your-restricted-api-key
+```
+
+Esegui `mcp-gmap-rs doctor` per la configurazione locale e una chiamata mirata per verificare l'accesso effettivo. `doctor --live` attiva esplicitamente sonde potenzialmente fatturabili. Un errore di API disabilitata va corretto nel progetto consumatore indicato da Google, che può differire dal progetto del service account. Continua con [autenticazione](./authentication) per OAuth e identità dei workload.
+
+
+<!-- https://fcenedes.github.io/mcp-gmap-rs/it/guide/mcp -->
+
+# Collegare un client MCP
+
+MCP espone gli stessi 23 strumenti della CLI. Scegli stdio quando il client avvia il processo locale; scegli Streamable HTTP per un servizio condiviso o remoto. Non serve un plugin specifico per l'assistente.
+
+## Trasporto stdio
+
+```sh
+mcp-gmap-rs serve stdio
+```
+
+Anche l'eseguibile senza argomenti avvia stdio. Il protocollo JSON-RPC MCP occupa stdin/stdout; la diagnostica resta su stderr. Esempio di configurazione generica da adattare al client:
+
+```json
+{
+  "mcpServers": {
+    "google-maps": {
+      "command": "/absolute/path/to/mcp-gmap-rs",
+      "args": ["serve", "stdio"],
+      "env": { "GOOGLE_MAPS_API_KEY": "your-restricted-api-key" }
+    }
+  }
+}
+```
+
+I client possono avere un `PATH` e una directory di lavoro diversi dal terminale. Usa un percorso assoluto e configura esplicitamente l'ambiente o `--env-file`. Non avviare stdio con un TTY quando lo esegui in Docker.
+
+## Streamable HTTP
+
+```sh
+mcp-gmap-rs serve http --listen 127.0.0.1:3000
+```
+
+Configura il client sull'URL `http://127.0.0.1:3000/mcp`. Un client MCP gestisce inizializzazione, versione del protocollo, sessioni e SSE; una semplice richiesta GET non equivale a una chiamata di strumento. Il trasporto supporta POST, GET e DELETE secondo il protocollo negoziato.
+
+Per un client che supporta una connessione MCP remota, la voce di configurazione può avere questa forma; il contenitore esterno dipende dal client:
+
+```json
+{
+  "url": "https://maps.example.com/mcp",
+  "headers": {
+    "Authorization": "Bearer your-mcp-http-token"
+  }
+}
+```
+
+Per un bind non loopback, imposta un token casuale lungo e gli host consentiti:
+
+```sh
+mcp-gmap-rs serve http --listen 0.0.0.0:3000   --allowed-host maps.example.com   --allowed-origin https://app.example.com:443
+```
+
+Fornisci `MCP_HTTP_TOKEN` tramite ambiente o Secret; il client invia `Authorization: Bearer <token>`. Gli header Origin presenti sono rifiutati se non autorizzati esplicitamente. Un proxy deve preservare Host consentito, autorizzazione, header MCP e streaming SSE.
+
+`GET /health` verifica solo la disponibilità del processo, non l'accesso Google. Il corpo delle richieste è limitato a 1 MiB. Le sessioni risiedono in memoria: più repliche richiedono affinità e i client devono riconnettersi dopo un riavvio. Per TLS e sicurezza operativa, continua con [produzione](./production).
+
+
+<!-- https://fcenedes.github.io/mcp-gmap-rs/it/guide/production -->
+
+# Gestire il servizio in produzione
+
+Configura separatamente identità Google, autenticazione MCP e TLS. Tutti i client di un processo condividono le stesse credenziali Google, le sessioni in memoria e i limiti configurati.
+
+## TLS, mTLS e rinnovo
+
+```sh
+mcp-gmap-rs --log-format json serve http --listen 0.0.0.0:3443   --tls-cert /etc/mcp-gmap/tls/tls.crt   --tls-key /etc/mcp-gmap/tls/tls.key   --allowed-host maps.example.com:3443 --metrics --rate-limit 120
+```
+
+Fornisci `MCP_HTTP_TOKEN` separatamente. I client verificano il certificato e inviano il bearer token a `https://maps.example.com:3443/mcp`. TLS 1.2/1.3 è nativo; l'emissione e il rinnovo dei certificati spettano alla tua PKI, a cert-manager o al gateway.
+
+Aggiungi `--tls-client-ca /etc/mcp-gmap/tls/client-ca.pem` per richiedere certificati client su tutti i percorsi, inclusi `/health` e `/metrics`. mTLS non sostituisce il bearer token. Non sono presenti permessi per singolo certificato né controlli delle liste di revoca.
+
+Su Linux/macOS sostituisci i file atomicamente, quindi invia SIGHUP. I nuovi handshake usano la configurazione aggiornata; le connessioni esistenti mantengono la precedente. Se il caricamento fallisce, la configurazione valida resta attiva. Le altre impostazioni richiedono un riavvio.
+
+## Budget, retry e scadenze
+
+I valori predefiniti sono 200 tentativi Google per chiamata, 2 retry aggiuntivi, 30 secondi per richiesta e 120 secondi complessivi per strumento. Il budget include i retry ed è condiviso dai rami concorrenti di un composito. Sono attive al massimo cinque richieste Google per processo. I retry coprono errori di rete e HTTP 429/500/502/503/504, rispettando `Retry-After`, backoff, budget e scadenza; gli errori 400/401/403 non vengono ritentati.
+
+Il limite HTTP è 120 richieste autenticate `/mcp` al minuto per processo, con burst equivalente; `0` lo disabilita. Include inizializzazione, POST, GET e DELETE. Health e metriche sono escluse. È un limite globale, non per IP o utente.
+
+## Osservabilità e arresto
+
+Con `--metrics`, `/metrics` espone `mcp_gmap_tool_calls_total`, `mcp_gmap_tool_duration_seconds`, `mcp_gmap_google_requests_total` e `mcp_gmap_http_rate_limited_total`. Usa lo stesso bearer token di MCP quando configurato. Le etichette non contengono indirizzi, coordinate o credenziali; i contatori si azzerano al riavvio. Con `RUST_LOG=info` vengono registrati nome, esito e durata degli strumenti senza argomenti né risposte Google.
+
+Ctrl-C e SIGTERM avviano l'arresto ordinato. Il manifest Kubernetes concede 30 secondi. Con TLS nativo usa probe HTTPS; con mTLS, kubelet non invia certificati client: un probe TCP controlla soltanto il listener. Un gateway deve preservare autorizzazione/header MCP, evitare buffering e cache SSE e gestire timeout di streaming adeguati. Il [riferimento configurazione](../reference/configuration) elenca i controlli disponibili.
+
+
+## Gateway HTTPS su Kubernetes
+
+Il [manifest Gateway](https://github.com/fcenedes/mcp-gmap-rs/blob/main/deploy/gateway.yaml) aggiunge Gateway e HTTPRoute al Service base. Installa CRD Gateway API e controller conforme, sostituisci `your-gateway-class` e `maps.example.com`, quindi crea il Secret TLS nello stesso namespace:
+
+```sh
+kubectl create secret tls mcp-gmap-tls \
+  --cert=/secure/fullchain.pem --key=/secure/key.pem
+kubectl set env deployment/mcp-gmap-rs \
+  MCP_HTTP_ALLOWED_HOSTS='maps.example.com,mcp-gmap-rs:3000,localhost:3000,127.0.0.1:3000'
+kubectl apply -f deploy/gateway.yaml
+kubectl get gateway,httproute
+```
+
+Rendi persistente l'allowlist anche nella ConfigMap o nel manifest sorgente; aggiungi le vere origini browser quando necessarie. La route pubblica soltanto `/mcp`: health e metriche rimangono sul Service privato. Il file usa campi v1 e timeout HTTPRoute supportati da Gateway API dalla v1.2; verifica il supporto del controller.
+
+Questo esempio termina TLS sul gateway e usa HTTP dal gateway al Service ClusterIP. Se occorre cifrare anche quel tratto, combina TLS nativo e BackendTLSPolicy supportata dal controller, oppure un service mesh. Limita l'accesso diretto a pod e Service con NetworkPolicy. Il gateway non introduce automaticamente un login OAuth MCP: l'eseguibile usa un bearer token condiviso.
+
+## Interpretare doctor e metriche
+
+```sh
+mcp-gmap-rs doctor
+mcp-gmap-rs --enabled-tools maps_pollen,maps_area_insights doctor --live
+```
+
+Senza `--live`, doctor controlla configurazione delle credenziali, impostazioni HTTP e corrispondenza tra file TLS e chiave senza rete. Non verifica validità della chiave Google, IAM, API abilitate, fiducia/hostname/scadenza del certificato o accesso ADC. Le sonde live effettuano una chiamata rappresentativa per ogni API distinta necessaria agli strumenti abilitati, usando normali limiti e retry. Usano luoghi pubblici parigini, evitando compositi costosi. Un successo prova l'accettazione di quella sonda, non tutte le operazioni o regioni.
+
+Le metriche Prometheus hanno etichette fisse `tool`, `outcome`, `api` e `status` secondo la famiglia. Un composito con errori per elemento può risultare riuscito a livello principale: confronta il suo risultato con le metriche delle risposte Google. Proteggi gli scraper con bearer token e, quando configurato, certificato client. Su un listener loopback senza token, anche `/metrics` è senza autenticazione. Non pubblicarlo indiscriminatamente.
+
+
+<!-- https://fcenedes.github.io/mcp-gmap-rs/it/guide/recipes -->
+
+# Ricette operative
+
+Questi esempi effettuano richieste Google potenzialmente fatturabili. Coordinate, categorie e numero di risultati restano espliciti per rendere prevedibile il lavoro. Adatta la zona e verifica sempre la copertura restituita.
+
+## Cercare e approfondire
+
+```sh
+mcp-gmap-rs search-nearby   --center '{"value":"41.8902,12.4922","isCoordinates":true}'   --keyword cafe --radius 500 --min-rating 4
+mcp-gmap-rs place-details --place-id PLACE_ID --max-photos 1
+```
+
+Sostituisci `PLACE_ID` con un identificativo restituito dalla ricerca. Conserva link Google, autori delle recensioni/foto e avvertenze relative ai riepiloghi AI. Una pagina di ricerca non costituisce un censimento completo delle attività.
+
+## Confrontare tragitti a piedi
+
+```sh
+mcp-gmap-rs distance-matrix   --origins '["41.8902,12.4922"]'   --destinations '["41.9009,12.4833","41.9028,12.4964"]' --mode walking
+```
+
+Controlla ogni cella e `errors`: le celle mancanti o fallite rimangono `null`. Le durate sono secondi e le distanze metri. Le coordinate evitano risoluzioni di indirizzi; `compare-places` calcola invece distanze in auto, senza un parametro per cambiare modalità.
+
+## Pianificare tappe e soste
+
+```sh
+mcp-gmap-rs plan-route   --stops '["41.8902,12.4922","41.9009,12.4833","41.9028,12.4964","41.9109,12.4764"]'   --mode walking --optimize
+mcp-gmap-rs search-along-route --origin '41.8902,12.4922'   --destination '41.9109,12.4764' --text-query cafes --max-results 3
+```
+
+L'ottimizzazione mantiene fissi gli estremi e diventa effettiva con almeno quattro tappe totali, fuori da `transit`. Non assegna veicoli o incarichi a una flotta. `search-along-route` usa `walking` come modalità predefinita; gli altri strumenti di percorso usano `driving`.
+
+## Aggiungere il contesto ambientale
+
+```sh
+mcp-gmap-rs weather --latitude 41.8902 --longitude 12.4922 --type forecast_daily --forecast-days 3
+mcp-gmap-rs air-quality --latitude 41.8902 --longitude 12.4922 --include-pollutants
+mcp-gmap-rs pollen --latitude 41.8902 --longitude 12.4922 --days 3
+```
+
+Mantieni le unità e gli orari presenti nei risultati. Pollen richiede una chiave anche in modalità OAuth; le raccomandazioni ambientali non sono una valutazione sanitaria personalizzata. Per verificare componenti postali usa [Address Validation](../reference/tools#maps_validate_address), non la sola geocodifica. Per un conteggio aggregato in un'area usa [Area Insights](../reference/tools#maps_area_insights), distinguendolo dal numero di risultati di una ricerca limitata.
+
+
+## Validare un indirizzo e contare attività
+
+```sh
+mcp-gmap-rs validate-address --address-lines '["Piazza del Colosseo, 1"]' \
+  --locality Roma --postal-code 00184 --region-code IT
+mcp-gmap-rs area-insights \
+  --area '{"circle":{"latLng":{"latitude":41.8902,"longitude":12.4922},"radius":500}}' \
+  --included-types '["restaurant"]' --min-rating 4
+```
+
+La validazione restituisce verdetto, correzioni e componenti irrisolti: non accettare automaticamente un suggerimento e non garantire la consegna. USPS CASS è facoltativo e questa implementazione richiede regione US o PR. Il conteggio aggregato usa normalmente una stringa int64; gli identificativi facoltativi dei luoghi sono disponibili solo fino a 100 corrispondenze e non comportano richieste automatiche di dettagli.
+
+## Riutilizzare coordinate e abbinare punti stradali
+
+```sh
+mcp-gmap-rs timezone --latitude 41.8902 --longitude 12.4922
+mcp-gmap-rs elevation --locations '[{"latitude":41.8902,"longitude":12.4922}]'
+mcp-gmap-rs nearest-roads --points '[{"latitude":41.8902,"longitude":12.4922}]'
+mcp-gmap-rs static-map --center '41.8902,12.4922' --zoom 14 --output zona.png
+```
+
+`timezone` accetta millisecondi Unix quando viene specificato `timestamp`; Elevation restituisce metri. Usa Snap to Roads per una traccia ordinata e Nearest Roads per osservazioni indipendenti. Conserva `originalIndex`; i punti interpolati possono non averlo. I limiti di velocità non sono esposti.
+
+Per un'analisi esplicita di visibilità, [Local Rank Tracker](../reference/tools#maps_local_rank_tracker) campiona una griglia per parola chiave. Inizia con una parola e una griglia 3×3; una griglia più grande moltiplica le chiamate. Posizionamento e valutazione degli utenti sono metriche diverse, e i punti falliti devono restare visibili. Non usare una ricerca di categoria come sostituto di un conteggio aggregato o una previsione come se fosse un'osservazione corrente.
+
+
+<!-- https://fcenedes.github.io/mcp-gmap-rs/it/guide/troubleshooting -->
+
+# Diagnosi e risoluzione dei problemi
+
+Parti dalla configurazione locale, poi verifica una sola API. Una scoperta degli strumenti riuscita non dimostra che fatturazione, API e IAM siano corretti.
+
+```sh
+mcp-gmap-rs doctor
+mcp-gmap-rs --enabled-tools maps_search_places doctor --live
+```
+
+La prima chiamata è offline; la seconda abilita sonde Google potenzialmente fatturabili. `doctor` stampa JSON anche in caso di errore e restituisce codice 1 se un controllo fallisce. Leggi `checks[].status`: `pass`, `fail` oppure `not_tested`. L'accesso ADC resta `not_tested` finché non viene effettuata una chiamata reale.
+
+| Sintomo | Verifica |
+| --- | --- |
+| `GOOGLE_MAPS_API_KEY is required` | Modalità `api-key` o endpoint supportato solo con chiave; controlla anche i rami Geocoding dei compositi. |
+| `GOOGLE_CLOUD_QUOTA_PROJECT is required` | Imposta il progetto consumatore per le chiamate OAuth. |
+| Google 403 / API disabilitata | Abilita il servizio esatto nel progetto consumatore, collega la fatturazione e controlla le restrizioni API. |
+| `serviceusage.services.use` negato | Concedi `roles/serviceusage.serviceUsageConsumer` al service account sul progetto quota; attendi la propagazione e riprova. |
+| Chiave rifiutata per IP | Consenti l'indirizzo pubblico di uscita del server, NAT o cluster. |
+| Autenticazione OAuth fallita | Controlla tipo/percorso JSON, validità della chiave, associazioni Workload Identity, clock e accesso agli endpoint token. |
+| MCP HTTP 401 | Invia `MCP_HTTP_TOKEN`, distinto dal token Google. |
+| Host o Origin rifiutato | Confronta i valori effettivi inoltrati dal proxy con le liste autorizzate; includi la porta dell'Origin. |
+| HTTP 429 locale | Riduci la frequenza o modifica il limite per processo; rispetta `Retry-After`. |
+| Chiamata riuscita ma dati incompleti | Leggi gli errori per elemento, le celle `null` e i limiti della pagina. |
+
+Per timeout, verifica rete/DNS/CA, metadata server o endpoint OAuth, quindi considera `--timeout`, `--tool-timeout` e `--max-requests`. Aumentarli non risolve un servizio disabilitato né IAM errato.
+
+Per stdio, controlla percorso assoluto, directory di lavoro e stdout privo di log estranei. Per Kubernetes, una risposta `/health` positiva prova solo che il processo risponde. Dopo modifiche a Secret o ConfigMap riavvia i pod; per file TLS usa il ricaricamento SIGHUP descritto in [produzione](./production). Non condividere chiavi, token o contenuto del JSON durante una diagnosi.
+
+
+<!-- https://fcenedes.github.io/mcp-gmap-rs/it/reference/configuration -->
+
+# Riferimento della configurazione
+
+Queste 21 impostazioni applicative valgono per CLI, MCP stdio e Streamable HTTP secondo il contesto. La precedenza è **valori predefiniti → dotenv facoltativo → ambiente → opzioni CLI**. La [guida alla configurazione](../guide/configuration) descrive selezione del file e semantica delle sovrascritture.
+
+Le opzioni globali precedono il comando di strumento o `serve`; quelle esclusivamente HTTP seguono `serve http`. Un trattino nella colonna delle opzioni indica l'assenza di un'opzione CLI: usa ambiente o file dotenv.
+
+## Accesso Google ed esecuzione degli strumenti
+
+| Variabile d'ambiente | Valore predefinito | Opzione CLI | Significato e valori ammessi |
+| --- | --- | --- | --- |
+| `GOOGLE_MAPS_API_KEY` | Non impostata | — | Chiave API Google limitata. Necessaria in modalità `api-key` e per gli endpoint supportati solo con chiave, anche quando è selezionato OAuth. Non è un parametro di strumento. |
+| `GOOGLE_MAPS_AUTH_MODE` | `api-key` | `--auth-mode` | `api-key` oppure `oauth`. OAuth copre Places (New), Routes, Weather, Air Quality, Address Validation e Places Aggregate. |
+| `GOOGLE_APPLICATION_CREDENTIALS` | Ricerca ADC | — | Percorso di un file JSON leggibile di service account o ADC supportato. I percorsi relativi partono dalla directory di lavoro. Lascia non impostata per ADC locale o ricerca nel metadata server. |
+| `GOOGLE_CLOUD_QUOTA_PROJECT` | Non impostata | — | ID o numero del progetto consumatore di fatturazione/quota richiesto per OAuth. Il service account deve avere `serviceusage.services.use` in tale progetto. |
+| `GOOGLE_MAPS_LANGUAGE` | `en` | `--language` | Codice lingua per le risposte Google che supportano la localizzazione. È indipendente dal selettore lingua di questo manuale. |
+| `GOOGLE_MAPS_TIMEOUT` | `30` | `--timeout` | Timeout per richiesta in secondi, intero 1–600. Include attesa, retry, backoff e lettura della risposta; l'acquisizione OAuth ha un limite proprio basato sullo stesso valore. |
+| `GOOGLE_MAPS_ENABLED_TOOLS` | Tutti (`*`) | `--enabled-tools` | Nomi `maps_*` separati da virgole oppure `*`. Nomi sconosciuti impediscono l'avvio. Gli strumenti disabilitati non compaiono nella scoperta e non possono essere chiamati. |
+| `GOOGLE_MAPS_MAX_REQUESTS` | `200` | `--max-requests` | Budget di tentativi HTTP Google per invocazione, intero 1–10000. Condiviso tra i rami di un composito; anche i retry consumano tentativi. |
+| `GOOGLE_MAPS_MAX_RETRIES` | `2` | `--max-retries` | Tentativi aggiuntivi per errori transitori di una richiesta Google, intero 0–5. Zero significa un solo tentativo iniziale. I retry rispettano timeout e budget. |
+| `GOOGLE_MAPS_TOOL_TIMEOUT` | `120` | `--tool-timeout` | Scadenza complessiva dello strumento in secondi, intero 1–3600. Include acquisizione delle credenziali, attesa, chiamate API e retry. |
+
+Al massimo cinque richieste HTTP Google possono essere attive contemporaneamente per processo. Il budget limita il numero di richieste, non la spesa: una matrice può fatturare più elementi con una sola richiesta. Alcuni compositi restituiscono errori per elemento quando un ramo esaurisce budget o scadenza. Consulta [produzione](../guide/production).
+
+## Listener HTTP e accesso
+
+| Variabile d'ambiente | Valore predefinito | Opzione HTTP | Significato e valori ammessi |
+| --- | --- | --- | --- |
+| `MCP_HTTP_TOKEN` | Non impostata | — | Bearer token condiviso dai client MCP. Obbligatorio per bind non loopback. Separato dalle credenziali Google e necessario anche con mTLS nativo. |
+| `MCP_HTTP_LISTEN` | `127.0.0.1:3000` | `--listen` | Indirizzo IP e porta del listener. L'immagine Docker imposta il valore d'ambiente `0.0.0.0:3000`. |
+| `MCP_HTTP_ALLOWED_HOSTS` | Host loopback | `--allowed-host` | Valori HTTP Host consentiti separati da virgole. Ripeti l'opzione per più valori; le opzioni sostituiscono l'intera lista da file e ambiente. Includi la porta pertinente. |
+| `MCP_HTTP_ALLOWED_ORIGINS` | Nessuna | `--allowed-origin` | Origini browser consentite separate da virgole. Gli header Origin presenti sono rifiutati se non autorizzati. Specifica esplicitamente le porte; le opzioni ripetute sostituiscono la lista. |
+| `MCP_HTTP_RATE_LIMIT` | `120` | `--rate-limit` | Richieste autenticate `/mcp` al minuto per processo, intero 0–1000000. Zero disabilita il limite. La capacità di burst equivale alla frequenza, con ricarica continua. |
+| `MCP_METRICS_ENABLED` | `false` | `--metrics [true\|false]` | Abilita Prometheus `/metrics`. `--metrics` senza valore significa true. Usa la stessa credenziale bearer quando configurata; si applica anche mTLS nativo. |
+| `MCP_TLS_CERT` | Non impostata | `--tls-cert` | File PEM con certificato server e catena intermedia. Deve essere fornito insieme alla chiave privata corrispondente. |
+| `MCP_TLS_KEY` | Non impostata | `--tls-key` | Percorso della chiave privata server PEM. Deve essere leggibile dall'identità di esecuzione e restare fuori da repository e immagini. |
+| `MCP_TLS_CLIENT_CA` | Non impostata | `--tls-client-ca` | Bundle PEM di CA client che rende obbligatori i certificati client su tutti i percorsi del listener. Non sostituisce il bearer token. |
+
+Il token bucket HTTP è globale al processo, non per utente o IP. Le richieste non autorizzate non lo consumano; health e metriche sono escluse. I rifiuti restituiscono 429 con `Retry-After`. Il corpo della richiesta è limitato a 1 MiB. Consulta [accesso MCP](../guide/mcp) e [operazioni TLS](../guide/production).
+
+## Eventi diagnostici
+
+| Variabile d'ambiente | Valore predefinito | Opzione CLI | Significato e valori ammessi |
+| --- | --- | --- | --- |
+| `RUST_LOG` | `warn` | — | Filtro dei log diagnostici. `info` abilita gli eventi di completamento degli strumenti; argomenti e corpi delle risposte Google non vengono registrati. |
+| `MCP_LOG_FORMAT` | `text` | `--log-format` | `text` oppure `json`. La diagnostica va sempre su stderr, lasciando stdout al JSON CLI o al traffico MCP. |
+
+## Selezione del file e controlli di uscita
+
+La selezione del file precede i livelli applicativi. `MCP_ENV_FILE` sceglie il percorso dotenv; l'opzione globale `--env-file PATH` ha precedenza. Un file selezionato esplicitamente deve esistere. `--no-env-file` disabilita tutto il caricamento dotenv ed è incompatibile con `--env-file`. Senza selezione si legge soltanto l'eventuale `.env` della directory di lavoro.
+
+Una variabile d'ambiente vuota prevale comunque sul file. Può cancellare un token, percorso TLS o allowlist facoltativi, ma non rende valida un'impostazione numerica vuota. I valori caricati da file non modificano l'ambiente del processo.
+
+`doctor --live` abilita esplicitamente sonde potenzialmente fatturabili; `doctor` ordinario è offline. L'opzione di strumento `--output PATH` salva JSON oppure PNG grezzo con `static-map`. Sono controlli di comando, non ulteriori impostazioni d'ambiente.
+
+Impostazioni applicative e modifiche ai file delle credenziali richiedono un riavvio. Su Linux/macOS SIGHUP ricarica insieme i file di certificato, chiave e CA client TLS; un caricamento fallito conserva la configurazione precedente. Consulta [configurazione](../guide/configuration) e [produzione](../guide/production).
+
+
+<!-- https://fcenedes.github.io/mcp-gmap-rs/it/reference/tools -->
+
+
+<!-- Generated by scripts/generate-reference.py. Edit the source notes, then regenerate. -->
+
+# Riferimento strumenti
+
+Tutti i 23 strumenti, con ogni parametro, valore predefinito, vincolo ed esempio. La stessa interfaccia è disponibile tramite MCP e CLI.
+
+## Convenzioni di chiamata
+
+Gli esempi sono oggetti di argomenti MCP. Per una chiamata MCP diretta `tools/call`, usa il nome dello strumento in `name` e l’oggetto in `arguments`. L’host può aggiungere un prefisso ai nomi. Le chiamate CLI equivalenti qui sotto usano `mcp-gmap-rs call STRUMENTO --args JSON`.
+
+Solo i parametri di primo livello hanno un’opzione CLI. Passa oggetti annidati e array in JSON. Un’opzione booleana da sola significa `true`; `--flag false` imposta `false`. Le proprietà sconosciute vengono rifiutate. Consulta la versione installata con `tools` o `schema STRUMENTO`.
+
+L’autenticazione Google e la lingua sono configurazioni del processo, non parametri dello strumento. Le coordinate esatte evitano la risoluzione degli indirizzi; i luoghi nominati possono richiedere anche una chiave API per Geocoding. Vedi [autenticazione](../guide/authentication) e [configurazione](../guide/configuration).
+
+Le chiamate possono comportare costi Google. I risultati compositi e delle matrici possono contenere errori per elemento anche se lo strumento riesce. Mantieni i link Google, gli autori di recensioni/foto e le diciture dei riepiloghi IA. Gli esempi illustrano gli input, senza garantire risultati o copertura attuali.
+
+Tipi, campi obbligatori e limiti provengono dal riferimento derivato dagli schemi dell’eseguibile. Valori predefiniti, risultati e vincoli tra campi sono verificati nell’implementazione. Google può imporre ulteriori limiti di copertura e quota.
+
+## Strumenti
+
+- [`maps_geocode`](#maps_geocode)
+- [`maps_validate_address`](#maps_validate_address)
+- [`maps_pollen`](#maps_pollen)
+- [`maps_area_insights`](#maps_area_insights)
+- [`maps_snap_to_roads`](#maps_snap_to_roads)
+- [`maps_nearest_roads`](#maps_nearest_roads)
+- [`maps_reverse_geocode`](#maps_reverse_geocode)
+- [`maps_search_places`](#maps_search_places)
+- [`maps_search_nearby`](#maps_search_nearby)
+- [`maps_place_details`](#maps_place_details)
+- [`maps_directions`](#maps_directions)
+- [`maps_distance_matrix`](#maps_distance_matrix)
+- [`maps_elevation`](#maps_elevation)
+- [`maps_timezone`](#maps_timezone)
+- [`maps_weather`](#maps_weather)
+- [`maps_air_quality`](#maps_air_quality)
+- [`maps_static_map`](#maps_static_map)
+- [`maps_batch_geocode`](#maps_batch_geocode)
+- [`maps_explore_area`](#maps_explore_area)
+- [`maps_plan_route`](#maps_plan_route)
+- [`maps_compare_places`](#maps_compare_places)
+- [`maps_search_along_route`](#maps_search_along_route)
+- [`maps_local_rank_tracker`](#maps_local_rank_tracker)
+
+## maps_geocode {#maps_geocode}
+
+Converte un indirizzo o un punto di interesse in coordinate.
+
+Risolve un indirizzo o un punto di interesse nel primo risultato Geocoding. Utile per ottenere coordinate riutilizzabili e un place ID; non verifica la possibilità di recapitare posta.
+
+**Comando CLI:** `geocode`. **Accesso Google:** Questa implementazione richiede una chiave API.
+
+### Parametri
+
+| Parametro / opzione CLI | Tipo e limiti dello schema | Obbligatorio | Valore se omesso | Descrizione |
+| --- | --- | --- | --- | --- |
+| `address` / `--address` | stringa; almeno 1 carattere/i | Sì | — | Indirizzo, città o punto di interesse da geocodificare. |
+
+### Comportamento e restrizioni
+
+- L’assenza di corrispondenze è un errore dello strumento, non una posizione vuota restituita con successo.
+- Questo strumento diretto usa Geocoding v3. Il ripiego su Places appartiene ai compositi che risolvono luoghi, non a questa chiamata.
+
+### Risultato
+
+Un oggetto con `location.lat`, `location.lng`, `formatted_address` e `place_id`. Viene restituito soltanto il primo risultato.
+
+### Esempio
+
+Argomenti MCP:
+
+```json
+{
+  "address": "Eiffel Tower, Paris, France"
+}
+```
+
+Chiamata CLI equivalente:
+
+```sh
+mcp-gmap-rs call maps_geocode --args '{"address":"Eiffel Tower, Paris, France"}'
+```
+
+
+## maps_validate_address {#maps_validate_address}
+
+Valida e normalizza un indirizzo postale, restituendo il verdetto Google, correzioni, componenti e geocodifica. Il verdetto è un elemento di valutazione, non una garanzia di consegna.
+
+Valida i componenti postali e restituisce correzioni, indirizzo normalizzato e verdetto Google. Mantieni visibili al chiamante il verdetto e i componenti non risolti.
+
+**Comando CLI:** `validate-address`. **Accesso Google:** Chiave API oppure OAuth per l’API principale.
+
+### Parametri
+
+| Parametro / opzione CLI | Tipo e limiti dello schema | Obbligatorio | Valore se omesso | Descrizione |
+| --- | --- | --- | --- | --- |
+| `addressLines` / `--address-lines` | array di stringahe; 1–10 elementi; ogni elemento contiene almeno 1 carattere/i | Sì | — | Una o più righe dell’indirizzo postale, in ordine. |
+| `administrativeArea` / `--administrative-area` | stringa; almeno 1 carattere/i | No | Non fornito | Stato, provincia o area amministrativa corrispondente. |
+| `enableUspsCass` / `--enable-usps-cass` | booleano | No | false | Richiede l’elaborazione USPS CASS; questa implementazione richiede regionCode US oppure PR quando true. |
+| `locality` / `--locality` | stringa; almeno 1 carattere/i | No | Non fornito | Città o località. |
+| `postalCode` / `--postal-code` | stringa; almeno 1 carattere/i | No | Non fornito | Codice postale o ZIP. |
+| `regionCode` / `--region-code` | stringa; modello: `^[A-Z]{2}$` | No | Non fornito; Google può dedurlo | Codice paese o regione di due lettere maiuscole; consigliato per disambiguare l’indirizzo. |
+
+### Comportamento e restrizioni
+
+- Un verdetto di validazione non garantisce la consegna.
+- La copertura geografica e dell’API varia. Questo strumento non invia feedback di validazione e non accetta automaticamente le correzioni.
+
+### Risultato
+
+La risposta completa di validazione, normalmente con `result.verdict`, `result.address`, `result.geocode` e `responseId`; Google può omettere campi non disponibili.
+
+### Esempio
+
+Argomenti MCP:
+
+```json
+{
+  "addressLines": [
+    "5 Avenue Anatole France"
+  ],
+  "regionCode": "FR",
+  "locality": "Paris",
+  "postalCode": "75007"
+}
+```
+
+Chiamata CLI equivalente:
+
+```sh
+mcp-gmap-rs call maps_validate_address --args '{"addressLines":["5 Avenue Anatole France"],"regionCode":"FR","locality":"Paris","postalCode":"75007"}'
+```
+
+
+## maps_pollen {#maps_pollen}
+
+Ottiene da 1 a 5 giorni di previsioni polliniche, indici e raccomandazioni sanitarie per coordinate esatte. La copertura dipende da luogo e stagione.
+
+Recupera una breve previsione pollinica giornaliera per coordinate esatte. La risposta conserva tipi di polline, indici, informazioni sulle piante e raccomandazioni del fornitore.
+
+**Comando CLI:** `pollen`. **Accesso Google:** Questa implementazione richiede una chiave API.
+
+### Parametri
+
+| Parametro / opzione CLI | Tipo e limiti dello schema | Obbligatorio | Valore se omesso | Descrizione |
+| --- | --- | --- | --- | --- |
+| `days` / `--days` | intero; 1–5 | No | 1 | Numero di giorni di previsione da richiedere. |
+| `latitude` / `--latitude` | numero; -90.0–90.0 | Sì | — | Latitudine WGS84 in gradi decimali; positiva verso nord. |
+| `longitude` / `--longitude` | numero; -180.0–180.0 | Sì | — | Longitudine WGS84 in gradi decimali; positiva verso est. |
+| `plantsDescription` / `--plants-description` | booleano | No | false | Include descrizioni dettagliate delle piante e informazioni correlate quando disponibili. |
+
+### Comportamento e restrizioni
+
+- Le richieste usano una pagina di 5 elementi, sufficiente per i cinque giorni massimi richiesti da questo strumento; non vengono recuperate altre pagine automaticamente.
+- La disponibilità dipende da luogo, stagione e copertura Google.
+
+### Risultato
+
+La risposta Pollen originale, inclusi `regionCode`, `dailyInfo` ed eventuale `nextPageToken`. Ogni giorno può includere informazioni su tipi di polline e piante.
+
+### Esempio
+
+Argomenti MCP:
+
+```json
+{
+  "latitude": 48.8584,
+  "longitude": 2.2945,
+  "days": 3,
+  "plantsDescription": false
+}
+```
+
+Chiamata CLI equivalente:
+
+```sh
+mcp-gmap-rs call maps_pollen --args '{"latitude":48.8584,"longitude":2.2945,"days":3,"plantsDescription":false}'
+```
+
+
+## maps_area_insights {#maps_area_insights}
+
+Conta i luoghi dentro un cerchio, una regione o un poligono tramite Places Aggregate. Gli identificativi facoltativi sono disponibili solo per conteggi fino a 100; nessuna richiesta automatica di dettagli.
+
+Conta i luoghi corrispondenti in un cerchio, una regione o un poligono tramite Places Aggregate. È una query aggregata, distinta dal conteggio di una pagina limitata di ricerca Places.
+
+**Comando CLI:** `area-insights`. **Accesso Google:** Chiave API oppure OAuth per l’API principale.
+
+### Parametri
+
+| Parametro / opzione CLI | Tipo e limiti dello schema | Obbligatorio | Valore se omesso | Descrizione |
+| --- | --- | --- | --- | --- |
+| `area` / `--area` | oggetto | Sì | — | Esattamente una tra circle, region e customArea. |
+| `area.circle` | oggetto | No | Non fornito | Area circolare; mutuamente esclusiva con region e customArea. |
+| `area.circle.latLng` | oggetto | Se il genitore è presente | — | Centro del cerchio espresso con coordinate esatte. |
+| `area.circle.latLng.latitude` | numero; -90.0–90.0 | Se il genitore è presente | — | Latitudine WGS84 in gradi decimali; positiva verso nord. |
+| `area.circle.latLng.longitude` | numero; -180.0–180.0 | Se il genitore è presente | — | Longitudine WGS84 in gradi decimali; positiva verso est. |
+| `area.circle.radius` | intero; 23–50000 | Se il genitore è presente | — | Raggio del cerchio in metri. |
+| `area.customArea` | oggetto | No | Non fornito | Area poligonale personalizzata; mutuamente esclusiva con circle e region. |
+| `area.customArea.polygon` | oggetto | Se il genitore è presente | — | Confine del poligono. |
+| `area.customArea.polygon.coordinates` | array di oggetti; 4–1000 elementi | Se il genitore è presente | — | Anello ordinato di oggetti coordinate; prima e ultima coordinata devono coincidere. |
+| `area.customArea.polygon.coordinates[].latitude` | numero; -90.0–90.0 | Se il genitore è presente | — | Latitudine WGS84 in gradi decimali; positiva verso nord. |
+| `area.customArea.polygon.coordinates[].longitude` | numero; -180.0–180.0 | Se il genitore è presente | — | Longitudine WGS84 in gradi decimali; positiva verso est. |
+| `area.region` | oggetto | No | Non fornito | Regione amministrativa o geografica identificata da una risorsa luogo Google. |
+| `area.region.place` | stringa; modello: `^places/[A-Za-z0-9_-]+$` | Se il genitore è presente | — | Risorsa della regione in formato places/PLACE_ID, non un nome di regione libero. |
+| `excludedTypes` / `--excluded-types` | array di stringahe; 1–50 elementi; ogni elemento contiene almeno 1 carattere/i | No | Nessun filtro sui tipi esclusi | Tipi di luogo Google da escludere. |
+| `includePlaces` / `--include-places` | booleano | No | false | Richiede gli identificativi delle risorse luogo corrispondenti oltre al conteggio. |
+| `includedTypes` / `--included-types` | array di stringahe; 1–50 elementi; ogni elemento contiene almeno 1 carattere/i | Sì | — | Tipi di luogo Google da includere, per esempio restaurant o cafe. |
+| `maxRating` / `--max-rating` | numero; 1.0–5.0 | No | Nessun limite superiore di valutazione | Limite superiore inclusivo della valutazione. |
+| `minRating` / `--min-rating` | numero; 1.0–5.0 | No | Nessun limite inferiore di valutazione | Limite inferiore inclusivo della valutazione; non può superare maxRating. |
+| `operatingStatus` / `--operating-status` | array di stringahe; 1–3 elementi; valori: `OPERATING_STATUS_OPERATIONAL`, `OPERATING_STATUS_PERMANENTLY_CLOSED`, `OPERATING_STATUS_TEMPORARILY_CLOSED` | No | Google usa come valore predefinito i luoghi operativi | Stati operativi consentiti. |
+| `priceLevels` / `--price-levels` | array di stringahe; 1–5 elementi; valori: `PRICE_LEVEL_FREE`, `PRICE_LEVEL_INEXPENSIVE`, `PRICE_LEVEL_MODERATE`, `PRICE_LEVEL_EXPENSIVE`, `PRICE_LEVEL_VERY_EXPENSIVE` | No | Tutti i livelli di prezzo | Livelli di prezzo consentiti. |
+
+### Comportamento e restrizioni
+
+- Fornisci esattamente una forma di area. Nella CLI gli oggetti annidati sono valori JSON; i loro parametri figli non hanno opzioni indipendenti.
+- Gli anelli dei poligoni devono essere chiusi. Google controlla anche geometria, tipi supportati, superficie e copertura.
+- I place ID sono disponibili solo per conteggi fino a 100. Lo strumento non richiede automaticamente Place Details.
+
+### Risultato
+
+La risposta Google con `count` (normalmente una stringa int64) ed eventuali risorse `placeInsights[].place` quando gli identificativi sono stati richiesti e sono disponibili.
+
+### Esempio
+
+Argomenti MCP:
+
+```json
+{
+  "area": {
+    "circle": {
+      "latLng": {
+        "latitude": 48.8584,
+        "longitude": 2.2945
+      },
+      "radius": 500
+    }
+  },
+  "includedTypes": [
+    "restaurant"
+  ],
+  "minRating": 4
+}
+```
+
+Chiamata CLI equivalente:
+
+```sh
+mcp-gmap-rs call maps_area_insights --args '{"area":{"circle":{"latLng":{"latitude":48.8584,"longitude":2.2945},"radius":500}},"includedTypes":["restaurant"],"minRating":4}'
+```
+
+
+## maps_snap_to_roads {#maps_snap_to_roads}
+
+Associa alle strade una traccia GPS ordinata di 2–100 punti. Per buoni risultati mantieni i punti consecutivi entro circa 300 metri. L’interpolazione facoltativa aggiunge geometria stradale.
+
+Associa una traccia GPS ordinata alla geometria stradale più probabile. Usa Nearest Roads per punti indipendenti anziché per un percorso seguito.
+
+**Comando CLI:** `snap-to-roads`. **Accesso Google:** Questa implementazione richiede una chiave API.
+
+### Parametri
+
+| Parametro / opzione CLI | Tipo e limiti dello schema | Obbligatorio | Valore se omesso | Descrizione |
+| --- | --- | --- | --- | --- |
+| `interpolate` / `--interpolate` | booleano | No | false | Aggiunge geometria stradale intermedia tra i punti forniti. |
+| `path` / `--path` | array di oggetti; 2–100 elementi | Sì | — | Oggetti coordinate GPS nell’ordine di percorrenza. |
+| `path[].latitude` | numero; -90.0–90.0 | Se il genitore è presente | — | Latitudine WGS84 in gradi decimali; positiva verso nord. |
+| `path[].longitude` | numero; -180.0–180.0 | Se il genitore è presente | — | Longitudine WGS84 in gradi decimali; positiva verso est. |
+
+### Comportamento e restrizioni
+
+- Per una buona associazione i punti consecutivi dovrebbero distare al massimo circa 300 metri.
+- I punti interpolati possono essere privi di originalIndex. Questo strumento non richiede limiti di velocità.
+
+### Risultato
+
+La risposta Roads originale, con `snappedPoints` ed eventuale `warningMessage`. I punti conservano `placeId` stradale, `location` e `originalIndex` quando presenti.
+
+### Esempio
+
+Argomenti MCP:
+
+```json
+{
+  "path": [
+    {
+      "latitude": -35.27801,
+      "longitude": 149.12958
+    },
+    {
+      "latitude": -35.28032,
+      "longitude": 149.12907
+    }
+  ],
+  "interpolate": true
+}
+```
+
+Chiamata CLI equivalente:
+
+```sh
+mcp-gmap-rs call maps_snap_to_roads --args '{"path":[{"latitude":-35.27801,"longitude":149.12958},{"latitude":-35.28032,"longitude":149.12907}],"interpolate":true}'
+```
+
+
+## maps_nearest_roads {#maps_nearest_roads}
+
+Trova i tratti stradali più vicini a 1–100 punti GPS indipendenti; conserva originalIndex di Google e i place ID stradali.
+
+Trova tratti stradali vicini a punti GPS indipendenti senza interpretarli come un’unica traccia continua.
+
+**Comando CLI:** `nearest-roads`. **Accesso Google:** Questa implementazione richiede una chiave API.
+
+### Parametri
+
+| Parametro / opzione CLI | Tipo e limiti dello schema | Obbligatorio | Valore se omesso | Descrizione |
+| --- | --- | --- | --- | --- |
+| `points` / `--points` | array di oggetti; 1–100 elementi | Sì | — | Oggetti coordinate indipendenti da associare. |
+| `points[].latitude` | numero; -90.0–90.0 | Se il genitore è presente | — | Latitudine WGS84 in gradi decimali; positiva verso nord. |
+| `points[].longitude` | numero; -180.0–180.0 | Se il genitore è presente | — | Longitudine WGS84 in gradi decimali; positiva verso est. |
+
+### Comportamento e restrizioni
+
+- Un punto può corrispondere a più tratti stradali; conserva originalIndex senza presumere una sola uscita per ogni ingresso.
+- Questo strumento non richiede limiti di velocità.
+
+### Risultato
+
+La risposta Roads originale con `snappedPoints`, `placeId` stradale, `location` e `originalIndex` per risalire ai punti di ingresso.
+
+### Esempio
+
+Argomenti MCP:
+
+```json
+{
+  "points": [
+    {
+      "latitude": -35.27801,
+      "longitude": 149.12958
+    },
+    {
+      "latitude": -35.28032,
+      "longitude": 149.12907
+    }
+  ]
+}
+```
+
+Chiamata CLI equivalente:
+
+```sh
+mcp-gmap-rs call maps_nearest_roads --args '{"points":[{"latitude":-35.27801,"longitude":149.12958},{"latitude":-35.28032,"longitude":149.12907}]}'
+```
+
+
+## maps_reverse_geocode {#maps_reverse_geocode}
+
+Converte coordinate in un indirizzo stradale.
+
+Converte coordinate esatte nel primo risultato di geocodifica inversa. Usa i componenti del risultato quando il solo indirizzo formattato non basta.
+
+**Comando CLI:** `reverse-geocode`. **Accesso Google:** Questa implementazione richiede una chiave API.
+
+### Parametri
+
+| Parametro / opzione CLI | Tipo e limiti dello schema | Obbligatorio | Valore se omesso | Descrizione |
+| --- | --- | --- | --- | --- |
+| `latitude` / `--latitude` | numero; -90.0–90.0 | Sì | — | Latitudine WGS84 in gradi decimali; positiva verso nord. |
+| `longitude` / `--longitude` | numero; -180.0–180.0 | Sì | — | Longitudine WGS84 in gradi decimali; positiva verso est. |
+
+### Comportamento e restrizioni
+
+- Viene restituito soltanto il primo risultato. L’assenza di corrispondenze è un errore dello strumento.
+
+### Risultato
+
+Il primo risultato Geocoding nativo, inclusi `formatted_address`, `address_components`, `geometry` e `place_id` quando disponibili.
+
+### Esempio
+
+Argomenti MCP:
+
+```json
+{
+  "latitude": 48.8584,
+  "longitude": 2.2945
+}
+```
+
+Chiamata CLI equivalente:
+
+```sh
+mcp-gmap-rs call maps_reverse_geocode --args '{"latitude":48.8584,"longitude":2.2945}'
+```
+
+
+## maps_search_places {#maps_search_places}
+
+Cerca Places (New) tramite testo con filtri facoltativi di posizione e valutazione.
+
+Cerca Places (New) tramite testo e filtri facoltativi di posizione, valutazione e tipo. Usa gli identificativi restituiti per richiedere selettivamente i dettagli.
+
+**Comando CLI:** `search-places`. **Accesso Google:** Chiave API oppure OAuth per l’API principale.
+
+### Parametri
+
+| Parametro / opzione CLI | Tipo e limiti dello schema | Obbligatorio | Valore se omesso | Descrizione |
+| --- | --- | --- | --- | --- |
+| `includedType` / `--included-type` | stringa; almeno 1 carattere/i | No | Nessun filtro sul tipo | Tipo di luogo Google, per esempio cafe. |
+| `locationBias` / `--location-bias` | oggetto | No | Nessuna preferenza geografica | Preferenza circolare facoltativa di ricerca; non è un vincolo geografico rigido. |
+| `locationBias.latitude` | numero; -90.0–90.0 | Se il genitore è presente | — | Latitudine WGS84 in gradi decimali; positiva verso nord. |
+| `locationBias.longitude` | numero; -180.0–180.0 | Se il genitore è presente | — | Longitudine WGS84 in gradi decimali; positiva verso est. |
+| `locationBias.radius` | numero; 0.1–50000.0 | No | 5000 | Raggio della preferenza geografica in metri. |
+| `minRating` / `--min-rating` | numero; 0.0–5.0 | No | Nessun filtro sulla valutazione | Valutazione minima degli utenti richiesta a Google. |
+| `openNow` / `--open-now` | booleano | No | Nessuna restrizione sullo stato di apertura | Quando true, limita ai luoghi attualmente aperti. |
+| `query` / `--query` | stringa; almeno 1 carattere/i | Sì | — | Ricerca di luoghi in linguaggio naturale. |
+
+### Comportamento e restrizioni
+
+- Questo strumento richiede una pagina di 20 risultati e non restituisce né segue automaticamente un token di pagina.
+- La disponibilità dei dati di apertura e valutazione dipende dalla copertura Google; questa ricerca non va interpretata come un inventario completo.
+
+### Risultato
+
+Un array di massimo 20 oggetti Google Place con campi di ricerca selezionati, link Maps o alle fonti e metadati di attribuzione.
+
+### Esempio
+
+Argomenti MCP:
+
+```json
+{
+  "query": "coffee near Gare de Lyon, Paris",
+  "openNow": true,
+  "minRating": 4
+}
+```
+
+Chiamata CLI equivalente:
+
+```sh
+mcp-gmap-rs call maps_search_places --args '{"query":"coffee near Gare de Lyon, Paris","openNow":true,"minRating":4}'
+```
+
+
+## maps_search_nearby {#maps_search_nearby}
+
+Trova luoghi intorno a un indirizzo o a coordinate esatte, filtrando per tipo, valutazione e stato di apertura.
+
+Trova luoghi entro un raggio delimitato intorno a un centro risolto. A differenza di Text Search, usa un vincolo geografico circolare rigido.
+
+**Comando CLI:** `search-nearby`. **Accesso Google:** Places accetta chiave API oppure OAuth. Un centro espresso come indirizzo o punto di interesse richiede anche una chiave API per la risoluzione Geocoding.
+
+### Parametri
+
+| Parametro / opzione CLI | Tipo e limiti dello schema | Obbligatorio | Valore se omesso | Descrizione |
+| --- | --- | --- | --- | --- |
+| `center` / `--center` | oggetto | Sì | — | Valore del centro e indicatore che ne definisce l’interpretazione. |
+| `center.isCoordinates` | booleano | No | false | Interpreta value come coordinate esatte senza geocodifica. |
+| `center.value` | stringa; almeno 1 carattere/i | Se il genitore è presente | — | Indirizzo o punto di interesse, oppure stringa latitude,longitude quando isCoordinates è true. |
+| `keyword` / `--keyword` | stringa; almeno 1 carattere/i | No | Nessun filtro sul tipo | Tipo di luogo Google passato come includedTypes, per esempio cafe; non una parola chiave testuale arbitraria. |
+| `minRating` / `--min-rating` | numero; 0.0–5.0 | No | Nessun filtro sulla valutazione | Valutazione minima applicata localmente ai luoghi restituiti. |
+| `openNow` / `--open-now` | booleano | No | false | Mantiene soltanto i risultati con currentOpeningHours.openNow uguale a true. |
+| `radius` / `--radius` | numero; 0.1–50000.0 | No | 1000 | Raggio di ricerca in metri. |
+
+### Comportamento e restrizioni
+
+- Durante il filtraggio, uno stato di apertura mancante non equivale ad aperto e una valutazione mancante viene trattata come 0.
+- I centri espressi come indirizzi richiedono una risoluzione della posizione; le coordinate evitano quella chiamata aggiuntiva.
+
+### Risultato
+
+Un array di massimo 20 oggetti Place selezionati. I filtri locali di apertura e valutazione possono ridurlo ulteriormente.
+
+### Esempio
+
+Argomenti MCP:
+
+```json
+{
+  "center": {
+    "value": "48.8584,2.2945",
+    "isCoordinates": true
+  },
+  "keyword": "cafe",
+  "radius": 500
+}
+```
+
+Chiamata CLI equivalente:
+
+```sh
+mcp-gmap-rs call maps_search_nearby --args '{"center":{"value":"48.8584,2.2945","isCoordinates":true},"keyword":"cafe","radius":500}'
+```
+
+
+## maps_place_details {#maps_place_details}
+
+Ottiene dettagli, recensioni e attribuzioni del luogo. Gli URL delle foto facoltativi conservano l’attribuzione degli autori. Mostra fonti e avvertenze insieme al contenuto.
+
+Approfondisce un place ID noto con dettagli selezionati, recensioni e URL di foto facoltativi. Conserva informazioni su autori e fonti e le eventuali avvertenze AI.
+
+**Comando CLI:** `place-details`. **Accesso Google:** Chiave API oppure OAuth per l’API principale.
+
+### Parametri
+
+| Parametro / opzione CLI | Tipo e limiti dello schema | Obbligatorio | Valore se omesso | Descrizione |
+| --- | --- | --- | --- | --- |
+| `maxPhotos` / `--max-photos` | intero; 0–10 | No | 0 | Numero massimo di ricerche di URL dei media fotografici. |
+| `placeId` / `--place-id` | stringa; almeno 1 carattere/i | Sì | — | Identificativo Google del luogo, facoltativamente preceduto da places/. |
+
+### Comportamento e restrizioni
+
+- Ogni foto selezionata può aggiungere una richiesta; zero foto evita queste chiamate.
+- Lo strumento usa una maschera fissa di campi di dettaglio, non tutti i possibili campi Google Place. I campi non disponibili possono essere assenti.
+
+### Risultato
+
+Un oggetto Google Place nativo relativo alla maschera di campi richiesta. Quando vengono richieste foto, `photoUrls` contiene URL dei media, attribuzioni degli autori e link alle fonti.
+
+### Esempio
+
+Argomenti MCP:
+
+```json
+{
+  "placeId": "ChIJLU7jZClu5kcR4PcOOO6p3I0",
+  "maxPhotos": 1
+}
+```
+
+Chiamata CLI equivalente:
+
+```sh
+mcp-gmap-rs call maps_place_details --args '{"placeId":"ChIJLU7jZClu5kcR4PcOOO6p3I0","maxPhotos":1}'
+```
+
+
+## maps_directions {#maps_directions}
+
+Ottiene indicazioni, geometria del percorso, istruzioni di navigazione e durata del viaggio.
+
+Calcola un percorso tra due estremi e restituisce sia dati di percorso Google selezionati sia totali normalizzati.
+
+**Comando CLI:** `directions`. **Accesso Google:** Routes e Places accettano chiave API oppure OAuth. La risoluzione di luoghi per nome richiede anche una chiave API per Geocoding; le stringhe di coordinate esatte evitano tale ricerca.
+
+### Parametri
+
+| Parametro / opzione CLI | Tipo e limiti dello schema | Obbligatorio | Valore se omesso | Descrizione |
+| --- | --- | --- | --- | --- |
+| `arrival_time` / `--arrival-time` | stringa; almeno 1 carattere/i | No | Non fornito | Arrivo desiderato in RFC 3339 con fuso orario; soltanto modalità transit. |
+| `avoid_highways` / `--avoid-highways` | booleano | No | false | Evita autostrade; true è supportato soltanto con driving. |
+| `avoid_tolls` / `--avoid-tolls` | booleano | No | false | Evita strade a pedaggio; true è supportato soltanto con driving. |
+| `departure_time` / `--departure-time` | stringa; almeno 1 carattere/i | No | Non fornito | Istante di partenza in RFC 3339, con Z o un offset UTC esplicito. |
+| `destination` / `--destination` | stringa; almeno 1 carattere/i | Sì | — | Indirizzo o punto di interesse di destinazione, oppure stringa di coordinate esatte latitude,longitude. |
+| `mode` / `--mode` | stringa; valori: `driving`, `walking`, `bicycling`, `transit` | No | driving | Modalità di viaggio. driving utilizza il traffico nel calcolo del percorso. |
+| `origin` / `--origin` | stringa; almeno 1 carattere/i | Sì | — | Indirizzo o punto di interesse di partenza, oppure stringa di coordinate esatte latitude,longitude. |
+
+### Comportamento e restrizioni
+
+- departure_time e arrival_time non possono essere forniti insieme. arrival_time è accettato soltanto con transit.
+- Le opzioni per evitare strade richiedono driving. Google applica ulteriori restrizioni di modalità, orario e regione.
+- L’assenza di un percorso disponibile produce un errore esplicito.
+
+### Risultato
+
+Un oggetto con `routes`, `summary`, `total_distance` (valore in metri), `total_duration` (valore in secondi) ed eventuali indici di ottimizzazione. Le voci di percorso contengono tratte, passi, polilinea e avvertenze selezionati.
+
+### Esempio
+
+Argomenti MCP:
+
+```json
+{
+  "origin": "48.8584,2.2945",
+  "destination": "48.8606,2.3376",
+  "mode": "walking"
+}
+```
+
+Chiamata CLI equivalente:
+
+```sh
+mcp-gmap-rs call maps_directions --args '{"origin":"48.8584,2.2945","destination":"48.8606,2.3376","mode":"walking"}'
+```
+
+
+## maps_distance_matrix {#maps_distance_matrix}
+
+Calcola distanze e durate di viaggio per più origini e destinazioni.
+
+Confronta distanza e durata di viaggio per ogni coppia origine/destinazione. Controlla singole celle ed errori senza considerare completa una risposta solo perché riuscita.
+
+**Comando CLI:** `distance-matrix`. **Accesso Google:** Chiave API oppure OAuth per l’API principale.
+
+### Parametri
+
+| Parametro / opzione CLI | Tipo e limiti dello schema | Obbligatorio | Valore se omesso | Descrizione |
+| --- | --- | --- | --- | --- |
+| `avoid_highways` / `--avoid-highways` | booleano | No | false | Evita autostrade; true è supportato soltanto con driving. |
+| `avoid_tolls` / `--avoid-tolls` | booleano | No | false | Evita strade a pedaggio; true è supportato soltanto con driving. |
+| `departure_time` / `--departure-time` | stringa; almeno 1 carattere/i | No | Non fornito | Istante di partenza in RFC 3339, con Z o un offset UTC esplicito. |
+| `destinations` / `--destinations` | array di stringahe; 1–50 elementi; ogni elemento contiene almeno 1 carattere/i | Sì | — | Stringhe delle destinazioni: indirizzi o coppie esatte latitude,longitude. |
+| `mode` / `--mode` | stringa; valori: `driving`, `walking`, `bicycling`, `transit` | No | driving | Modalità di viaggio. driving utilizza il traffico nel calcolo del percorso. |
+| `origins` / `--origins` | array di stringahe; 1–50 elementi; ogni elemento contiene almeno 1 carattere/i | Sì | — | Stringhe delle origini: indirizzi o coppie esatte latitude,longitude. |
+
+### Comportamento e restrizioni
+
+- Massimo 625 coppie origine × destinazione; transit è limitato a 100 coppie.
+- Massimo 50 stringhe origine/destinazione non espresse come coordinate in totale. I limiti di schema dei singoli array non superano questi limiti combinati.
+- L’esclusione di pedaggi e autostrade vale soltanto con driving. Questo strumento non espone arrival_time.
+- Una singola richiesta HTTP di matrice può comportare la fatturazione di più elementi.
+
+### Risultato
+
+Un oggetto con `origin_addresses`, `destination_addresses`, matrici per righe `distances` e `durations` e un array `errors`. Le celle riuscite sono espresse in metri e secondi; quelle fallite o mancanti rimangono null.
+
+### Esempio
+
+Argomenti MCP:
+
+```json
+{
+  "origins": [
+    "48.8584,2.2945"
+  ],
+  "destinations": [
+    "48.8606,2.3376",
+    "48.8530,2.3499"
+  ],
+  "mode": "walking"
+}
+```
+
+Chiamata CLI equivalente:
+
+```sh
+mcp-gmap-rs call maps_distance_matrix --args '{"origins":["48.8584,2.2945"],"destinations":["48.8606,2.3376","48.8530,2.3499"],"mode":"walking"}'
+```
+
+
+## maps_elevation {#maps_elevation}
+
+Ottiene l’altitudine in metri per coordinate geografiche.
+
+Ottiene l’altitudine geografica per punti con coordinate esatte.
+
+**Comando CLI:** `elevation`. **Accesso Google:** Questa implementazione richiede una chiave API.
+
+### Parametri
+
+| Parametro / opzione CLI | Tipo e limiti dello schema | Obbligatorio | Valore se omesso | Descrizione |
+| --- | --- | --- | --- | --- |
+| `locations` / `--locations` | array di oggetti; 1–512 elementi | Sì | — | Oggetti coordinate per cui richiedere l’altitudine. |
+| `locations[].latitude` | numero; -90.0–90.0 | Se il genitore è presente | — | Latitudine WGS84 in gradi decimali; positiva verso nord. |
+| `locations[].longitude` | numero; -180.0–180.0 | Se il genitore è presente | — | Longitudine WGS84 in gradi decimali; positiva verso est. |
+
+### Comportamento e restrizioni
+
+- Lo strumento restituisce i dati comunicati da Google senza convertire le unità dell’altitudine.
+
+### Risultato
+
+L’array `results` nativo di Elevation. Le voci possono contenere `elevation` in metri, `location` e `resolution`.
+
+### Esempio
+
+Argomenti MCP:
+
+```json
+{
+  "locations": [
+    {
+      "latitude": 48.8584,
+      "longitude": 2.2945
+    }
+  ]
+}
+```
+
+Chiamata CLI equivalente:
+
+```sh
+mcp-gmap-rs call maps_elevation --args '{"locations":[{"latitude":48.8584,"longitude":2.2945}]}'
+```
+
+
+## maps_timezone {#maps_timezone}
+
+Ottiene fuso orario, offset UTC/ora legale e ora locale. timestamp è espresso in millisecondi Unix.
+
+Determina il fuso orario e gli offset UTC e dell’ora legale in un istante, quindi ricava un timestamp locale.
+
+**Comando CLI:** `timezone`. **Accesso Google:** Questa implementazione richiede una chiave API.
+
+### Parametri
+
+| Parametro / opzione CLI | Tipo e limiti dello schema | Obbligatorio | Valore se omesso | Descrizione |
+| --- | --- | --- | --- | --- |
+| `latitude` / `--latitude` | numero; -90.0–90.0 | Sì | — | Latitudine WGS84 in gradi decimali; positiva verso nord. |
+| `longitude` / `--longitude` | numero; -180.0–180.0 | Sì | — | Longitudine WGS84 in gradi decimali; positiva verso est. |
+| `timestamp` / `--timestamp` | intero; 0–253402300799999 | No | Ora UTC corrente in millisecondi | Millisecondi dall’epoca Unix, non secondi. |
+
+### Comportamento e restrizioni
+
+- La richiesta converte i millisecondi in secondi interi; la precisione inferiore al secondo non viene mantenuta.
+- L’ora locale usa gli offset base e dell’ora legale restituiti per l’istante richiesto.
+
+### Risultato
+
+Campi della risposta Time Zone come `timeZoneId`, `timeZoneName`, `rawOffset` e `dstOffset` in secondi, più `localTime` derivato in formato RFC 3339.
+
+### Esempio
+
+Argomenti MCP:
+
+```json
+{
+  "latitude": 48.8584,
+  "longitude": 2.2945,
+  "timestamp": 1793448000000
+}
+```
+
+Chiamata CLI equivalente:
+
+```sh
+mcp-gmap-rs call maps_timezone --args '{"latitude":48.8584,"longitude":2.2945,"timestamp":1793448000000}'
+```
+
+
+## maps_weather {#maps_weather}
+
+Ottiene meteo corrente, previsioni giornaliere oppure orarie.
+
+Richiede le condizioni correnti o una pagina di previsioni giornaliere o orarie per coordinate esatte.
+
+**Comando CLI:** `weather`. **Accesso Google:** Chiave API oppure OAuth per l’API principale.
+
+### Parametri
+
+| Parametro / opzione CLI | Tipo e limiti dello schema | Obbligatorio | Valore se omesso | Descrizione |
+| --- | --- | --- | --- | --- |
+| `forecastDays` / `--forecast-days` | intero; 1–10 | No | 5 | Numero di giorni di previsione richiesti; usato soltanto con forecast_daily. |
+| `forecastHours` / `--forecast-hours` | intero; 1–240 | No | 24 | Numero di ore di previsione richieste; usato soltanto con forecast_hourly. |
+| `latitude` / `--latitude` | numero; -90.0–90.0 | Sì | — | Latitudine WGS84 in gradi decimali; positiva verso nord. |
+| `longitude` / `--longitude` | numero; -180.0–180.0 | Sì | — | Longitudine WGS84 in gradi decimali; positiva verso est. |
+| `type` / `--type` | stringa; valori: `current`, `forecast_daily`, `forecast_hourly` | No | current | Seleziona condizioni correnti, previsioni giornaliere oppure orarie. |
+
+### Comportamento e restrizioni
+
+- forecastDays è ignorato per gli altri tipi; forecastHours è ignorato al di fuori di forecast_hourly.
+- Questo strumento non segue automaticamente i token di paginazione. L’orizzonte richiesto può superare i record contenuti in una singola pagina di risposta.
+- Copertura e disponibilità delle previsioni dipendono da Google.
+
+### Risultato
+
+La risposta Weather nativa: campi delle condizioni correnti, `forecastDays` oppure `forecastHours`, in base a type. Conserva unità, timestamp ed eventuale nextPageToken restituiti.
+
+### Esempio
+
+Argomenti MCP:
+
+```json
+{
+  "latitude": 48.8584,
+  "longitude": 2.2945,
+  "type": "forecast_daily",
+  "forecastDays": 3
+}
+```
+
+Chiamata CLI equivalente:
+
+```sh
+mcp-gmap-rs call maps_weather --args '{"latitude":48.8584,"longitude":2.2945,"type":"forecast_daily","forecastDays":3}'
+```
+
+
+## maps_air_quality {#maps_air_quality}
+
+Ottiene indici di qualità dell’aria, concentrazioni facoltative degli inquinanti e raccomandazioni sanitarie.
+
+Ottiene indici correnti di qualità dell’aria con concentrazioni facoltative degli inquinanti e raccomandazioni sanitarie del fornitore.
+
+**Comando CLI:** `air-quality`. **Accesso Google:** Chiave API oppure OAuth per l’API principale.
+
+### Parametri
+
+| Parametro / opzione CLI | Tipo e limiti dello schema | Obbligatorio | Valore se omesso | Descrizione |
+| --- | --- | --- | --- | --- |
+| `includeHealthRecommendations` / `--include-health-recommendations` | booleano | No | true | Richiede il calcolo Google delle raccomandazioni sanitarie. |
+| `includePollutants` / `--include-pollutants` | booleano | No | false | Richiede le concentrazioni degli inquinanti. |
+| `latitude` / `--latitude` | numero; -90.0–90.0 | Sì | — | Latitudine WGS84 in gradi decimali; positiva verso nord. |
+| `longitude` / `--longitude` | numero; -180.0–180.0 | Sì | — | Longitudine WGS84 in gradi decimali; positiva verso est. |
+
+### Comportamento e restrizioni
+
+- Le raccomandazioni sono dati del fornitore, non una valutazione sanitaria personalizzata.
+- Questo strumento espone condizioni correnti, non endpoint storici o previsionali.
+
+### Risultato
+
+La risposta nativa delle condizioni correnti di Air Quality, con indici ed eventuali `healthRecommendations` e `pollutants` forniti da Google.
+
+### Esempio
+
+Argomenti MCP:
+
+```json
+{
+  "latitude": 48.8584,
+  "longitude": 2.2945,
+  "includePollutants": true
+}
+```
+
+Chiamata CLI equivalente:
+
+```sh
+mcp-gmap-rs call maps_air_quality --args '{"latitude":48.8584,"longitude":2.2945,"includePollutants":true}'
+```
+
+
+## maps_static_map {#maps_static_map}
+
+Recupera una mappa PNG con indicatori e tracciati. MCP restituisce un’immagine incorporata; la CLI restituisce JSON base64 oppure scrive --output.
+
+Genera una mappa PNG con specifiche facoltative di indicatori e tracciati.
+
+**Comando CLI:** `static-map`. **Accesso Google:** Questa implementazione richiede una chiave API.
+
+### Parametri
+
+| Parametro / opzione CLI | Tipo e limiti dello schema | Obbligatorio | Valore se omesso | Descrizione |
+| --- | --- | --- | --- | --- |
+| `center` / `--center` | stringa; almeno 1 carattere/i | No | Non fornito | Centro espresso come indirizzo o stringa latitude,longitude. |
+| `maptype` / `--maptype` | stringa; valori: `roadmap`, `satellite`, `terrain`, `hybrid` | No | roadmap | Stile della mappa di base. |
+| `markers` / `--markers` | array di stringahe; 1–100 elementi; ogni elemento contiene almeno 1 carattere/i | No | Nessun indicatore | Specifiche ripetute di indicatori Google Static Maps, per esempio color:red\|48.8584,2.2945. |
+| `path` / `--path` | array di stringahe; 1–100 elementi; ogni elemento contiene almeno 1 carattere/i | No | Nessun tracciato | Specifiche ripetute di tracciati Google Static Maps, per esempio color:blue\|48.8584,2.2945\|48.8606,2.3376. |
+| `size` / `--size` | stringa; modello: `^[1-9][0-9]{0,2}x[1-9][0-9]{0,2}$` | No | 600x400 | Dimensioni in pixel WIDTHxHEIGHT; durante l’esecuzione ogni dimensione è limitata a 1–640. |
+| `zoom` / `--zoom` | intero; 0–21 | No | Omesso; Google lo sceglie o lo deduce | Livello di zoom esplicito. |
+
+### Comportamento e restrizioni
+
+- È necessario almeno uno tra center, markers e path.
+- L’URL completo della richiesta deve rientrare in 16.384 caratteri. Il pattern di size nello schema è più ampio del limite effettivo di 640 pixel applicato durante l’esecuzione.
+- Lo stile di indicatori e tracciati segue la sintassi Google Static Maps. L’attribuzione Google rimane nell’immagine generata.
+
+### Risultato
+
+MCP restituisce contenuto image/png incorporato. La CLI restituisce JSON `{mimeType,base64}`, oppure byte PNG grezzi quando viene specificato --output.
+
+### Esempio
+
+Argomenti MCP:
+
+```json
+{
+  "center": "48.8584,2.2945",
+  "zoom": 14,
+  "size": "320x240",
+  "markers": [
+    "color:red|48.8584,2.2945"
+  ]
+}
+```
+
+Chiamata CLI equivalente:
+
+```sh
+mcp-gmap-rs call maps_static_map --args '{"center":"48.8584,2.2945","zoom":14,"size":"320x240","markers":["color:red|48.8584,2.2945"]}'
+```
+
+
+## maps_batch_geocode {#maps_batch_geocode}
+
+Geocodifica fino a 50 indirizzi con successo o errore per ciascuno e concorrenza limitata.
+
+Geocodifica una lista limitata di indirizzi mantenendo l’ordine di ingresso e il successo o fallimento di ogni elemento.
+
+**Comando CLI:** `batch-geocode`. **Accesso Google:** Questa implementazione richiede una chiave API.
+
+### Parametri
+
+| Parametro / opzione CLI | Tipo e limiti dello schema | Obbligatorio | Valore se omesso | Descrizione |
+| --- | --- | --- | --- | --- |
+| `addresses` / `--addresses` | array di stringahe; 1–50 elementi; ogni elemento contiene almeno 1 carattere/i | Sì | — | Stringhe di indirizzi o punti di interesse da risolvere. |
+
+### Comportamento e restrizioni
+
+- Usa concorrenza limitata con al massimo cinque richieste Google attive per processo.
+- Gli errori dei singoli elementi non impongono un codice d’uscita CLI diverso da zero; controlla success ed error in ogni riga.
+
+### Risultato
+
+Un array nell’ordine di ingresso. Ogni riga contiene `address`, `success` e `data` (l’oggetto di geocodifica) oppure `error`.
+
+### Esempio
+
+Argomenti MCP:
+
+```json
+{
+  "addresses": [
+    "Paris, France",
+    "London, UK"
+  ]
+}
+```
+
+Chiamata CLI equivalente:
+
+```sh
+mcp-gmap-rs call maps_batch_geocode --args '{"addresses":["Paris, France","London, UK"]}'
+```
+
+
+## maps_explore_area {#maps_explore_area}
+
+Risolve una posizione ed esplora categorie con dettagli per i primi risultati. Usa punti di interesse specifici per pianificare un viaggio.
+
+Risolve una posizione, cerca le categorie selezionate nelle vicinanze e approfondisce soltanto i primi risultati di ciascuna categoria.
+
+**Comando CLI:** `explore-area`. **Accesso Google:** Places accetta chiave API oppure OAuth. I luoghi indicati per nome richiedono anche una chiave API per Geocoding.
+
+### Parametri
+
+| Parametro / opzione CLI | Tipo e limiti dello schema | Obbligatorio | Valore se omesso | Descrizione |
+| --- | --- | --- | --- | --- |
+| `location` / `--location` | stringa; almeno 1 carattere/i | Sì | — | Indirizzo o punto di interesse, oppure stringa di coordinate esatte latitude,longitude. |
+| `radius` / `--radius` | numero; 0.1–50000.0 | No | 1000 | Raggio di ricerca delle categorie in metri. |
+| `topN` / `--top-n` | intero; 1–20 | No | 3 | Numero massimo di luoghi per categoria da approfondire con dettagli. |
+| `types` / `--types` | array di stringahe; 1–10 elementi; ogni elemento contiene almeno 1 carattere/i | No | restaurant, cafe, tourist_attraction | Categorie di luoghi Google da cercare. |
+
+### Comportamento e restrizioni
+
+- Ogni categoria cerca fino a 20 luoghi; count è il numero restituito nella pagina, non un inventario aggregato.
+- Gli errori di categoria e dettaglio rimangono visibili in un risultato complessivo riuscito.
+- Questo composito effettua più richieste Google; limita categorie e topN al necessario.
+
+### Risultato
+
+Un oggetto con `location` risolta, `radius` e `categories`. Ogni categoria contiene type/count/top oppure un errore; i luoghi approfonditi possono contenere details_error.
+
+### Esempio
+
+Argomenti MCP:
+
+```json
+{
+  "location": "48.8584,2.2945",
+  "types": [
+    "cafe"
+  ],
+  "radius": 500,
+  "topN": 1
+}
+```
+
+Chiamata CLI equivalente:
+
+```sh
+mcp-gmap-rs call maps_explore_area --args '{"location":"48.8584,2.2945","types":["cafe"],"radius":500,"topN":1}'
+```
+
+
+## maps_plan_route {#maps_plan_route}
+
+Pianifica un percorso di 2–27 tappe. Ottimizza 2–25 tappe intermedie, escluso transit. Le coordinate esatte vengono mantenute.
+
+Pianifica un solo percorso attraverso tappe ordinate, chiedendo facoltativamente a Google di riordinare le tappe intermedie mantenendo fissi gli estremi.
+
+**Comando CLI:** `plan-route`. **Accesso Google:** Routes e Places accettano chiave API oppure OAuth. La risoluzione di luoghi per nome richiede anche una chiave API per Geocoding; le stringhe di coordinate esatte evitano tale ricerca.
+
+### Parametri
+
+| Parametro / opzione CLI | Tipo e limiti dello schema | Obbligatorio | Valore se omesso | Descrizione |
+| --- | --- | --- | --- | --- |
+| `avoid_highways` / `--avoid-highways` | booleano | No | false | Evita autostrade; true è supportato soltanto con driving. |
+| `avoid_tolls` / `--avoid-tolls` | booleano | No | false | Evita strade a pedaggio; true è supportato soltanto con driving. |
+| `departure_time` / `--departure-time` | stringa; almeno 1 carattere/i | No | Non fornito | Istante di partenza in RFC 3339, con Z o un offset UTC esplicito. |
+| `mode` / `--mode` | stringa; valori: `driving`, `walking`, `bicycling`, `transit` | No | driving | Modalità di viaggio. driving utilizza il traffico nel calcolo del percorso. |
+| `optimize` / `--optimize` | booleano | No | true, alle condizioni indicate | Richiede l’ottimizzazione delle tappe intermedie quando le tappe totali sono più di tre e mode non è transit. |
+| `stops` / `--stops` | array di stringahe; 2–27 elementi; ogni elemento contiene almeno 1 carattere/i | Sì | — | Indirizzi o punti di interesse ordinati, oppure stringhe di coordinate esatte latitude,longitude; primo e ultimo restano gli estremi. |
+
+### Comportamento e restrizioni
+
+- transit supporta soltanto due estremi, senza tappe intermedie.
+- L’ottimizzazione diventa effettiva soltanto con almeno quattro tappe totali, cioè almeno due tappe intermedie.
+- Ottimizza l’ordine delle tappe di un percorso, non l’assegnazione di veicoli o incarichi a una flotta.
+
+### Risultato
+
+Un oggetto con `mode`, valore effettivo di `optimized`, `stops` risolte e ordinate, `legs` per la visualizzazione, total_distance, total_duration, polyline e warnings. durationSeconds delle tratte è un numero di secondi.
+
+### Esempio
+
+Argomenti MCP:
+
+```json
+{
+  "stops": [
+    "48.8584,2.2945",
+    "48.8606,2.3376",
+    "48.8530,2.3499"
+  ],
+  "mode": "walking",
+  "optimize": false
+}
+```
+
+Chiamata CLI equivalente:
+
+```sh
+mcp-gmap-rs call maps_plan_route --args '{"stops":["48.8584,2.2945","48.8606,2.3376","48.8530,2.3499"],"mode":"walking","optimize":false}'
+```
+
+
+## maps_compare_places {#maps_compare_places}
+
+Cerca e confronta luoghi con informazioni dettagliate e distanza in auto facoltativa da userLocation.
+
+Trova e arricchisce una breve lista di luoghi, confrontando facoltativamente la distanza in auto da coordinate utente esatte.
+
+**Comando CLI:** `compare-places`. **Accesso Google:** Places e le chiamate Routes facoltative accettano chiave API oppure OAuth.
+
+### Parametri
+
+| Parametro / opzione CLI | Tipo e limiti dello schema | Obbligatorio | Valore se omesso | Descrizione |
+| --- | --- | --- | --- | --- |
+| `limit` / `--limit` | intero; 1–20 | No | 5 | Numero massimo di luoghi corrispondenti da arricchire. |
+| `query` / `--query` | stringa; almeno 1 carattere/i | Sì | — | Query di ricerca testuale Places. |
+| `userLocation` / `--user-location` | oggetto | No | Nessun confronto di distanza o tempo | Coordinate utente esatte per il confronto facoltativo delle distanze. |
+| `userLocation.latitude` | numero; -90.0–90.0 | Se il genitore è presente | — | Latitudine WGS84 in gradi decimali; positiva verso nord. |
+| `userLocation.longitude` | numero; -180.0–180.0 | Se il genitore è presente | — | Longitudine WGS84 in gradi decimali; positiva verso est. |
+
+### Comportamento e restrizioni
+
+- Il confronto dei tragitti usa driving; questo strumento non ha un parametro per configurare la modalità di viaggio.
+- Gli errori dei dettagli e delle distanze vengono conservati senza eliminare luoghi altrimenti utilizzabili.
+- Viene arricchita soltanto la lista ristretta richiesta.
+
+### Risultato
+
+Un oggetto con `places` ed eventuale `distance_error`. I luoghi possono includere details/details_error, distance, drive_time e distance_errors per luogo.
+
+### Esempio
+
+Argomenti MCP:
+
+```json
+{
+  "query": "cafes near Eiffel Tower, Paris",
+  "userLocation": {
+    "latitude": 48.8584,
+    "longitude": 2.2945
+  },
+  "limit": 3
+}
+```
+
+Chiamata CLI equivalente:
+
+```sh
+mcp-gmap-rs call maps_compare_places --args '{"query":"cafes near Eiffel Tower, Paris","userLocation":{"latitude":48.8584,"longitude":2.2945},"limit":3}'
+```
+
+
+## maps_search_along_route {#maps_search_along_route}
+
+Trova luoghi lungo un percorso usando la sua polilinea codificata.
+
+Calcola un percorso e cerca Places usando la sua polilinea codificata, invece di approssimare il viaggio con una singola ricerca circolare.
+
+**Comando CLI:** `search-along-route`. **Accesso Google:** Routes e Places accettano chiave API oppure OAuth. La risoluzione di luoghi per nome richiede anche una chiave API per Geocoding; le stringhe di coordinate esatte evitano tale ricerca.
+
+### Parametri
+
+| Parametro / opzione CLI | Tipo e limiti dello schema | Obbligatorio | Valore se omesso | Descrizione |
+| --- | --- | --- | --- | --- |
+| `destination` / `--destination` | stringa; almeno 1 carattere/i | Sì | — | Indirizzo o punto di interesse di destinazione del percorso, oppure stringa di coordinate esatte latitude,longitude. |
+| `maxResults` / `--max-results` | intero; 1–20 | No | 5 | Numero massimo di risultati Places richiesti nella pagina di risposta. |
+| `mode` / `--mode` | stringa; valori: `driving`, `walking`, `bicycling`, `transit` | No | walking | Modalità di viaggio del percorso usato nella ricerca. |
+| `origin` / `--origin` | stringa; almeno 1 carattere/i | Sì | — | Indirizzo o punto di interesse di partenza del percorso, oppure stringa di coordinate esatte latitude,longitude. |
+| `textQuery` / `--text-query` | stringa; almeno 1 carattere/i | Sì | — | Query Places per soste lungo il percorso, ad esempio caffè o stazioni di ricarica. |
+
+### Comportamento e restrizioni
+
+- La modalità predefinita è walking, diversamente da directions, matrix e plan-route che usano driving.
+- Non esegue paginazione automatica né approfondimenti Place Details.
+- Questo strumento non espone i parametri di partenza, arrivo o esclusione strade di directions.
+
+### Risultato
+
+Un oggetto con `places`, eventuali `routingSummaries` e il `route` calcolato, con dati di percorso Google selezionati e totali normalizzati.
+
+### Esempio
+
+Argomenti MCP:
+
+```json
+{
+  "textQuery": "cafes",
+  "origin": "48.8584,2.2945",
+  "destination": "48.8606,2.3376",
+  "mode": "walking",
+  "maxResults": 3
+}
+```
+
+Chiamata CLI equivalente:
+
+```sh
+mcp-gmap-rs call maps_search_along_route --args '{"textQuery":"cafes","origin":"48.8584,2.2945","destination":"48.8606,2.3376","mode":"walking","maxResults":3}'
+```
+
+
+## maps_local_rank_tracker {#maps_local_rank_tracker}
+
+Misura il posizionamento di ricerca su una griglia geografica per 1–3 parole chiave; restituisce ARP, ATRP, SoLV ed errori per punto.
+
+Misura la comparsa di un luogo obiettivo tra i primi 20 risultati Text Search in ogni punto di una griglia geografica.
+
+**Comando CLI:** `local-rank-tracker`. **Accesso Google:** Chiave API oppure OAuth per l’API principale.
+
+### Parametri
+
+| Parametro / opzione CLI | Tipo e limiti dello schema | Obbligatorio | Valore se omesso | Descrizione |
+| --- | --- | --- | --- | --- |
+| `center` / `--center` | oggetto | Sì | — | Centro esatto della griglia di scansione. |
+| `center.latitude` | numero; -90.0–90.0 | Se il genitore è presente | — | Latitudine WGS84 in gradi decimali; positiva verso nord. |
+| `center.longitude` | numero; -180.0–180.0 | Se il genitore è presente | — | Longitudine WGS84 in gradi decimali; positiva verso est. |
+| `gridSize` / `--grid-size` | intero; 3–7 | No | 3 | Numero di righe e colonne; sono accettati tutti gli interi da 3 a 7. |
+| `gridSpacing` / `--grid-spacing` | numero; 100.0–10000.0 | No | 1000 | Distanza in metri tra punti adiacenti della griglia. |
+| `keyword` / `--keyword` | stringa; almeno 1 carattere/i | No | Non fornito | Singola parola chiave di ricerca; usa keyword oppure keywords. |
+| `keywords` / `--keywords` | array di stringahe; 1–3 elementi; ogni elemento contiene almeno 1 carattere/i | No | Non fornito | Da una a tre parole chiave; ha precedenza se entrambe le forme sono fornite. |
+| `placeId` / `--place-id` | stringa; almeno 1 carattere/i | Sì | — | Identificativo del luogo obiettivo, facoltativamente preceduto da places/. |
+
+### Comportamento e restrizioni
+
+- È richiesta almeno una tra keyword e keywords; le singole righe dello schema non esprimono questa alternativa.
+- Le richieste di ricerca crescono come numero di parole chiave × gridSize², fino a 147 prima dei retry.
+- I punti falliti sono esclusi dalle metriche di posizione, non trattati come assenze valide. Le metriche possono essere null in assenza di osservazioni utilizzabili.
+- La posizione di ricerca non è la valutazione nelle recensioni del luogo. I risultati campionano ricerche testuali con preferenza geografica e non garantiscono il posizionamento visto da un utente su Google Maps.
+
+### Risultato
+
+Un oggetto con target, grid_size, grid_spacing_m e metriche e griglia per parola chiave. ARP è la media delle posizioni trovate; ATRP usa posizione 21 per le ricerche riuscite in cui il luogo è assente; SoLV è la percentuale di punti riusciti nelle prime 3 posizioni. failed_points e found_in espongono la copertura.
+
+### Esempio
+
+Argomenti MCP:
+
+```json
+{
+  "keyword": "cafe",
+  "placeId": "ChIJLU7jZClu5kcR4PcOOO6p3I0",
+  "center": {
+    "latitude": 48.8584,
+    "longitude": 2.2945
+  },
+  "gridSize": 3,
+  "gridSpacing": 500
+}
+```
+
+Chiamata CLI equivalente:
+
+```sh
+mcp-gmap-rs call maps_local_rank_tracker --args '{"keyword":"cafe","placeId":"ChIJLU7jZClu5kcR4PcOOO6p3I0","center":{"latitude":48.8584,"longitude":2.2945},"gridSize":3,"gridSpacing":500}'
+```

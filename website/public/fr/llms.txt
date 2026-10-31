@@ -1,0 +1,28 @@
+# mcp-gmap-rs
+
+Les 23 outils, avec tous leurs paramètres, valeurs par défaut, contraintes et exemples. La même interface est disponible via MCP et le CLI.
+
+## Outils
+
+- [Compétence pour les agents](https://fcenedes.github.io/mcp-gmap-rs/fr/guide/agent-skill)
+- [Clés, comptes de service et OAuth](https://fcenedes.github.io/mcp-gmap-rs/fr/guide/authentication)
+- [Utiliser la CLI](https://fcenedes.github.io/mcp-gmap-rs/fr/guide/cli)
+- [Configuration par couches](https://fcenedes.github.io/mcp-gmap-rs/fr/guide/configuration)
+- [Docker et Kubernetes](https://fcenedes.github.io/mcp-gmap-rs/fr/guide/deployment)
+- [Développement et publication](https://fcenedes.github.io/mcp-gmap-rs/fr/guide/development)
+- [Démarrage rapide](https://fcenedes.github.io/mcp-gmap-rs/fr/guide/getting-started)
+- [Préparer Google Cloud](https://fcenedes.github.io/mcp-gmap-rs/fr/guide/google-cloud)
+- [Connecter un client MCP](https://fcenedes.github.io/mcp-gmap-rs/fr/guide/mcp)
+- [Exploiter en production](https://fcenedes.github.io/mcp-gmap-rs/fr/guide/production)
+- [Parcours pratiques](https://fcenedes.github.io/mcp-gmap-rs/fr/guide/recipes)
+- [Dépannage](https://fcenedes.github.io/mcp-gmap-rs/fr/guide/troubleshooting)
+- [Référence de configuration](https://fcenedes.github.io/mcp-gmap-rs/fr/reference/configuration)
+- [Référence des outils](https://fcenedes.github.io/mcp-gmap-rs/fr/reference/tools)
+
+- [Texte intégral](https://fcenedes.github.io/mcp-gmap-rs/fr/llms-full.txt)
+
+## Langues
+
+- [English](https://fcenedes.github.io/mcp-gmap-rs/llms.txt)
+- [Français](https://fcenedes.github.io/mcp-gmap-rs/fr/llms.txt)
+- [Italiano](https://fcenedes.github.io/mcp-gmap-rs/it/llms.txt)
