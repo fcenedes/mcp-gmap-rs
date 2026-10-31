@@ -1,6 +1,6 @@
 [package]
 name = "mcp-gmap-rs"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2024"
 rust-version = "1.88"
 description = "Standalone Google Maps CLI and MCP server with stdio and Streamable HTTP transports"
@@ -21,6 +21,7 @@ targets = []
 [dependencies]
 anyhow = "1"
 axum = "0.8"
+axum-server = { version = "0.8", features = ["tls-rustls-no-provider"] }
 base64 = "0.23"
 chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
 clap = { version = "4.5", features = ["string", "env"] }
@@ -29,16 +30,19 @@ dotenvy = "0.15"
 futures = "0.3"
 # Later auth SDK versions require a higher Rust minimum.
 google-cloud-auth = "=1.15.0"
+httpdate = "1"
 jsonschema = { version = "0.60", default-features = false }
 reqwest = { version = "0.13", default-features = false, features = ["json", "rustls", "query"] }
 rmcp = { version = "3.8", default-features = false, features = ["server", "transport-io", "transport-streamable-http-server"] }
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
+rustls-pki-types = { version = "1", features = ["std"] }
 serde = { version = "1", features = ["derive", "rc"] }
 serde_json = "1"
 thiserror = "2"
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "signal", "net", "io-util", "io-std", "process", "time"] }
 tokio-util = "0.7"
 tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 
 [profile.release]
 lto = "thin"
@@ -48,4 +52,5 @@ strip = true
 unsafe_code = "forbid"
 
 [dev-dependencies]
+rcgen = "0.14"
 tempfile = "3"

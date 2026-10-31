@@ -68,6 +68,19 @@ impl OAuth {
             .bearer_auth(token.token)
             .header("X-Goog-User-Project", project))
     }
+
+    pub async fn check_local(&self) -> Result<bool> {
+        self.0.quota_project.as_deref().filter(|value| !value.trim().is_empty())
+            .and_then(|value| reqwest::header::HeaderValue::from_str(value).ok())
+            .ok_or_else(|| Error::Input("GOOGLE_CLOUD_QUOTA_PROJECT is required and must be a valid project ID or number".into()))?;
+        let Some(path) = self.0.credentials_file.clone() else {
+            return Ok(false);
+        };
+        tokio::task::spawn_blocking(move || build_credentials(Some(path)))
+            .await
+            .map_err(|_| Error::OAuth)??;
+        Ok(true)
+    }
 }
 
 fn build_credentials(path: Option<PathBuf>) -> Result<AccessTokenCredentials> {

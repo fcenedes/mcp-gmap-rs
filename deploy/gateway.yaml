@@ -1,0 +1,44 @@
+# Requires Gateway API CRDs and an installed GatewayClass/controller.
+# Replace your-gateway-class/maps.example.com and provision mcp-gmap-tls first.
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: mcp-gmap-rs
+spec:
+  gatewayClassName: your-gateway-class
+  listeners:
+    - name: https
+      hostname: maps.example.com
+      port: 443
+      protocol: HTTPS
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - group: ""
+            kind: Secret
+            name: mcp-gmap-tls
+      allowedRoutes:
+        namespaces:
+          from: Same
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: mcp-gmap-rs
+spec:
+  parentRefs:
+    - name: mcp-gmap-rs
+      sectionName: https
+  hostnames:
+    - maps.example.com
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /mcp
+      timeouts:
+        request: "0s"
+        backendRequest: "0s"
+      backendRefs:
+        - name: mcp-gmap-rs
+          port: 3000

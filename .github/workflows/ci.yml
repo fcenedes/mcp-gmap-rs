@@ -142,6 +142,12 @@ jobs:
         run: python3 .github/scripts/smoke-container.py mcp-gmap-rs:ci
       - name: Validate the Kubernetes example
         run: go run github.com/yannh/kubeconform/cmd/kubeconform@v0.8.0 -strict -summary deploy/kubernetes.yaml
+      - name: Validate the optional TLS Gateway API example
+        run: >-
+          go run github.com/yannh/kubeconform/cmd/kubeconform@v0.8.0
+          -strict -summary
+          -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/3eb90d47aba8d61919d4419dd38301536e32a94b/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json'
+          deploy/gateway.yaml
 
   package:
     name: Cargo package verification

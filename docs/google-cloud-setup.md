@@ -19,12 +19,16 @@ The following table describes the endpoints used by this version of the project:
 | [Routes API](https://developers.google.com/maps/documentation/routes/get-api-key) | `routes.googleapis.com` | API key or OAuth |
 | [Weather API](https://developers.google.com/maps/documentation/weather/get-api-key) | `weather.googleapis.com` | API key or OAuth |
 | [Air Quality API](https://developers.google.com/maps/documentation/air-quality/get-api-key) | `airquality.googleapis.com` | API key or OAuth |
+| [Address Validation API](https://developers.google.com/maps/documentation/address-validation/get-api-key) | `addressvalidation.googleapis.com` | API key or OAuth |
+| [Places Aggregate API](https://developers.google.com/maps/documentation/places-aggregate/get-api-key) | `areainsights.googleapis.com` | API key or OAuth |
+| [Pollen API](https://developers.google.com/maps/documentation/pollen/get-api-key) | `pollen.googleapis.com` | API key |
+| [Roads API](https://developers.google.com/maps/documentation/roads/get-api-key) | `roads.googleapis.com` | API key |
 | [Geocoding API v3](https://developers.google.com/maps/documentation/geocoding/guides-v3/get-api-key) | `geocoding-backend.googleapis.com` | API key |
 | [Elevation API](https://developers.google.com/maps/documentation/elevation/get-api-key) | `elevation-backend.googleapis.com` | API key |
 | [Time Zone API](https://developers.google.com/maps/documentation/timezone/get-api-key) | `timezone-backend.googleapis.com` | API key |
 | [Maps Static API](https://developers.google.com/maps/documentation/maps-static/get-api-key) | `static-maps-backend.googleapis.com` | API key |
 
-To enable all eight with an administrator's `gcloud` login:
+To enable all twelve with an administrator's `gcloud` login:
 
 ```sh
 export PROJECT_ID='your-project-id'
@@ -32,7 +36,9 @@ gcloud services enable --project="$PROJECT_ID" \
   places.googleapis.com routes.googleapis.com \
   weather.googleapis.com airquality.googleapis.com \
   geocoding-backend.googleapis.com elevation-backend.googleapis.com \
-  timezone-backend.googleapis.com static-maps-backend.googleapis.com
+  timezone-backend.googleapis.com static-maps-backend.googleapis.com \
+  addressvalidation.googleapis.com areainsights.googleapis.com \
+  pollen.googleapis.com roads.googleapis.com
 ```
 
 The CLI's `directions` and `distance-matrix` tools use **Routes API**, so the
@@ -73,7 +79,8 @@ mcp-gmap-rs geocode --address 'Paris, France'
 
 ## 3. Service accounts and OAuth 2.0
 
-In OAuth mode, Places (New), Routes, Weather and Air Quality requests receive an
+In OAuth mode, Places (New), Routes, Weather, Air Quality, Address Validation and
+Places Aggregate requests receive an
 OAuth **access token** and an `X-Goog-User-Project` header. This project requests
 the `https://www.googleapis.com/auth/cloud-platform` scope documented by those
 APIs. Google’s Rust auth library obtains, caches and refreshes the tokens.
@@ -125,7 +132,7 @@ For a mounted file, the equivalent `.env` is:
 GOOGLE_MAPS_AUTH_MODE=oauth
 GOOGLE_APPLICATION_CREDENTIALS=/credentials/service-account.json
 GOOGLE_CLOUD_QUOTA_PROJECT=your-project-id
-# Optional, for Geocoding v3 / Elevation / Time Zone / Static Maps:
+# Optional, for Geocoding v3 / Elevation / Time Zone / Static Maps / Pollen / Roads:
 # GOOGLE_MAPS_API_KEY=your-restricted-api-key
 ```
 
@@ -222,14 +229,19 @@ These are real, potentially billable calls. Check the effective mode and quota
 project when testing; OAuth billing uses `GOOGLE_CLOUD_QUOTA_PROJECT`, while
 key-authenticated calls use the key's project. The projects may differ.
 
-With OAuth variables exported, run the four opt-in live acceptance tests with:
+Use `mcp-gmap-rs doctor` for offline configuration checks, or `doctor --live` for
+explicitly billable API probes. The [production guide](production.md) describes
+the report and tool filtering.
+
+With OAuth variables exported, run the six opt-in live acceptance tests with:
 
 ```sh
 cargo test --locked --test live live_oauth_ -- --ignored --test-threads=1
 ```
 
 These tests explicitly remove the API key from each child process, so a passing
-test exercises OAuth. They cover Places, Routes, Weather and Air Quality and
+test exercises OAuth. They cover Places, Routes, Weather, Air Quality, Address
+Validation and Places Aggregate and
 require their APIs enabled. They do not load `.env`; export the OAuth settings
 or run in a configured workload. Ordinary tests/CI use local token/API fixtures
 and do not require a service account or contact Google.

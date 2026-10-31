@@ -4,7 +4,11 @@ use reqwest::{Client, Method, RequestBuilder, Response};
 use serde_json::{Value, json};
 use tokio::sync::Semaphore;
 
-use crate::auth::OAuth;
+use crate::{
+    auth::OAuth,
+    metrics::Metrics,
+    policy::{CallBudget, ClientPolicy},
+};
 
 pub(crate) type Result<T> = std::result::Result<T, Error>;
 
@@ -28,6 +32,10 @@ pub(crate) enum Error {
     Network,
     #[error("Google API returned an invalid or oversized response")]
     Response,
+    #[error("Google request budget for this tool call was exhausted")]
+    Budget,
+    #[error("Tool execution deadline exceeded")]
+    ToolTimeout,
 }
 
 #[derive(Clone)]
@@ -37,6 +45,10 @@ pub(crate) struct MapsClient {
     pub oauth: Option<OAuth>,
     pub language: Arc<str>,
     permits: Arc<Semaphore>,
+    pub metrics: Arc<Metrics>,
+    pub policy: ClientPolicy,
+    timeout: Duration,
+    budget: Option<Arc<CallBudget>>,
     #[cfg(test)]
     pub test_base: Option<String>,
 }
@@ -56,9 +68,23 @@ impl MapsClient {
             oauth: None,
             language: language.into(),
             permits: Arc::new(Semaphore::new(5)),
+            metrics: Arc::default(),
+            policy: ClientPolicy::default(),
+            timeout,
+            budget: None,
             #[cfg(test)]
             test_base: None,
         })
+    }
+
+    pub fn for_call(&self) -> Self {
+        let mut client = self.clone();
+        client.budget = Some(Arc::new(CallBudget::new(self.policy.max_requests)));
+        client
+    }
+
+    pub fn has_key(&self) -> bool {
+        self.key.is_some()
     }
 
     pub fn redact(&self, message: &str) -> String {
@@ -76,6 +102,8 @@ impl MapsClient {
                     | "routes.googleapis.com"
                     | "weather.googleapis.com"
                     | "airquality.googleapis.com"
+                    | "addressvalidation.googleapis.com"
+                    | "areainsights.googleapis.com"
             )
     }
 
@@ -142,10 +170,7 @@ impl MapsClient {
                 None => message,
             }
         };
-        let _permit = self.permits.acquire().await.map_err(|_| Error::Network)?;
-        let response = self.http.execute(request).await.map_err(network_error)?;
-        let status = response.status();
-        let bytes = bounded_body(response).await?;
+        let (status, bytes) = self.send(request).await?;
         let data: Value = serde_json::from_slice(&bytes).map_err(|_| Error::Response)?;
         if !status.is_success() || data.get("error").is_some() {
             let message = data
@@ -182,16 +207,77 @@ impl MapsClient {
                 "static map URL exceeds 16,384 characters".into(),
             ));
         }
-        let _permit = self.permits.acquire().await.map_err(|_| Error::Network)?;
-        let response = self.http.execute(request).await.map_err(network_error)?;
-        if !response.status().is_success() {
-            return Err(Error::Api(format!("static map HTTP {}", response.status())));
+        let (status, bytes) = self.send(request).await?;
+        if !status.is_success() {
+            return Err(Error::Api(format!("static map HTTP {status}")));
         }
-        let bytes = bounded_body(response).await?;
         if !bytes.starts_with(b"\x89PNG\r\n\x1a\n") {
             return Err(Error::Api("static map response was not a PNG image".into()));
         }
         Ok(bytes)
+    }
+
+    async fn send(&self, request: reqwest::Request) -> Result<(reqwest::StatusCode, Vec<u8>)> {
+        tokio::time::timeout(self.timeout, self.send_with_retries(request))
+            .await
+            .map_err(|_| Error::Timeout)?
+    }
+
+    async fn send_with_retries(
+        &self,
+        request: reqwest::Request,
+    ) -> Result<(reqwest::StatusCode, Vec<u8>)> {
+        let api = request.url().host_str().unwrap_or("unknown");
+        for attempt in 0..=self.policy.max_retries {
+            let retry_request = request.try_clone().ok_or(Error::Network)?;
+            let permit = self.permits.acquire().await.map_err(|_| Error::Network)?;
+            if let Some(budget) = &self.budget {
+                budget.take()?;
+            }
+            let response = self.http.execute(retry_request).await;
+            let delay = match response {
+                Ok(response) => {
+                    let status = response.status();
+                    self.metrics.upstream(api, status.as_str());
+                    let delay = response
+                        .headers()
+                        .get(reqwest::header::RETRY_AFTER)
+                        .and_then(|value| value.to_str().ok())
+                        .and_then(retry_after);
+                    let bytes = bounded_body(response).await?;
+                    if attempt == self.policy.max_retries
+                        || !matches!(status.as_u16(), 429 | 500 | 502 | 503 | 504)
+                    {
+                        return Ok((status, bytes));
+                    }
+                    delay
+                }
+                Err(error) => {
+                    self.metrics.upstream(
+                        api,
+                        if error.is_timeout() {
+                            "timeout"
+                        } else {
+                            "network"
+                        },
+                    );
+                    if attempt == self.policy.max_retries {
+                        return Err(network_error(error));
+                    }
+                    None
+                }
+            };
+            drop(permit);
+            let jitter = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .subsec_nanos()
+                % 100;
+            let backoff =
+                Duration::from_millis(100 * (1_u64 << attempt.min(5)) + u64::from(jitter));
+            tokio::time::sleep(delay.unwrap_or(backoff)).await;
+        }
+        Err(Error::Network)
     }
 
     pub async fn geocode(&self, address: &str) -> Result<Value> {
@@ -279,6 +365,19 @@ impl MapsClient {
         }
         Ok(place)
     }
+}
+
+fn retry_after(value: &str) -> Option<Duration> {
+    value
+        .parse::<u64>()
+        .ok()
+        .map(Duration::from_secs)
+        .or_else(|| {
+            httpdate::parse_http_date(value).ok().map(|date| {
+                date.duration_since(std::time::SystemTime::now())
+                    .unwrap_or_default()
+            })
+        })
 }
 
 fn network_error(error: reqwest::Error) -> Error {

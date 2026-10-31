@@ -30,14 +30,36 @@ pub(crate) struct EngineState {
 
 impl EngineState {
     pub async fn call(&self, name: &str, args: Value) -> Result<Output> {
-        self.catalog.get(name)?.validate(&args)?;
-        self.client.execute(name, &args).await
+        let definition = self.catalog.get(name)?;
+        let start = std::time::Instant::now();
+        let result = async {
+            definition.validate(&args)?;
+            let client = self.client.for_call();
+            tokio::time::timeout(client.policy.tool_timeout, client.execute(name, &args))
+                .await
+                .map_err(|_| Error::ToolTimeout)?
+        }
+        .await;
+        let elapsed = start.elapsed();
+        self.client.metrics.tool(name, result.is_ok(), elapsed);
+        tracing::info!(
+            tool = name,
+            success = result.is_ok(),
+            duration_ms = elapsed.as_millis() as u64,
+            "tool completed"
+        );
+        result
     }
 }
 
 impl MapsClient {
     async fn execute(&self, name: &str, a: &Value) -> Result<Output> {
         let value = match name {
+            "maps_validate_address" => self.validate_address(a).await?,
+            "maps_pollen" => self.pollen(a).await?,
+            "maps_area_insights" => self.area_insights(a).await?,
+            "maps_snap_to_roads" => self.roads(a, true).await?,
+            "maps_nearest_roads" => self.roads(a, false).await?,
             "maps_geocode" => self.geocode(text(a, "address")).await?,
             "maps_reverse_geocode" => {
                 let data = self

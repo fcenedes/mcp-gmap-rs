@@ -115,3 +115,14 @@ example are starting values to tune for your workload.
 
 SIGTERM triggers graceful MCP/HTTP shutdown; Kubernetes allows 30 seconds in the
 example. The image also runs with dropped capabilities and no privilege escalation.
+
+## Production HTTPS, metrics and limits
+
+The [production guide](production.md) covers native TLS/mTLS, certificate reload,
+the optional `deploy/gateway.yaml` HTTPS Gateway, metrics, request budgets, HTTP
+rate limits, JSON logs and offline/live `doctor` checks. Pass the same TLS flags
+after the image name, or inject `MCP_TLS_CERT`, `MCP_TLS_KEY` and optional
+`MCP_TLS_CLIENT_CA` with read-only PEM mounts. Keep all real keys outside the image.
+The default ConfigMap sets request limits and JSON logging; metrics remain off
+until explicitly enabled. Its default plaintext Service is intended for the
+private gateway-to-pod hop.

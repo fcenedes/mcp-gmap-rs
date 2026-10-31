@@ -33,6 +33,8 @@ rustc-ice-*.txt
 /service-account*.json
 /application_default_credentials.json
 /sa_key.json
+/tls/
+*.key
 
 # Release archives and Python build-tool caches
 /dist/

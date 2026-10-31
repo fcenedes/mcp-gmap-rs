@@ -85,7 +85,7 @@ async fn defaults_work_without_a_file_and_parent_dotenv_files_are_not_searched()
             .as_array()
             .unwrap()
             .len(),
-        18
+        23
     );
 }
 
@@ -134,7 +134,7 @@ async fn explicit_file_selection_and_disabling_are_respected() {
             .as_array()
             .unwrap()
             .len(),
-        18
+        23
     );
     let missing = binary(directory.path())
         .args(["--env-file", "missing.env", "tools"])

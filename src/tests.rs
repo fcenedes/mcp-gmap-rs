@@ -24,6 +24,9 @@ use crate::{
     tools::{EngineState, Output},
 };
 
+#[path = "tests_v03.rs"]
+mod production;
+
 #[derive(Clone, Debug)]
 struct Record {
     path: String,
@@ -33,11 +36,14 @@ struct Record {
 }
 
 type Overrides = HashMap<String, (StatusCode, Value)>;
+type Queued =
+    HashMap<String, std::collections::VecDeque<(StatusCode, Value, Option<&'static str>)>>;
 
 #[derive(Clone, Default)]
 struct FixtureState {
     records: Arc<Mutex<Vec<Record>>>,
     overrides: Arc<Mutex<Overrides>>,
+    queued: Arc<Mutex<Queued>>,
 }
 
 struct Fixture {
@@ -70,6 +76,7 @@ impl Fixture {
         )
         .unwrap();
         client.test_base = Some(format!("http://{address}"));
+        client.policy.max_retries = 0;
         Self {
             engine: EngineState {
                 client,
@@ -136,6 +143,21 @@ async fn google(
         body: body.clone(),
     });
     let override_response = state.overrides.lock().unwrap().get(path).cloned();
+    let queued = state
+        .queued
+        .lock()
+        .unwrap()
+        .get_mut(path)
+        .and_then(|queue| queue.pop_front());
+    if let Some((status, value, retry_after)) = queued {
+        let mut response = (status, axum::Json(value)).into_response();
+        if let Some(value) = retry_after {
+            response
+                .headers_mut()
+                .insert("retry-after", value.parse().unwrap());
+        }
+        return response;
+    }
     if let Some((status, value)) = override_response {
         return (status, axum::Json(value)).into_response();
     }
@@ -165,6 +187,10 @@ async fn google(
         "/weather.googleapis.com/v1/forecast/days:lookup"=>json!({"forecastDays":[{"displayDate":{"year":2026,"month":10,"day":30}}]}),
         "/weather.googleapis.com/v1/forecast/hours:lookup"=>json!({"forecastHours":[{"temperature":{"degrees":18}}]}),
         "/airquality.googleapis.com/v1/currentConditions:lookup"=>json!({"indexes":[{"aqi":80}],"healthRecommendations":{"generalPopulation":"Enjoy outside"}}),
+        "/addressvalidation.googleapis.com/v1:validateAddress"=>json!({"result":{"verdict":{"addressComplete":true},"address":{"formattedAddress":"5 Avenue Anatole France, 75007 Paris, France"}},"responseId":"fixture-validation"}),
+        "/pollen.googleapis.com/v1/forecast:lookup"=>json!({"regionCode":"FR","dailyInfo":[{"date":{"year":2026,"month":10,"day":31},"pollenTypeInfo":[{"code":"GRASS","indexInfo":{"value":1}}]}]}),
+        "/areainsights.googleapis.com/v1:computeInsights"=>json!({"count":"42","placeInsights":[{"place":"places/p1"}]}),
+        "/roads.googleapis.com/v1/snapToRoads" | "/roads.googleapis.com/v1/nearestRoads"=>json!({"snappedPoints":[{"location":{"latitude":48.85,"longitude":2.35},"originalIndex":0,"placeId":"road1"}],"warningMessage":"fixture attribution"}),
         "/maps.googleapis.com/maps/api/staticmap"=>return ([("content-type","image/png")],b"\x89PNG\r\n\x1a\nfixture".to_vec()).into_response(),
         _=>return (StatusCode::NOT_FOUND,axum::Json(json!({"error":{"message":format!("unhandled fixture {path}")}}))).into_response(),
     };
@@ -172,9 +198,9 @@ async fn google(
 }
 
 #[test]
-fn catalog_has_all_18_tools_and_rejects_bad_filters() {
+fn catalog_has_all_23_tools_and_rejects_bad_filters() {
     let catalog = Catalog::new(None).unwrap();
-    assert_eq!(catalog.iter().count(), 18);
+    assert_eq!(catalog.iter().count(), 23);
     assert_eq!(
         Catalog::new(Some("maps_geocode,maps_weather"))
             .unwrap()
@@ -761,6 +787,9 @@ async fn streamable_http_supports_sessions_tools_calls_auth_and_origin_checks() 
         token: Some("http-secret".into()),
         allowed_hosts: vec![],
         allowed_origins: vec![],
+        rate_limit: 0,
+        metrics: true,
+        tls: None,
     };
     let app = http_router(fixture.engine.clone(), &options, cancellation.clone());
     let task = tokio::spawn(async move {
@@ -853,7 +882,7 @@ async fn streamable_http_supports_sessions_tools_calls_auth_and_origin_checks() 
             .await
             .unwrap(),
     );
-    assert_eq!(tools["result"]["tools"].as_array().unwrap().len(), 18);
+    assert_eq!(tools["result"]["tools"].as_array().unwrap().len(), 23);
     let geocode = decode_rpc(
         &request(rpc(
             3,
@@ -928,7 +957,7 @@ async fn streamable_http_supports_sessions_tools_calls_auth_and_origin_checks() 
         let result = decode_rpc(&body);
         assert!(result.get("error").is_none(), "{result}");
         if method == "tools/list" {
-            assert_eq!(result["result"]["tools"].as_array().unwrap().len(), 18);
+            assert_eq!(result["result"]["tools"].as_array().unwrap().len(), 23);
         }
     }
     cancellation.cancel();

@@ -1,4 +1,8 @@
-use std::{net::SocketAddr, sync::Arc};
+use std::{
+    net::SocketAddr,
+    sync::{Arc, atomic::Ordering},
+    time::Duration,
+};
 
 use axum::{
     Router,
@@ -27,7 +31,12 @@ use rmcp::{
 use tokio::net::TcpListener;
 use tokio_util::sync::CancellationToken;
 
-use crate::tools::{EngineState, Output};
+use crate::{
+    metrics::Metrics,
+    policy::RateLimit,
+    tls::{self, TlsFiles},
+    tools::{EngineState, Output},
+};
 
 #[derive(Clone)]
 pub(crate) struct MapsServer(pub EngineState);
@@ -94,6 +103,15 @@ pub(crate) struct HttpOptions {
     pub token: Option<String>,
     pub allowed_hosts: Vec<String>,
     pub allowed_origins: Vec<String>,
+    pub rate_limit: u32,
+    pub metrics: bool,
+    pub tls: Option<TlsFiles>,
+}
+
+struct HttpState {
+    token: Option<String>,
+    limit: RateLimit,
+    metrics: Arc<Metrics>,
 }
 
 pub(crate) fn http_router(
@@ -101,6 +119,12 @@ pub(crate) fn http_router(
     options: &HttpOptions,
     cancellation: CancellationToken,
 ) -> Router {
+    let metrics = engine.client.metrics.clone();
+    let state = Arc::new(HttpState {
+        token: options.token.clone(),
+        limit: RateLimit::new(options.rate_limit),
+        metrics: metrics.clone(),
+    });
     let mut config = StreamableHttpServerConfig::default()
         .with_allowed_origins(options.allowed_origins.clone())
         .enforce_origin_validation();
@@ -116,12 +140,28 @@ pub(crate) fn http_router(
     );
     let mcp = Router::new()
         .nest_service("/mcp", service)
-        .layer(middleware::from_fn_with_state(
-            Arc::new(options.token.clone()),
-            authorize,
-        ));
+        .layer(middleware::from_fn_with_state(state.clone(), rate_limit));
+    let protected = if options.metrics {
+        mcp.route(
+            "/metrics",
+            get(move || {
+                let metrics = metrics.clone();
+                async move {
+                    (
+                        [(
+                            header::CONTENT_TYPE,
+                            "text/plain; version=0.0.4; charset=utf-8",
+                        )],
+                        metrics.render(),
+                    )
+                }
+            }),
+        )
+    } else {
+        mcp
+    };
     Router::new()
-        .merge(mcp)
+        .merge(protected.layer(middleware::from_fn_with_state(state, authorize)))
         .route("/health", get(|| async { "ok" }))
 }
 
@@ -133,6 +173,28 @@ pub(crate) async fn serve_http(engine: EngineState, options: HttpOptions) -> any
     let address = listener.local_addr()?;
     let cancellation = CancellationToken::new();
     let app = http_router(engine, &options, cancellation.clone());
+    if let Some(files) = options.tls {
+        let config = axum_server::tls_rustls::RustlsConfig::from_config(files.load().await?);
+        let reload = tls::spawn_reload(files, config.clone(), cancellation.clone())?;
+        let handle = axum_server::Handle::new();
+        let server = axum_server::from_tcp_rustls(listener.into_std()?, config)?
+            .handle(handle.clone())
+            .serve(app.into_make_service());
+        tokio::pin!(server);
+        eprintln!("MCP Streamable HTTP listening on https://{address}/mcp");
+        let result = tokio::select! {
+            result = &mut server => result,
+            _ = shutdown_signal() => {
+                cancellation.cancel();
+                handle.graceful_shutdown(Some(Duration::from_secs(25)));
+                server.await
+            }
+        };
+        cancellation.cancel();
+        reload.abort();
+        result?;
+        return Ok(());
+    }
     eprintln!("MCP Streamable HTTP listening on http://{address}/mcp");
     axum::serve(listener, app)
         .with_graceful_shutdown(async move {
@@ -144,11 +206,11 @@ pub(crate) async fn serve_http(engine: EngineState, options: HttpOptions) -> any
 }
 
 async fn authorize(
-    State(token): State<Arc<Option<String>>>,
+    State(state): State<Arc<HttpState>>,
     request: Request<Body>,
     next: Next,
 ) -> Response {
-    if let Some(token) = token.as_ref() {
+    if let Some(token) = &state.token {
         let provided = request
             .headers()
             .get(header::AUTHORIZATION)
@@ -162,6 +224,23 @@ async fn authorize(
             )
                 .into_response();
         }
+    }
+    next.run(request).await
+}
+
+async fn rate_limit(
+    State(state): State<Arc<HttpState>>,
+    request: Request<Body>,
+    next: Next,
+) -> Response {
+    if let Some(seconds) = state.limit.check() {
+        state.metrics.rate_limited.fetch_add(1, Ordering::Relaxed);
+        return (
+            StatusCode::TOO_MANY_REQUESTS,
+            [(header::RETRY_AFTER, seconds.to_string())],
+            "HTTP request rate limit exceeded",
+        )
+            .into_response();
     }
     next.run(request).await
 }

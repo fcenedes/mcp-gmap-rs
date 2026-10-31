@@ -43,7 +43,7 @@ export GOOGLE_MAPS_API_KEY='your-key'
 
 Enable billing and the Google APIs used by your tools: Places API (New),
 Geocoding API, Routes API, Elevation API, Time Zone API, Maps Static API,
-Weather API, and Air Quality API. You only need APIs for tools you actually call.
+Weather API, Air Quality API, Address Validation API, Pollen API, Places Aggregate API and Roads API. You only need APIs for tools you actually call.
 Calls can incur charges; composite tools make multiple API requests. Availability
 and travel-mode coverage depend on Google and the region.
 
@@ -70,7 +70,7 @@ disables all file loading. Files are parsed without modifying the process enviro
 | Variable | Default | Purpose |
 | --- | --- | --- |
 | `GOOGLE_MAPS_API_KEY` | unset | Server/CLI credential for Google API calls |
-| `GOOGLE_MAPS_AUTH_MODE` | `api-key` | `api-key` or `oauth`; OAuth is used for Places (New), Routes, Weather and Air Quality |
+| `GOOGLE_MAPS_AUTH_MODE` | `api-key` | `api-key` or `oauth`; OAuth is used for Places (New), Routes, Weather, Air Quality, Address Validation and Places Aggregate |
 | `GOOGLE_APPLICATION_CREDENTIALS` | ADC discovery | Path to service-account or other supported ADC JSON credentials |
 | `GOOGLE_CLOUD_QUOTA_PROJECT` | unset | Required Maps billing/quota project ID or number for OAuth requests |
 | `GOOGLE_MAPS_LANGUAGE` | `en` | Google response language |
@@ -93,12 +93,13 @@ inspection work without credentials; actual API calls need credentials supported
 by the selected endpoints.
 
 In OAuth mode, keep `GOOGLE_MAPS_API_KEY` for the current Geocoding v3, Elevation,
-Time Zone and Static Maps endpoints if used. Composite/location-resolution flows
+Time Zone, Static Maps, Pollen and Roads endpoints if used. Composite/location-resolution flows
 may need both credential types. OAuth-supported calls send a cached/refreshed
 access token and quota project, with no API key; an OAuth failure does not retry
 using a key. Google OAuth configures outbound Google access independently of
 the MCP server's `MCP_HTTP_TOKEN`.
 
+For TLS/mTLS, metrics, limits and diagnostics, see the [production guide](docs/production.md).
 For containers and Kubernetes Secrets/ConfigMaps, see the
 [Docker and Kubernetes guide](docs/containers.md) and [Dockerfile](Dockerfile).
 
@@ -189,8 +190,10 @@ Clients send `Authorization: Bearer <MCP_HTTP_TOKEN>`. The server defaults to
 loopback Host values and rejects any present Origin header unless explicitly
 allowed. Repeat `--allowed-host` / `--allowed-origin` for additional values.
 The proxy must forward a permitted Host and preserve authorization and MCP/SSE
-headers. TLS termination and external identity/OAuth are deployment concerns;
-this executable implements a configured bearer token, not an OAuth provider.
+headers. Native TLS/mTLS and a Kubernetes TLS gateway example are documented in the
+[production guide](docs/production.md), together with rate limits, request budgets,
+metrics, JSON logs and `doctor`. External identity/OAuth remains a deployment concern;
+this executable authenticates HTTP clients with a configured bearer token.
 It uses one Google key per process; run separate instances for separate Google
 credentials. Request bodies are limited to 1 MiB. Ctrl-C and SIGTERM shut down
 the server and active HTTP sessions.
@@ -200,6 +203,11 @@ the server and active HTTP sessions.
 | MCP tool | CLI command |
 | --- | --- |
 | `maps_geocode` | `geocode` |
+| `maps_validate_address` | `validate-address` |
+| `maps_pollen` | `pollen` |
+| `maps_area_insights` | `area-insights` |
+| `maps_snap_to_roads` | `snap-to-roads` |
+| `maps_nearest_roads` | `nearest-roads` |
 | `maps_reverse_geocode` | `reverse-geocode` |
 | `maps_search_places` | `search-places` |
 | `maps_search_nearby` | `search-nearby` |
@@ -233,11 +241,11 @@ cargo test --locked
 cargo build --release --locked
 ```
 
-The default tests use a local Google API fixture and exercise all 18 tools, CLI
+The default tests use a local Google API fixture and exercise all 23 tools, CLI
 subprocesses, stdio initialization and tool calls, plus HTTP sessions, auth, origin
 validation, and image responses. They make no live Google calls and require no key.
 
-There are also 18 opt-in live acceptance tests in `tests/live.rs`, one for each
+There are also 23 opt-in live acceptance tests in `tests/live.rs`, one for each
 tool. They check returned data, photo URLs, PNG dimensions, optimized route
 endpoints, matrix entries, all nine rank-grid searches, and nested composite
 errors. The weather test covers current conditions and daily/hourly forecasts.
@@ -248,8 +256,8 @@ APIs, billing and network access, and make billable Google requests:
 cargo test --locked --test live -- --ignored --test-threads=1
 ```
 
-Four additional opt-in tests exercise OAuth on Places, Routes, Weather and Air
-Quality with the API key removed. See the [OAuth validation instructions](docs/google-cloud-setup.md#4-verify-and-troubleshoot).
+Six additional opt-in tests exercise OAuth on Places, Routes, Weather, Air
+Quality, Address Validation and Places Aggregate with the API key removed. See the [OAuth validation instructions](docs/google-cloud-setup.md#4-verify-and-troubleshoot).
 
 Live tests are ignored in ordinary `cargo test` and CI runs. Run a single tool
 with, for example, `cargo test --locked --test live live_maps_weather -- --ignored`.

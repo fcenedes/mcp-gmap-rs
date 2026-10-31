@@ -7,6 +7,12 @@ data:
   MCP_HTTP_ALLOWED_HOSTS: "mcp-gmap-rs:3000,mcp-gmap-rs.default.svc.cluster.local:3000,localhost:3000,127.0.0.1:3000"
   GOOGLE_MAPS_LANGUAGE: "en"
   GOOGLE_MAPS_TIMEOUT: "30"
+  GOOGLE_MAPS_MAX_REQUESTS: "200"
+  GOOGLE_MAPS_MAX_RETRIES: "2"
+  GOOGLE_MAPS_TOOL_TIMEOUT: "120"
+  MCP_HTTP_RATE_LIMIT: "120"
+  MCP_METRICS_ENABLED: "false"
+  MCP_LOG_FORMAT: "json"
   RUST_LOG: "warn"
 ---
 apiVersion: apps/v1
