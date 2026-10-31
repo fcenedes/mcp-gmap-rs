@@ -1,0 +1,941 @@
+{
+  "maps_geocode": {
+    "purpose": "住所・ランドマークを最初の Geocoding 一致結果へ解決し、再利用できる座標と場所 ID を取得します。郵便の配達可能性は検証しません。",
+    "parameters": {
+      "address": {
+        "description": "ジオコーディングする住所・都市・ランドマーク。",
+        "default": "—"
+      }
+    },
+    "result": "`location.lat`、`location.lng`、`formatted_address`、`place_id` を持つオブジェクトです。最初の結果だけを返します。",
+    "example": {
+      "address": "Eiffel Tower, Paris, France"
+    },
+    "notes": [
+      "一致なしは空の成功結果ではなくツールエラーです。",
+      "この直接ツールは Geocoding v3 を使います。Places へのフォールバックは場所解決を行う複合ツール用で、この呼び出しでは使いません。"
+    ],
+    "authentication": "この実装では API キーが必要です。",
+    "summary": "住所・ランドマークを座標に変換します。"
+  },
+  "maps_validate_address": {
+    "purpose": "郵便住所の構成要素を検証し、修正、標準化住所、Google の判定を返します。判定と未解決要素を呼び出し側に表示してください。",
+    "parameters": {
+      "addressLines": {
+        "description": "順序付きの 1 行以上の郵便住所。",
+        "default": "—"
+      },
+      "regionCode": {
+        "description": "大文字 2 文字の国・地域コード。住所の曖昧さを避けるため指定を推奨します。",
+        "default": "未指定。Google が推測する場合があります"
+      },
+      "locality": {
+        "description": "都市または地域。",
+        "default": "未指定"
+      },
+      "administrativeArea": {
+        "description": "州・県など対応する行政区域。",
+        "default": "未指定"
+      },
+      "postalCode": {
+        "description": "郵便番号・ZIP コード。",
+        "default": "未指定"
+      },
+      "enableUspsCass": {
+        "description": "USPS CASS 処理を要求します。この実装では true の場合 regionCode が US または PR である必要があります。",
+        "default": "false"
+      }
+    },
+    "result": "通常 `result.verdict`、`result.address`、`result.geocode`、`responseId` を含む完全な検証応答です。利用できない項目は省略される場合があります。",
+    "example": {
+      "addressLines": [
+        "5 Avenue Anatole France"
+      ],
+      "regionCode": "FR",
+      "locality": "Paris",
+      "postalCode": "75007"
+    },
+    "notes": [
+      "検証判定は配送を保証しません。",
+      "地域・API の対応範囲は異なります。検証フィードバックの送信や修正の自動承認は行いません。"
+    ],
+    "authentication": "主 API は API キーまたは OAuth に対応します。",
+    "summary": "郵便住所を検証・標準化し、Google の判定、修正、構成要素、座標を返します。配送の保証ではありません。"
+  },
+  "maps_pollen": {
+    "purpose": "正確な座標の日別短期花粉予報を取得し、花粉タイプ、指数、植物情報、提供者の助言を保持します。",
+    "parameters": {
+      "latitude": {
+        "description": "WGS84 の緯度（十進度）。北が正です。",
+        "default": "—"
+      },
+      "longitude": {
+        "description": "WGS84 の経度（十進度）。東が正です。",
+        "default": "—"
+      },
+      "days": {
+        "description": "要求する日別予報の件数。",
+        "default": "1"
+      },
+      "plantsDescription": {
+        "description": "利用可能な場合に植物の詳細説明と関連情報を含めます。",
+        "default": "false"
+      }
+    },
+    "result": "`regionCode`、`dailyInfo`、任意の `nextPageToken` を含む元の Pollen 応答です。日ごとに花粉タイプや植物情報を含みます。",
+    "example": {
+      "latitude": 48.8584,
+      "longitude": 2.2945,
+      "days": 3,
+      "plantsDescription": false
+    },
+    "notes": [
+      "ページサイズ 5 で要求し、ツールの最大 5 日分を収容します。追加ページは自動取得しません。",
+      "利用可能性は場所、季節、Google の対応範囲によります。"
+    ],
+    "authentication": "この実装では API キーが必要です。",
+    "summary": "正確な座標の 1–5 日分の花粉予報、指数、健康上の助言を取得します。対応範囲は場所・季節によります。"
+  },
+  "maps_area_insights": {
+    "purpose": "Places Aggregate で円・地域・多角形内の一致する場所を集計します。限定された Places 検索ページの件数でなく集計クエリです。",
+    "parameters": {
+      "area": {
+        "description": "circle、region、customArea のうちちょうど 1 つ。",
+        "default": "—"
+      },
+      "area.circle": {
+        "description": "円形領域。region・customArea と排他的です。",
+        "default": "未指定"
+      },
+      "area.circle.latLng": {
+        "description": "円の中心の正確な座標。",
+        "default": "—"
+      },
+      "area.circle.latLng.latitude": {
+        "description": "WGS84 の緯度（十進度）。北が正です。",
+        "default": "—"
+      },
+      "area.circle.latLng.longitude": {
+        "description": "WGS84 の経度（十進度）。東が正です。",
+        "default": "—"
+      },
+      "area.circle.radius": {
+        "description": "円の半径（メートル）。",
+        "default": "—"
+      },
+      "area.region": {
+        "description": "Google の場所リソースで識別する行政・地理領域。",
+        "default": "未指定"
+      },
+      "area.region.place": {
+        "description": "自由記述の地域名でなく places/PLACE_ID 形式の領域リソース。",
+        "default": "—"
+      },
+      "area.customArea": {
+        "description": "カスタム多角形領域。circle・region と排他的です。",
+        "default": "未指定"
+      },
+      "area.customArea.polygon": {
+        "description": "多角形の境界。",
+        "default": "—"
+      },
+      "area.customArea.polygon.coordinates": {
+        "description": "順序付き座標オブジェクトのリング。始点・終点は一致する必要があります。",
+        "default": "—"
+      },
+      "area.customArea.polygon.coordinates[].latitude": {
+        "description": "WGS84 の緯度（十進度）。北が正です。",
+        "default": "—"
+      },
+      "area.customArea.polygon.coordinates[].longitude": {
+        "description": "WGS84 の経度（十進度）。東が正です。",
+        "default": "—"
+      },
+      "includedTypes": {
+        "description": "対象に含める Google 場所タイプ。例：restaurant、cafe。",
+        "default": "—"
+      },
+      "excludedTypes": {
+        "description": "除外する Google 場所タイプ。",
+        "default": "除外タイプの制限なし"
+      },
+      "includePlaces": {
+        "description": "件数に加えて一致する場所リソース ID を要求します。",
+        "default": "false"
+      },
+      "minRating": {
+        "description": "境界を含む評価下限。maxRating を超えられません。",
+        "default": "評価の下限なし"
+      },
+      "maxRating": {
+        "description": "境界を含む評価上限。",
+        "default": "評価の上限なし"
+      },
+      "operatingStatus": {
+        "description": "Google の事業の稼働状態フィルタ。開店時間や openNow のフィルタではありません。",
+        "default": "Google は既定で事業を継続している場所（operational）を対象にします"
+      },
+      "priceLevels": {
+        "description": "許可する価格帯。",
+        "default": "すべての価格帯"
+      }
+    },
+    "result": "`count`（通常は int64 文字列）と、ID を要求して取得できた場合の `placeInsights[].place` リソースを含む Google 応答です。",
+    "example": {
+      "area": {
+        "circle": {
+          "latLng": {
+            "latitude": 48.8584,
+            "longitude": 2.2945
+          },
+          "radius": 500
+        }
+      },
+      "includedTypes": [
+        "restaurant"
+      ],
+      "minRating": 4
+    },
+    "notes": [
+      "領域形式はちょうど 1 種類指定します。CLI の入れ子オブジェクトは JSON で、子項目に個別オプションはありません。",
+      "多角形リングは閉じる必要があります。Google は形状、対応タイプ、面積、対応地域も確認します。",
+      "場所 ID は件数が 100 以下の場合のみ取得できます。Place Details は自動要求しません。"
+    ],
+    "authentication": "主 API は API キーまたは OAuth に対応します。",
+    "summary": "Places Aggregate で円・地域・多角形内の場所を集計します。100 件以下では ID を取得でき、詳細は自動照会しません。"
+  },
+  "maps_snap_to_roads": {
+    "purpose": "順序付き GPS 軌跡を最も可能性の高い道路形状に対応付けます。独立した点には走行経路としてでなく Nearest Roads を使ってください。",
+    "parameters": {
+      "path": {
+        "description": "移動順の GPS 座標オブジェクト。",
+        "default": "—"
+      },
+      "path[].latitude": {
+        "description": "WGS84 の緯度（十進度）。北が正です。",
+        "default": "—"
+      },
+      "path[].longitude": {
+        "description": "WGS84 の経度（十進度）。東が正です。",
+        "default": "—"
+      },
+      "interpolate": {
+        "description": "指定点の間に道路の中間形状を追加します。",
+        "default": "false"
+      }
+    },
+    "result": "`snappedPoints` と任意の `warningMessage` を含む元の Roads 応答です。提供される道路の `placeId`、`location`、`originalIndex` を保持します。",
+    "example": {
+      "path": [
+        {
+          "latitude": -35.27801,
+          "longitude": 149.12958
+        },
+        {
+          "latitude": -35.28032,
+          "longitude": 149.12907
+        }
+      ],
+      "interpolate": true
+    },
+    "notes": [
+      "良好な対応付けのため、連続する点の間隔は約 300 メートル以内にします。",
+      "補間点は originalIndex がない場合があります。このツールは速度制限を要求しません。"
+    ],
+    "authentication": "この実装では API キーが必要です。",
+    "summary": "2–100 点の順序付き GPS を道路に合わせます。点間は約 300 メートル以内を推奨し、補間で形状を追加できます。"
+  },
+  "maps_nearest_roads": {
+    "purpose": "独立 GPS 点に近い道路区間を検索し、1 本の連続した軌跡としては解釈しません。",
+    "parameters": {
+      "points": {
+        "description": "対応付ける独立した座標オブジェクト。",
+        "default": "—"
+      },
+      "points[].latitude": {
+        "description": "WGS84 の緯度（十進度）。北が正です。",
+        "default": "—"
+      },
+      "points[].longitude": {
+        "description": "WGS84 の経度（十進度）。東が正です。",
+        "default": "—"
+      }
+    },
+    "result": "`snappedPoints`、道路の `placeId`、`location`、入力点への対応を示す `originalIndex` を含む元の Roads 応答です。",
+    "example": {
+      "points": [
+        {
+          "latitude": -35.27801,
+          "longitude": 149.12958
+        },
+        {
+          "latitude": -35.28032,
+          "longitude": 149.12907
+        }
+      ]
+    },
+    "notes": [
+      "1 点が複数道路区間に一致する場合があります。1 入力 1 出力と仮定せず originalIndex を保持します。",
+      "このツールは速度制限を要求しません。"
+    ],
+    "authentication": "この実装では API キーが必要です。",
+    "summary": "1–100 個の独立 GPS 点の最寄り道路区間を探し、Google の originalIndex と道路の場所 ID を保持します。"
+  },
+  "maps_reverse_geocode": {
+    "purpose": "正確な座標を最初の逆 Geocoding 結果に変換します。整形済み住所だけで足りない場合は構成要素を使ってください。",
+    "parameters": {
+      "latitude": {
+        "description": "WGS84 の緯度（十進度）。北が正です。",
+        "default": "—"
+      },
+      "longitude": {
+        "description": "WGS84 の経度（十進度）。東が正です。",
+        "default": "—"
+      }
+    },
+    "result": "最初のネイティブ Geocoding 結果で、利用できる `formatted_address`、`address_components`、`geometry`、`place_id` を含みます。",
+    "example": {
+      "latitude": 48.8584,
+      "longitude": 2.2945
+    },
+    "notes": [
+      "最初の結果だけを返します。一致なしはツールエラーです。"
+    ],
+    "authentication": "この実装では API キーが必要です。",
+    "summary": "座標を住所に変換します。"
+  },
+  "maps_search_places": {
+    "purpose": "Places (New) をテキストと任意の場所・評価・タイプで検索し、返された ID で必要な詳細だけを取得します。",
+    "parameters": {
+      "query": {
+        "description": "自然言語の場所クエリ。",
+        "default": "—"
+      },
+      "locationBias": {
+        "description": "任意の円形検索バイアス。厳密な地理制限ではありません。",
+        "default": "場所のバイアスなし"
+      },
+      "locationBias.latitude": {
+        "description": "WGS84 の緯度（十進度）。北が正です。",
+        "default": "—"
+      },
+      "locationBias.longitude": {
+        "description": "WGS84 の経度（十進度）。東が正です。",
+        "default": "—"
+      },
+      "locationBias.radius": {
+        "description": "バイアス半径（メートル）。",
+        "default": "5000"
+      },
+      "openNow": {
+        "description": "true の場合は現在営業中の場所に制限します。",
+        "default": "営業状態の制限なし"
+      },
+      "minRating": {
+        "description": "Google に要求する最低ユーザー評価。",
+        "default": "評価による制限なし"
+      },
+      "includedType": {
+        "description": "Google 場所タイプ。例：cafe。",
+        "default": "タイプによる制限なし"
+      }
+    },
+    "result": "最大 20 件の Google Place オブジェクト配列。選択した検索フィールド、Maps・ソースリンク、帰属メタデータを含みます。",
+    "example": {
+      "query": "coffee near Gare de Lyon, Paris",
+      "openNow": true,
+      "minRating": 4
+    },
+    "notes": [
+      "20 件の 1 ページを要求し、ページトークンを返したり追跡したりしません。",
+      "営業状態・評価の欠損は Google の対応範囲によります。網羅的な一覧とは解釈しないでください。"
+    ],
+    "authentication": "主 API は API キーまたは OAuth に対応します。",
+    "summary": "Places (New) をテキスト検索し、場所・評価フィルターを任意に指定します。"
+  },
+  "maps_search_nearby": {
+    "purpose": "解決済み中心の限定半径内で場所を探します。テキスト検索と異なり、厳密な円形の場所制限を使います。",
+    "parameters": {
+      "center": {
+        "description": "中心の入力とその解釈方法の指定。",
+        "default": "—"
+      },
+      "center.value": {
+        "description": "住所・ランドマーク、または isCoordinates が true の場合の latitude,longitude 文字列。",
+        "default": "—"
+      },
+      "center.isCoordinates": {
+        "description": "value を正確な座標として扱い、ジオコーディングしません。",
+        "default": "false"
+      },
+      "keyword": {
+        "description": "includedTypes として渡す Google 場所タイプ（例：cafe）。自由なテキストキーワードではありません。",
+        "default": "タイプによる制限なし"
+      },
+      "radius": {
+        "description": "検索半径（メートル）。",
+        "default": "1000"
+      },
+      "openNow": {
+        "description": "currentOpeningHours.openNow が true の結果だけを残します。",
+        "default": "false"
+      },
+      "minRating": {
+        "description": "返された場所にローカルで適用する最低評価。",
+        "default": "評価による制限なし"
+      }
+    },
+    "result": "最大 20 件の選択した Place オブジェクト配列です。ローカルの営業状態・評価フィルターでさらに減る場合があります。",
+    "example": {
+      "center": {
+        "value": "48.8584,2.2945",
+        "isCoordinates": true
+      },
+      "keyword": "cafe",
+      "radius": 500
+    },
+    "notes": [
+      "絞り込み時、営業状態不明は営業中とせず、評価なしは 0 と扱います。",
+      "住所の中心点は場所解決が必要で、座標なら追加呼び出しを回避できます。"
+    ],
+    "authentication": "Places は API キーまたは OAuth に対応します。住所・ランドマークの中心点は Geocoding の解決に API キーも必要です。",
+    "summary": "住所・正確な座標の周辺を場所タイプ、評価、営業状態で絞り込みます。"
+  },
+  "maps_place_details": {
+    "purpose": "既知の場所 ID から選択した詳細、レビュー、任意の写真 URL を取得します。著者・ソース情報と AI 開示文を保持してください。",
+    "parameters": {
+      "placeId": {
+        "description": "Google 場所 ID。places/ 接頭辞は任意です。",
+        "default": "—"
+      },
+      "maxPhotos": {
+        "description": "実行する写真メディア URL 検索の最大数。",
+        "default": "0"
+      }
+    },
+    "result": "要求したフィールドマスクに対応するネイティブ Google Place オブジェクト。写真要求時の `photoUrls` はメディア URL、写真著者の帰属、ソースリンクを含みます。",
+    "example": {
+      "placeId": "ChIJLU7jZClu5kcR4PcOOO6p3I0",
+      "maxPhotos": 1
+    },
+    "notes": [
+      "選択した写真ごとに追加リクエストが生じる場合があり、0 枚なら回避できます。",
+      "固定の詳細フィールドマスクを使い、全 Google Place フィールドは要求しません。利用できない項目は省略される場合があります。"
+    ],
+    "authentication": "主 API は API キーまたは OAuth に対応します。",
+    "summary": "場所の詳細、レビュー、帰属情報を取得します。任意の写真 URL に著者を保持し、内容とともに出典・開示を表示します。"
+  },
+  "maps_directions": {
+    "purpose": "2 つの端点間の経路を計算し、選択した Google 経路データと正規化した合計を提供します。",
+    "parameters": {
+      "origin": {
+        "description": "出発地の住所・ランドマークまたは正確な latitude,longitude 文字列。",
+        "default": "—"
+      },
+      "destination": {
+        "description": "目的地の住所・ランドマークまたは正確な latitude,longitude 文字列。",
+        "default": "—"
+      },
+      "mode": {
+        "description": "移動方法。運転では交通状況を考慮した経路を使います。",
+        "default": "driving"
+      },
+      "departure_time": {
+        "description": "出発時刻。Z または明示的な UTC オフセットを持つ RFC 3339 形式です。",
+        "default": "未指定"
+      },
+      "avoid_tolls": {
+        "description": "有料道路を避けます。true は運転時のみ対応します。",
+        "default": "false"
+      },
+      "avoid_highways": {
+        "description": "高速道路を避けます。true は運転時のみ対応します。",
+        "default": "false"
+      },
+      "arrival_time": {
+        "description": "希望到着時刻。タイムゾーン付き RFC 3339 で、公共交通のみです。",
+        "default": "未指定"
+      }
+    },
+    "result": "`routes`、`summary`、`total_distance`（メートル）、`total_duration`（秒）、任意の最適化インデックスを持つオブジェクト。経路は選択した区間、手順、ポリライン、警告を含みます。",
+    "example": {
+      "origin": "48.8584,2.2945",
+      "destination": "48.8606,2.3376",
+      "mode": "walking"
+    },
+    "notes": [
+      "departure_time と arrival_time は同時指定できません。arrival_time は公共交通のみです。",
+      "回避オプションは運転が必要です。Google は移動方法・時刻・地域の追加制限も適用します。",
+      "利用可能な経路がなければ明示的なエラーです。"
+    ],
+    "authentication": "Routes・Places は API キーまたは OAuth に対応します。場所名の解決には Geocoding の API キーも必要ですが、正確な座標文字列で回避できます。",
+    "summary": "2 地点間の経路、案内手順、距離・時間の合計を取得します。"
+  },
+  "maps_distance_matrix": {
+    "purpose": "出発地・目的地の全組み合わせで距離と時間を比較します。応答成功を完全な結果とみなさず、各セルとエラーを確認してください。",
+    "parameters": {
+      "origins": {
+        "description": "出発地の文字列。住所または正確な latitude,longitude の組。",
+        "default": "—"
+      },
+      "destinations": {
+        "description": "目的地の文字列。住所または正確な latitude,longitude の組。",
+        "default": "—"
+      },
+      "mode": {
+        "description": "移動方法。運転では交通状況を考慮した経路を使います。",
+        "default": "driving"
+      },
+      "departure_time": {
+        "description": "出発時刻。Z または明示的な UTC オフセットを持つ RFC 3339 形式です。",
+        "default": "未指定"
+      },
+      "avoid_tolls": {
+        "description": "有料道路を避けます。true は運転時のみ対応します。",
+        "default": "false"
+      },
+      "avoid_highways": {
+        "description": "高速道路を避けます。true は運転時のみ対応します。",
+        "default": "false"
+      }
+    },
+    "result": "`origin_addresses`、`destination_addresses`、行優先の `distances`・`durations`、`errors` 配列を持つオブジェクト。成功セルはメートル・秒で、失敗・欠損は null のままです。",
+    "example": {
+      "origins": [
+        "48.8584,2.2945"
+      ],
+      "destinations": [
+        "48.8606,2.3376",
+        "48.8530,2.3499"
+      ],
+      "mode": "walking"
+    },
+    "notes": [
+      "出発地 × 目的地は最大 625 組、公共交通では最大 100 組です。",
+      "座標でない出発地・目的地文字列の合計は最大 50 件です。配列別のスキーマ上限は合算上限に優先しません。",
+      "有料道路・高速道路の回避は運転のみです。このツールは arrival_time を公開しません。",
+      "行列の HTTP リクエスト 1 回でも複数要素に課金される場合があります。"
+    ],
+    "authentication": "主 API は API キーまたは OAuth に対応します。",
+    "summary": "各出発地・目的地間の距離と所要時間を比較し、セル単位の失敗を保持します。"
+  },
+  "maps_elevation": {
+    "purpose": "正確な座標点の地理的な高さを取得します。",
+    "parameters": {
+      "locations": {
+        "description": "標高を要求する座標オブジェクト。",
+        "default": "—"
+      },
+      "locations[].latitude": {
+        "description": "WGS84 の緯度（十進度）。北が正です。",
+        "default": "—"
+      },
+      "locations[].longitude": {
+        "description": "WGS84 の経度（十進度）。東が正です。",
+        "default": "—"
+      }
+    },
+    "result": "ネイティブ Elevation の `results` 配列。メートル単位の `elevation`、`location`、`resolution` を含む場合があります。",
+    "example": {
+      "locations": [
+        {
+          "latitude": 48.8584,
+          "longitude": 2.2945
+        }
+      ]
+    },
+    "notes": [
+      "Google が返すデータを標高単位の変換なしで返します。"
+    ],
+    "authentication": "この実装では API キーが必要です。",
+    "summary": "正確な座標の標高を取得します。"
+  },
+  "maps_timezone": {
+    "purpose": "指定時点のタイムゾーン ID と UTC・夏時間オフセットを解決し、現地タイムスタンプを求めます。",
+    "parameters": {
+      "latitude": {
+        "description": "WGS84 の緯度（十進度）。北が正です。",
+        "default": "—"
+      },
+      "longitude": {
+        "description": "WGS84 の経度（十進度）。東が正です。",
+        "default": "—"
+      },
+      "timestamp": {
+        "description": "Unix エポックのミリ秒で、秒ではありません。",
+        "default": "現在の UTC 時刻（ミリ秒）"
+      }
+    },
+    "result": "`timeZoneId`、`timeZoneName`、秒単位の `rawOffset`・`dstOffset` と、RFC 3339 の算出済み `localTime` などを返します。",
+    "example": {
+      "latitude": 48.8584,
+      "longitude": 2.2945,
+      "timestamp": 1793448000000
+    },
+    "notes": [
+      "要求時にミリ秒を整数秒へ変換し、秒未満の精度は保持しません。",
+      "現地時刻は要求時点に返された標準・夏時間オフセットから求めます。"
+    ],
+    "authentication": "この実装では API キーが必要です。",
+    "summary": "指定した場所と時刻のタイムゾーン、UTC オフセット、現地時刻を取得します。"
+  },
+  "maps_weather": {
+    "purpose": "正確な座標の現在の気象または日別・時間別予報の 1 ページを要求します。",
+    "parameters": {
+      "latitude": {
+        "description": "WGS84 の緯度（十進度）。北が正です。",
+        "default": "—"
+      },
+      "longitude": {
+        "description": "WGS84 の経度（十進度）。東が正です。",
+        "default": "—"
+      },
+      "type": {
+        "description": "現在の気象、日別予報、時間別予報を選択します。",
+        "default": "current"
+      },
+      "forecastDays": {
+        "description": "要求する日別予報の長さ。forecast_daily のみで使用します。",
+        "default": "5"
+      },
+      "forecastHours": {
+        "description": "要求する時間別予報の長さ。forecast_hourly のみで使用します。",
+        "default": "24"
+      }
+    },
+    "result": "type に応じた現在の気象項目、`forecastDays`、`forecastHours` を持つネイティブ Weather 応答。単位、時刻、nextPageToken を保持してください。",
+    "example": {
+      "latitude": 48.8584,
+      "longitude": 2.2945,
+      "type": "forecast_daily",
+      "forecastDays": 3
+    },
+    "notes": [
+      "forecastDays は日別以外で、forecastHours は forecast_hourly 以外で無視します。",
+      "ページトークンは自動追跡しません。要求した期間が 1 ページの件数を超える場合があります。",
+      "対応地域と予報の利用可能性は Google によります。"
+    ],
+    "authentication": "主 API は API キーまたは OAuth に対応します。",
+    "summary": "現在・日別・時間別の天気を取得し、Google の単位とページ情報を保持します。"
+  },
+  "maps_air_quality": {
+    "purpose": "現在の大気質指数と、任意の汚染物質濃度・提供者による健康上の助言を取得します。",
+    "parameters": {
+      "latitude": {
+        "description": "WGS84 の緯度（十進度）。北が正です。",
+        "default": "—"
+      },
+      "longitude": {
+        "description": "WGS84 の経度（十進度）。東が正です。",
+        "default": "—"
+      },
+      "includeHealthRecommendations": {
+        "description": "Google の健康上の助言の算出を要求します。",
+        "default": "true"
+      },
+      "includePollutants": {
+        "description": "汚染物質濃度を要求します。",
+        "default": "false"
+      }
+    },
+    "result": "指数と、Google が提供する場合の任意の `healthRecommendations`・`pollutants` を含むネイティブ Air Quality 現況応答です。",
+    "example": {
+      "latitude": 48.8584,
+      "longitude": 2.2945,
+      "includePollutants": true
+    },
+    "notes": [
+      "助言は提供者のデータであり、個別の医療評価ではありません。",
+      "現在の状況のみを公開し、履歴・予報エンドポイントは提供しません。"
+    ],
+    "authentication": "主 API は API キーまたは OAuth に対応します。",
+    "summary": "現在の大気質指数、汚染物質濃度、健康上の助言を取得します。"
+  },
+  "maps_static_map": {
+    "purpose": "任意のマーカー・経路仕様で PNG 地図を描画します。",
+    "parameters": {
+      "center": {
+        "description": "中心の住所または latitude,longitude 文字列。",
+        "default": "未指定"
+      },
+      "zoom": {
+        "description": "明示的なズームレベル。",
+        "default": "省略。Google が選択または推測します"
+      },
+      "size": {
+        "description": "ピクセル寸法 WIDTHxHEIGHT。実行時は各辺 1–640 に制限します。",
+        "default": "600x400"
+      },
+      "maptype": {
+        "description": "ベースマップのスタイル。",
+        "default": "roadmap"
+      },
+      "markers": {
+        "description": "繰り返し指定する Google Static Maps マーカー仕様。例：color:red|48.8584,2.2945。",
+        "default": "マーカーなし"
+      },
+      "path": {
+        "description": "繰り返し指定する Google Static Maps 経路仕様。例：color:blue|48.8584,2.2945|48.8606,2.3376。",
+        "default": "経路なし"
+      }
+    },
+    "result": "MCP はインライン image/png を返します。CLI は `{mimeType,base64}` JSON、--output 指定時は生の PNG バイト列です。",
+    "example": {
+      "center": "48.8584,2.2945",
+      "zoom": 14,
+      "size": "320x240",
+      "markers": [
+        "color:red|48.8584,2.2945"
+      ]
+    },
+    "notes": [
+      "center、markers、path のうち最低 1 つが必要です。",
+      "要求 URL 全体は 16,384 文字以内です。スキーマの size パターンは実行時の 640 ピクセル制限より広い範囲を許容します。",
+      "マーカー・経路のスタイルは Google Static Maps の構文に従います。画像内の Google 帰属表示は保持されます。"
+    ],
+    "authentication": "この実装では API キーが必要です。",
+    "summary": "中心点、マーカー、経路を PNG 地図に描画します。"
+  },
+  "maps_batch_geocode": {
+    "purpose": "上限付き住所一覧をジオコーディングし、入力順と各項目の成否を保持します。",
+    "parameters": {
+      "addresses": {
+        "description": "解決する住所・ランドマークの文字列。",
+        "default": "—"
+      }
+    },
+    "result": "入力順の配列。各行に `address`、`success` と、`data`（ジオコードオブジェクト）または `error` があります。",
+    "example": {
+      "addresses": [
+        "Paris, France",
+        "London, UK"
+      ]
+    },
+    "notes": [
+      "プロセスあたり最大 5 件の Google リクエストで並行数を制限します。",
+      "項目の失敗は CLI の非ゼロ終了を強制しません。各行の success・error を確認してください。"
+    ],
+    "authentication": "この実装では API キーが必要です。",
+    "summary": "最大 50 住所を一括解決し、入力順と住所別エラーを保持します。"
+  },
+  "maps_explore_area": {
+    "purpose": "1 か所を解決し、その周辺の指定カテゴリを検索して、カテゴリごとの上位結果だけを展開します。",
+    "parameters": {
+      "location": {
+        "description": "住所・ランドマークまたは正確な latitude,longitude 文字列。",
+        "default": "—"
+      },
+      "types": {
+        "description": "検索する Google 場所カテゴリ。",
+        "default": "restaurant, cafe, tourist_attraction"
+      },
+      "radius": {
+        "description": "カテゴリ検索の半径（メートル）。",
+        "default": "1000"
+      },
+      "topN": {
+        "description": "カテゴリごとに詳細を取得する場所の最大数。",
+        "default": "3"
+      }
+    },
+    "result": "解決済み `location`、`radius`、`categories` を持つオブジェクト。各カテゴリに type/count/top またはエラーがあり、展開した場所には details_error が入る場合があります。",
+    "example": {
+      "location": "48.8584,2.2945",
+      "types": [
+        "cafe"
+      ],
+      "radius": 500,
+      "topN": 1
+    },
+    "notes": [
+      "カテゴリごとに最大 20 件を検索します。count は返されたページの件数で、集計総数ではありません。",
+      "カテゴリ・詳細取得の失敗はトップレベルの成功出力内に残ります。",
+      "複数の Google リクエストを行うため、カテゴリと topN を必要範囲に絞ってください。"
+    ],
+    "authentication": "Places は API キーまたは OAuth に対応します。場所名には Geocoding の API キーも必要です。",
+    "summary": "場所を解決し、カテゴリごとに周辺を検索して上位結果の詳細を取得します。"
+  },
+  "maps_plan_route": {
+    "purpose": "順序付き立ち寄り点から 1 経路を計画します。始終点を固定し、中間点を Google に並べ替えさせることもできます。",
+    "parameters": {
+      "stops": {
+        "description": "順序付き住所・ランドマークまたは正確な latitude,longitude 文字列。最初と最後は端点のままです。",
+        "default": "—"
+      },
+      "mode": {
+        "description": "移動方法。運転では交通状況を考慮した経路を使います。",
+        "default": "driving"
+      },
+      "departure_time": {
+        "description": "出発時刻。Z または明示的な UTC オフセットを持つ RFC 3339 形式です。",
+        "default": "未指定"
+      },
+      "avoid_tolls": {
+        "description": "有料道路を避けます。true は運転時のみ対応します。",
+        "default": "false"
+      },
+      "avoid_highways": {
+        "description": "高速道路を避けます。true は運転時のみ対応します。",
+        "default": "false"
+      },
+      "optimize": {
+        "description": "合計立ち寄り点が 3 点を超え、モードが transit 以外の場合に中間点の最適化を要求します。",
+        "default": "true。ただし上記条件に従います"
+      }
+    },
+    "result": "`mode`、実際に適用した `optimized`、順序付き解決済み `stops`、表示用 `legs`、total_distance、total_duration、polyline、警告を持つオブジェクト。区間の durationSeconds は秒の数値です。",
+    "example": {
+      "stops": [
+        "48.8584,2.2945",
+        "48.8606,2.3376",
+        "48.8530,2.3499"
+      ],
+      "mode": "walking",
+      "optimize": false
+    },
+    "notes": [
+      "公共交通は 2 端点だけに対応し、中間点は使えません。",
+      "最適化が有効なのは合計 4 点以上（中間点 2 つ以上）の場合だけです。",
+      "1 経路の順序最適化であり、車両群への車両・タスク割り当てではありません。"
+    ],
+    "authentication": "Routes・Places は API キーまたは OAuth に対応します。場所名の解決には Geocoding の API キーも必要ですが、正確な座標文字列で回避できます。",
+    "summary": "2–27 立ち寄り点の経路を計画します。公共交通以外は 2–25 中間点を最適化でき、正確な座標を保持します。"
+  },
+  "maps_compare_places": {
+    "purpose": "少数の場所を検索・詳細化し、正確なユーザー座標からの運転距離を任意で比較します。",
+    "parameters": {
+      "query": {
+        "description": "Places のテキスト検索クエリ。",
+        "default": "—"
+      },
+      "userLocation": {
+        "description": "任意の距離比較に使う正確なユーザー座標。",
+        "default": "距離・時間の比較なし"
+      },
+      "userLocation.latitude": {
+        "description": "WGS84 の緯度（十進度）。北が正です。",
+        "default": "—"
+      },
+      "userLocation.longitude": {
+        "description": "WGS84 の経度（十進度）。東が正です。",
+        "default": "—"
+      },
+      "limit": {
+        "description": "詳細化する一致場所の最大数。",
+        "default": "5"
+      }
+    },
+    "result": "`places` と任意の `distance_error` を持つオブジェクト。場所は details/details_error、distance、drive_time、場所別 distance_errors を含む場合があります。",
+    "example": {
+      "query": "cafes near Eiffel Tower, Paris",
+      "userLocation": {
+        "latitude": 48.8584,
+        "longitude": 2.2945
+      },
+      "limit": 3
+    },
+    "notes": [
+      "移動の比較は運転固定で、移動方法を変更する引数はありません。",
+      "詳細・距離の失敗は残し、それ以外が使える場所を除外しません。",
+      "要求された候補だけを詳細化します。"
+    ],
+    "authentication": "Places と任意の Routes は API キーまたは OAuth に対応します。",
+    "summary": "場所を検索し詳細を比較します。userLocation からの運転距離も任意で取得します。"
+  },
+  "maps_search_along_route": {
+    "purpose": "経路を計算し、そのエンコード済みポリラインを使って Places を検索します。1 回の円形検索で行程を近似しません。",
+    "parameters": {
+      "textQuery": {
+        "description": "カフェや充電所など経路途中の場所の Places クエリ。",
+        "default": "—"
+      },
+      "origin": {
+        "description": "経路の出発地住所・ランドマークまたは正確な latitude,longitude 文字列。",
+        "default": "—"
+      },
+      "destination": {
+        "description": "経路の目的地住所・ランドマークまたは正確な latitude,longitude 文字列。",
+        "default": "—"
+      },
+      "mode": {
+        "description": "検索に用いる経路の移動方法。",
+        "default": "walking"
+      },
+      "maxResults": {
+        "description": "応答ページに要求する Places 結果の最大数。",
+        "default": "5"
+      }
+    },
+    "result": "`places`、任意の `routingSummaries`、選択した Google 経路データと正規化合計を含む算出済み `route` を持つオブジェクト。",
+    "example": {
+      "textQuery": "cafes",
+      "origin": "48.8584,2.2945",
+      "destination": "48.8606,2.3376",
+      "mode": "walking",
+      "maxResults": 3
+    },
+    "notes": [
+      "既定は walking で、driving が既定の directions、matrix、plan-route とは異なります。",
+      "自動ページ取得や Place Details の展開は行いません。",
+      "directions の出発・到着時刻や回避引数は公開しません。"
+    ],
+    "authentication": "Routes・Places は API キーまたは OAuth に対応します。場所名の解決には Geocoding の API キーも必要ですが、正確な座標文字列で回避できます。",
+    "summary": "経路のエンコード済みポリラインで沿道の場所を検索します。"
+  },
+  "maps_local_rank_tracker": {
+    "purpose": "地理グリッドの各点で、対象場所が Text Search の上位 20 件に現れるかと順位を測定します。",
+    "parameters": {
+      "keyword": {
+        "description": "単一検索キーワード。keyword または keywords を使います。",
+        "default": "未指定"
+      },
+      "keywords": {
+        "description": "1–3 の検索キーワード。両形式が指定された場合はこちらを優先します。",
+        "default": "未指定"
+      },
+      "placeId": {
+        "description": "対象の場所 ID。places/ 接頭辞は任意です。",
+        "default": "—"
+      },
+      "center": {
+        "description": "スキャングリッドの正確な中心。",
+        "default": "—"
+      },
+      "center.latitude": {
+        "description": "WGS84 の緯度（十進度）。北が正です。",
+        "default": "—"
+      },
+      "center.longitude": {
+        "description": "WGS84 の経度（十進度）。東が正です。",
+        "default": "—"
+      },
+      "gridSize": {
+        "description": "行数・列数。3–7 のすべての整数を受け入れます。",
+        "default": "3"
+      },
+      "gridSpacing": {
+        "description": "隣接グリッド点の間隔（メートル）。",
+        "default": "1000"
+      }
+    },
+    "result": "target、grid_size、grid_spacing_m、キーワード別メトリクス・グリッドを含むオブジェクト。ARP は発見順位の平均、ATRP は成功した未発見クエリを 21 位として扱い、SoLV は成功点のうち上位 3 位以内に入った点の百分率です。failed_points と found_in は観測範囲を示します。",
+    "example": {
+      "keyword": "cafe",
+      "placeId": "ChIJLU7jZClu5kcR4PcOOO6p3I0",
+      "center": {
+        "latitude": 48.8584,
+        "longitude": 2.2945
+      },
+      "gridSize": 3,
+      "gridSpacing": 500
+    },
+    "notes": [
+      "keyword または keywords の最低 1 つが必要です。各スキーマ行だけではこの選択条件は表せません。",
+      "検索要求数はキーワード数 × gridSize² で、再試行前に最大 147 件です。",
+      "失敗点は有効な未発見でなく、順位指標から除外します。有効な観測がなければ指標は null の場合があります。",
+      "検索順位はユーザーレビューの評価ではありません。結果はバイアス付きテキスト検索の標本であり、ユーザーの Google Maps 順位を保証しません。"
+    ],
+    "authentication": "主 API は API キーまたは OAuth に対応します。",
+    "summary": "1–3 キーワードの検索順位を地理グリッドで測り、ARP・ATRP・SoLV と点別エラーを返します。"
+  }
+}

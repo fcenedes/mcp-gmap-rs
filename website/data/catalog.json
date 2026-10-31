@@ -7,7 +7,13 @@
       "summary": {
         "en": "Convert an address or landmark to coordinates.",
         "fr": "Convertir une adresse ou un lieu connu en coordonnées.",
-        "it": "Converte un indirizzo o un punto di interesse in coordinate."
+        "it": "Converte un indirizzo o un punto di interesse in coordinate.",
+        "de": "Adresse oder Sehenswürdigkeit in Koordinaten umwandeln.",
+        "es": "Convertir una dirección o lugar de interés en coordenadas.",
+        "zh": "将地址或地标转换为坐标。",
+        "ja": "住所・ランドマークを座標に変換します。",
+        "ar": "تحويل عنوان أو معلم إلى إحداثيات.",
+        "he": "המרת כתובת או אתר לציון לקואורדינטות."
       }
     },
     {
@@ -16,7 +22,13 @@
       "summary": {
         "en": "Validate and standardize a postal address; returns Google's verdict, corrections, components and geocode. A verdict is evidence, not a delivery guarantee.",
         "fr": "Valider et normaliser une adresse postale ; renvoie le verdict Google, les corrections, les composants et le géocodage. Ce verdict ne garantit pas une livraison.",
-        "it": "Valida e normalizza un indirizzo postale, restituendo il verdetto Google, correzioni, componenti e geocodifica. Il verdetto è un elemento di valutazione, non una garanzia di consegna."
+        "it": "Valida e normalizza un indirizzo postale, restituendo il verdetto Google, correzioni, componenti e geocodifica. Il verdetto è un elemento di valutazione, non una garanzia di consegna.",
+        "de": "Postadresse validieren und standardisieren; liefert Googles Urteil, Korrekturen, Bestandteile und Geocoding. Ein Urteil ist ein Hinweis, keine Zustellgarantie.",
+        "es": "Validar y normalizar una dirección postal; devuelve el veredicto Google, correcciones, componentes y geocodificación. El veredicto es evidencia, no garantía de entrega.",
+        "zh": "验证和标准化邮政地址，返回 Google 判定、修正、组成部分与坐标；判定不保证投递。",
+        "ja": "郵便住所を検証・標準化し、Google の判定、修正、構成要素、座標を返します。配送の保証ではありません。",
+        "ar": "التحقق من عنوان بريدي وتوحيده؛ يعيد حكم Google وتصحيحاته ومكوناته وترميزه الجغرافي. الحكم دليل وليس ضمان توصيل.",
+        "he": "אימות כתובת למשלוח ותקנונה; מחזיר מסקנה, תיקונים, רכיבים וקידוד גאוגרפי של Google. המסקנה היא ראיה ולא הבטחת משלוח."
       }
     },
     {
@@ -25,7 +37,13 @@
       "summary": {
         "en": "Get 1-5 days of pollen forecasts, indices and health recommendations for exact coordinates. Coverage varies by location and season.",
         "fr": "Obtenir 1 à 5 jours de prévisions polliniques, indices et recommandations sanitaires pour des coordonnées exactes. La couverture dépend du lieu et de la saison.",
-        "it": "Ottiene da 1 a 5 giorni di previsioni polliniche, indici e raccomandazioni sanitarie per coordinate esatte. La copertura dipende da luogo e stagione."
+        "it": "Ottiene da 1 a 5 giorni di previsioni polliniche, indici e raccomandazioni sanitarie per coordinate esatte. La copertura dipende da luogo e stagione.",
+        "de": "Pollenprognosen, Indizes und Gesundheitsempfehlungen für 1–5 Tage an exakten Koordinaten abrufen. Abdeckung hängt von Ort und Saison ab.",
+        "es": "Obtener previsiones de polen, índices y recomendaciones para 1–5 días en coordenadas exactas. La cobertura varía por lugar y estación.",
+        "zh": "获取精确坐标的 1–5 天花粉预报、指数与健康建议。覆盖取决于地点和季节。",
+        "ja": "正確な座標の 1–5 日分の花粉予報、指数、健康上の助言を取得します。対応範囲は場所・季節によります。",
+        "ar": "جلب توقعات حبوب اللقاح ومؤشراتها والتوصيات الصحية لـ 1–5 أيام لإحداثيات دقيقة. تختلف التغطية بحسب الموقع والموسم.",
+        "he": "קבלת תחזית אבקנים, מדדים והמלצות בריאות ל-1–5 ימים בקואורדינטות מדויקות. הכיסוי משתנה לפי מיקום ועונה."
       }
     },
     {
@@ -34,7 +52,13 @@
       "summary": {
         "en": "Count places within a circle, region or polygon using Places Aggregate. Optional place IDs are available only for counts of 100 or less; no automatic details requests.",
         "fr": "Compter les lieux dans un cercle, une région ou un polygone avec Places Aggregate. Les identifiants facultatifs sont disponibles uniquement pour un total de 100 ou moins ; aucun détail n’est demandé automatiquement.",
-        "it": "Conta i luoghi dentro un cerchio, una regione o un poligono tramite Places Aggregate. Gli identificativi facoltativi sono disponibili solo per conteggi fino a 100; nessuna richiesta automatica di dettagli."
+        "it": "Conta i luoghi dentro un cerchio, una regione o un poligono tramite Places Aggregate. Gli identificativi facoltativi sono disponibili solo per conteggi fino a 100; nessuna richiesta automatica di dettagli.",
+        "de": "Orte in Kreis, Region oder Polygon mit Places Aggregate zählen. Optionale Orts-IDs nur bei höchstens 100 Treffern; Details werden nicht automatisch abgefragt.",
+        "es": "Contar lugares en círculo, región o polígono con Places Aggregate. IDs opcionales solo con 100 resultados o menos; sin consulta automática de detalles.",
+        "zh": "使用 Places Aggregate 统计圆、区域或多边形内的地点；数量不超过 100 时可返回 ID，不自动查询详情。",
+        "ja": "Places Aggregate で円・地域・多角形内の場所を集計します。100 件以下では ID を取得でき、詳細は自動照会しません。",
+        "ar": "عدّ الأماكن ضمن دائرة أو منطقة أو مضلع باستخدام Places Aggregate. تتوفر معرّفات اختيارية عند عدد 100 أو أقل فقط؛ ولا تُطلب التفاصيل تلقائيًا.",
+        "he": "ספירת מקומות במעגל, באזור או במצולע באמצעות Places Aggregate. מזהים אופציונליים זמינים רק לספירה של 100 ומטה; אין בקשות פרטים אוטומטיות."
       }
     },
     {
@@ -43,7 +67,13 @@
       "summary": {
         "en": "Snap an ordered GPS path of 2-100 points to roads. Keep consecutive points within about 300 metres for good results. Optional interpolation adds road geometry.",
         "fr": "Rattacher un trajet GPS ordonné de 2 à 100 points au réseau routier. Espacer les points consécutifs d’environ 300 mètres au plus pour de bons résultats. L’interpolation facultative ajoute de la géométrie routière.",
-        "it": "Associa alle strade una traccia GPS ordinata di 2–100 punti. Per buoni risultati mantieni i punti consecutivi entro circa 300 metri. L’interpolazione facoltativa aggiunge geometria stradale."
+        "it": "Associa alle strade una traccia GPS ordinata di 2–100 punti. Per buoni risultati mantieni i punti consecutivi entro circa 300 metri. L’interpolazione facoltativa aggiunge geometria stradale.",
+        "de": "Geordnete GPS-Spur mit 2–100 Punkten Straßen zuordnen. Für gute Ergebnisse höchstens etwa 300 Meter zwischen Folgepunkten. Optionale Interpolation ergänzt Geometrie.",
+        "es": "Ajustar un recorrido GPS ordenado de 2–100 puntos a carreteras. Mantenga puntos consecutivos a unos 300 metros como máximo. La interpolación opcional añade geometría.",
+        "zh": "将 2–100 个有序 GPS 点匹配到道路；相邻点宜在约 300 米内，可选插值补充道路形状。",
+        "ja": "2–100 点の順序付き GPS を道路に合わせます。点間は約 300 メートル以内を推奨し、補間で形状を追加できます。",
+        "ar": "مطابقة مسار GPS مرتب من 2–100 نقطة بالطرق. اجعل النقاط المتتالية ضمن نحو 300 متر لنتائج جيدة. يضيف الاستيفاء الاختياري هندسة الطريق.",
+        "he": "התאמת תוואי GPS מסודר של 2–100 נקודות לכבישים. מומלץ מרחק של כ-300 מטר בין נקודות עוקבות. אינטרפולציה אופציונלית מוסיפה גאומטריית כביש."
       }
     },
     {
@@ -52,7 +82,13 @@
       "summary": {
         "en": "Find the nearest road segments for 1-100 independent GPS points; preserves Google's originalIndex and road place IDs.",
         "fr": "Trouver les segments routiers les plus proches de 1 à 100 points GPS indépendants ; conserve originalIndex et les identifiants routiers Google.",
-        "it": "Trova i tratti stradali più vicini a 1–100 punti GPS indipendenti; conserva originalIndex di Google e i place ID stradali."
+        "it": "Trova i tratti stradali più vicini a 1–100 punti GPS indipendenti; conserva originalIndex di Google e i place ID stradali.",
+        "de": "Nächste Straßenabschnitte für 1–100 unabhängige GPS-Punkte finden; Googles originalIndex und Straßen-Orts-IDs bleiben erhalten.",
+        "es": "Encontrar tramos cercanos para 1–100 puntos GPS independientes; conserva originalIndex e IDs de lugar de carreteras.",
+        "zh": "为 1–100 个独立 GPS 点查找最近道路段，保留 Google 的 originalIndex 与道路地点 ID。",
+        "ja": "1–100 個の独立 GPS 点の最寄り道路区間を探し、Google の originalIndex と道路の場所 ID を保持します。",
+        "ar": "العثور على أقرب مقاطع طرق لـ 1–100 نقطة GPS مستقلة؛ يحافظ على originalIndex ومعرّفات طرق Google.",
+        "he": "מציאת מקטעי הכביש הקרובים ל-1–100 נקודות GPS עצמאיות; נשמרים originalIndex ומזהי כבישים של Google."
       }
     },
     {
@@ -61,7 +97,13 @@
       "summary": {
         "en": "Convert coordinates to a street address.",
         "fr": "Convertir des coordonnées en adresse postale.",
-        "it": "Converte coordinate in un indirizzo stradale."
+        "it": "Converte coordinate in un indirizzo stradale.",
+        "de": "Koordinaten in eine Straßenadresse umwandeln.",
+        "es": "Convertir coordenadas en una dirección.",
+        "zh": "将坐标转换为街道地址。",
+        "ja": "座標を住所に変換します。",
+        "ar": "تحويل الإحداثيات إلى عنوان شارع.",
+        "he": "המרת קואורדינטות לכתובת רחוב."
       }
     },
     {
@@ -70,7 +112,13 @@
       "summary": {
         "en": "Search Places (New) by text with optional location and rating filters.",
         "fr": "Rechercher dans Places (New) par texte avec des filtres facultatifs de localisation et de note.",
-        "it": "Cerca Places (New) tramite testo con filtri facoltativi di posizione e valutazione."
+        "it": "Cerca Places (New) tramite testo con filtri facoltativi di posizione e valutazione.",
+        "de": "Places (New) per Text mit optionalen Orts- und Bewertungsfiltern durchsuchen.",
+        "es": "Buscar Places (New) por texto con filtros opcionales de ubicación y valoración.",
+        "zh": "按文本搜索 Places (New)，可选位置与评分过滤。",
+        "ja": "Places (New) をテキスト検索し、場所・評価フィルターを任意に指定します。",
+        "ar": "بحث نصي في Places (New) مع مرشحات اختيارية للموقع والتقييم.",
+        "he": "חיפוש טקסט ב-Places (New) עם מסנני מיקום וציון אופציונליים."
       }
     },
     {
@@ -79,7 +127,13 @@
       "summary": {
         "en": "Find places around an address or exact coordinate pair, filtered by type, rating, and opening status.",
         "fr": "Trouver des lieux autour d’une adresse ou d’une paire de coordonnées exactes, filtrés par type, note et état d’ouverture.",
-        "it": "Trova luoghi intorno a un indirizzo o a coordinate esatte, filtrando per tipo, valutazione e stato di apertura."
+        "it": "Trova luoghi intorno a un indirizzo o a coordinate esatte, filtrando per tipo, valutazione e stato di apertura.",
+        "de": "Orte um eine Adresse oder exakte Koordinaten finden und nach Typ, Bewertung und Öffnungsstatus filtern.",
+        "es": "Encontrar lugares alrededor de una dirección o coordenadas exactas y filtrar por tipo, valoración y apertura.",
+        "zh": "查找地址或精确坐标附近的地点，可按类型、评分和营业状态过滤。",
+        "ja": "住所・正確な座標の周辺を場所タイプ、評価、営業状態で絞り込みます。",
+        "ar": "العثور على أماكن حول عنوان أو إحداثيات دقيقة، مع تصفية النوع والتقييم وحالة الفتح.",
+        "he": "מציאת מקומות סביב כתובת או קואורדינטות מדויקות, בסינון סוג, ציון ומצב פתיחה."
       }
     },
     {
@@ -88,7 +142,13 @@
       "summary": {
         "en": "Get full place details, reviews and attribution. Optional photo URLs retain author attribution. Display source/disclosure metadata alongside content.",
         "fr": "Obtenir les détails, avis et attributions d’un lieu. Les URL photo facultatives conservent les auteurs. Afficher les sources et déclarations associées au contenu.",
-        "it": "Ottiene dettagli, recensioni e attribuzioni del luogo. Gli URL delle foto facoltativi conservano l’attribuzione degli autori. Mostra fonti e avvertenze insieme al contenuto."
+        "it": "Ottiene dettagli, recensioni e attribuzioni del luogo. Gli URL delle foto facoltativi conservano l’attribuzione degli autori. Mostra fonti e avvertenze insieme al contenuto.",
+        "de": "Ortsdetails, Bewertungen und Quellen abrufen. Optionale Foto-URLs behalten Autorenangaben; Quellen und Hinweise zusammen mit Inhalten anzeigen.",
+        "es": "Obtener detalles, reseñas y atribución. Las URLs opcionales conservan autores de fotos; muestre origen y avisos junto al contenido.",
+        "zh": "获取地点详情、评论与归属信息，可选照片 URL 保留作者归属；显示内容时也应显示来源/披露。",
+        "ja": "場所の詳細、レビュー、帰属情報を取得します。任意の写真 URL に著者を保持し、内容とともに出典・開示を表示します。",
+        "ar": "جلب تفاصيل المكان والمراجعات والنسب. تحافظ روابط الصور الاختيارية على نسب المؤلف. اعرض بيانات المصدر والإفصاح بجانب المحتوى.",
+        "he": "קבלת פרטי מקום, ביקורות וייחוס. כתובות תמונה אופציונליות שומרות ייחוס מחבר. הציגו מטא-נתוני מקור וגילוי לצד התוכן."
       }
     },
     {
@@ -97,7 +157,13 @@
       "summary": {
         "en": "Get directions, route geometry, navigation instructions and travel duration.",
         "fr": "Obtenir un itinéraire, sa géométrie, les instructions de navigation et la durée du trajet.",
-        "it": "Ottiene indicazioni, geometria del percorso, istruzioni di navigazione e durata del viaggio."
+        "it": "Ottiene indicazioni, geometria del percorso, istruzioni di navigazione e durata del viaggio.",
+        "de": "Route zwischen Orten mit Verkehrsmodus, Zeit und Vermeidungsoptionen berechnen.",
+        "es": "Calcular una ruta entre ubicaciones con modo, horario y opciones de evitación.",
+        "zh": "获取两个地点间的路线、导航步骤与距离/时间总计。",
+        "ja": "2 地点間の経路、案内手順、距離・時間の合計を取得します。",
+        "ar": "جلب الاتجاهات وهندسة المسار وتعليمات الملاحة ومدة التنقل.",
+        "he": "קבלת הוראות, גאומטריית מסלול, צעדי ניווט ומשך נסיעה."
       }
     },
     {
@@ -106,7 +172,13 @@
       "summary": {
         "en": "Compute travel distances and durations for multiple origins and destinations.",
         "fr": "Calculer distances et durées de trajet pour plusieurs origines et destinations.",
-        "it": "Calcola distanze e durate di viaggio per più origini e destinazioni."
+        "it": "Calcola distanze e durate di viaggio per più origini e destinazioni.",
+        "de": "Fahrentfernungen und -zeiten für alle Start-/Zielpaare vergleichen.",
+        "es": "Comparar distancias y duraciones para todos los pares origen/destino.",
+        "zh": "比较各起点到各终点的距离与耗时，保留单元格级失败。",
+        "ja": "各出発地・目的地間の距離と所要時間を比較し、セル単位の失敗を保持します。",
+        "ar": "حساب مسافات التنقل ومدده لعدة نقاط بداية ووجهات.",
+        "he": "חישוב מרחקי נסיעה וזמנים למספר מוצאים ויעדים."
       }
     },
     {
@@ -115,7 +187,13 @@
       "summary": {
         "en": "Get elevation in meters for geographic coordinates.",
         "fr": "Obtenir l’altitude en mètres de coordonnées géographiques.",
-        "it": "Ottiene l’altitudine in metri per coordinate geografiche."
+        "it": "Ottiene l’altitudine in metri per coordinate geografiche.",
+        "de": "Geografische Höhen für Koordinaten abrufen.",
+        "es": "Obtener elevaciones geográficas para coordenadas.",
+        "zh": "获取精确坐标的海拔。",
+        "ja": "正確な座標の標高を取得します。",
+        "ar": "جلب الارتفاع بالأمتار لإحداثيات جغرافية.",
+        "he": "קבלת גובה במטרים לקואורדינטות גאוגרפיות."
       }
     },
     {
@@ -124,7 +202,13 @@
       "summary": {
         "en": "Get timezone, UTC/DST offsets and local time. timestamp is Unix milliseconds.",
         "fr": "Obtenir le fuseau, les décalages UTC/heure d’été et l’heure locale. timestamp utilise des millisecondes Unix.",
-        "it": "Ottiene fuso orario, offset UTC/ora legale e ora locale. timestamp è espresso in millisecondi Unix."
+        "it": "Ottiene fuso orario, offset UTC/ora legale e ora locale. timestamp è espresso in millisecondi Unix.",
+        "de": "Zeitzone, UTC-/Sommerzeitversatz und lokale Zeit abrufen.",
+        "es": "Obtener zona horaria, desfases UTC/horario de verano y hora local.",
+        "zh": "获取指定地点和时刻的时区、UTC 偏移与当地时间。",
+        "ja": "指定した場所と時刻のタイムゾーン、UTC オフセット、現地時刻を取得します。",
+        "ar": "جلب المنطقة الزمنية وإزاحات UTC والتوقيت الصيفي والوقت المحلي. timestamp بمللي ثانية Unix.",
+        "he": "קבלת אזור זמן, היסטי UTC/שעון קיץ ושעה מקומית. timestamp במילישניות Unix."
       }
     },
     {
@@ -133,7 +217,13 @@
       "summary": {
         "en": "Get current weather, daily forecast or hourly forecast.",
         "fr": "Obtenir la météo actuelle, les prévisions quotidiennes ou les prévisions horaires.",
-        "it": "Ottiene meteo corrente, previsioni giornaliere oppure orarie."
+        "it": "Ottiene meteo corrente, previsioni giornaliere oppure orarie.",
+        "de": "Aktuelles Wetter sowie tägliche oder stündliche Vorhersagen für Koordinaten abrufen.",
+        "es": "Obtener condiciones actuales y previsiones diarias u horarias para coordenadas.",
+        "zh": "获取当前、每日或每小时天气；保留 Google 单位与分页信息。",
+        "ja": "現在・日別・時間別の天気を取得し、Google の単位とページ情報を保持します。",
+        "ar": "جلب الطقس الحالي أو التوقعات اليومية أو الساعية.",
+        "he": "קבלת מזג אוויר נוכחי, תחזית יומית או שעתית."
       }
     },
     {
@@ -142,7 +232,13 @@
       "summary": {
         "en": "Get air quality indices, optional pollutant concentrations and health recommendations.",
         "fr": "Obtenir les indices de qualité de l’air, les concentrations facultatives de polluants et les recommandations sanitaires.",
-        "it": "Ottiene indici di qualità dell’aria, concentrazioni facoltative degli inquinanti e raccomandazioni sanitarie."
+        "it": "Ottiene indici di qualità dell’aria, concentrazioni facoltative degli inquinanti e raccomandazioni sanitarie.",
+        "de": "Aktuelle Luftqualitätsindizes mit optionalen Schadstoffen und Gesundheitsempfehlungen abrufen.",
+        "es": "Obtener índices actuales de calidad del aire con contaminantes y recomendaciones de salud opcionales.",
+        "zh": "获取当前空气质量指数、污染物浓度与健康建议。",
+        "ja": "現在の大気質指数、汚染物質濃度、健康上の助言を取得します。",
+        "ar": "جلب مؤشرات جودة الهواء وتركيزات ملوثات اختيارية وتوصيات صحية.",
+        "he": "קבלת מדדי איכות אוויר, ריכוזי מזהמים אופציונליים והמלצות בריאות."
       }
     },
     {
@@ -151,7 +247,13 @@
       "summary": {
         "en": "Fetch a PNG map with markers and paths. MCP returns an inline image; CLI returns base64 JSON or writes --output.",
         "fr": "Récupérer une carte PNG avec marqueurs et tracés. MCP renvoie une image intégrée ; la CLI renvoie du JSON base64 ou écrit --output.",
-        "it": "Recupera una mappa PNG con indicatori e tracciati. MCP restituisce un’immagine incorporata; la CLI restituisce JSON base64 oppure scrive --output."
+        "it": "Recupera una mappa PNG con indicatori e tracciati. MCP restituisce un’immagine incorporata; la CLI restituisce JSON base64 oppure scrive --output.",
+        "de": "PNG-Karte mit optionalen Markern und Pfaden erzeugen.",
+        "es": "Crear un mapa PNG con marcadores y trazados opcionales.",
+        "zh": "将中心、标记和路径渲染为 PNG 地图。",
+        "ja": "中心点、マーカー、経路を PNG 地図に描画します。",
+        "ar": "جلب خريطة PNG بعلامات ومسارات. يعيد MCP صورة مضمنة؛ ويعيد CLI بصيغة base64 JSON أو يكتب --output.",
+        "he": "שליפת מפת PNG עם סמנים ותוואים. MCP מחזיר תמונה מוטמעת; CLI מחזיר base64 JSON או כותב --output."
       }
     },
     {
@@ -160,7 +262,13 @@
       "summary": {
         "en": "Geocode up to 50 addresses with per-address success or error and bounded concurrency.",
         "fr": "Géocoder jusqu’à 50 adresses avec succès ou erreur par adresse et concurrence bornée.",
-        "it": "Geocodifica fino a 50 indirizzi con successo o errore per ciascuno e concorrenza limitata."
+        "it": "Geocodifica fino a 50 indirizzi con successo o errore per ciascuno e concorrenza limitata.",
+        "de": "Bis zu 50 Adressen auflösen und Erfolg oder Fehler je Adresse erhalten.",
+        "es": "Geocodificar hasta 50 direcciones conservando éxito o error por dirección.",
+        "zh": "一次解析最多 50 个地址，保留输入顺序及逐地址错误。",
+        "ja": "最大 50 住所を一括解決し、入力順と住所別エラーを保持します。",
+        "ar": "ترميز جغرافي لما يصل إلى 50 عنوانًا، مع نجاح أو خطأ لكل عنوان وتزامن محدود.",
+        "he": "קידוד גאוגרפי של עד 50 כתובות עם הצלחה או שגיאה לכל כתובת ומקביליות מוגבלת."
       }
     },
     {
@@ -169,7 +277,13 @@
       "summary": {
         "en": "Resolve a location and explore categories with details for top results. Use specific landmarks for trip planning.",
         "fr": "Résoudre une localisation et explorer des catégories avec les détails des premiers résultats. Utiliser des lieux précis pour préparer un parcours.",
-        "it": "Risolve una posizione ed esplora categorie con dettagli per i primi risultati. Usa punti di interesse specifici per pianificare un viaggio."
+        "it": "Risolve una posizione ed esplora categorie con dettagli per i primi risultati. Usa punti di interesse specifici per pianificare un viaggio.",
+        "de": "Ort auflösen und Kategorien mit Details zu führenden Treffern erkunden. Präzise Orte zur Routenplanung verwenden.",
+        "es": "Resolver una ubicación y explorar categorías con detalles de los primeros resultados. Use lugares precisos para preparar recorridos.",
+        "zh": "解析一个位置，按类别探索附近地点并扩展各类别的首批详情。",
+        "ja": "場所を解決し、カテゴリごとに周辺を検索して上位結果の詳細を取得します。",
+        "ar": "حل موقع واستكشاف فئات مع تفاصيل لأفضل النتائج. استخدم معالم محددة لتخطيط الرحلة.",
+        "he": "פתרון מיקום וחקירת קטגוריות עם פרטים לתוצאות המובילות. השתמשו באתרים מוגדרים לתכנון נסיעה."
       }
     },
     {
@@ -178,7 +292,13 @@
       "summary": {
         "en": "Plan a route through 2-27 stops. Optimize 2-25 intermediate stops, except transit. Exact coordinates are preserved.",
         "fr": "Planifier un itinéraire de 2 à 27 arrêts. Optimiser 2 à 25 arrêts intermédiaires, sauf en transport en commun. Les coordonnées exactes sont préservées.",
-        "it": "Pianifica un percorso di 2–27 tappe. Ottimizza 2–25 tappe intermedie, escluso transit. Le coordinate esatte vengono mantenute."
+        "it": "Pianifica un percorso di 2–27 tappe. Ottimizza 2–25 tappe intermedie, escluso transit. Le coordinate esatte vengono mantenute.",
+        "de": "Route durch 2–27 Stopps planen. 2–25 Zwischenstopps außer bei transit optimieren; exakte Koordinaten bleiben erhalten.",
+        "es": "Planificar una ruta de 2–27 paradas. Optimizar 2–25 paradas intermedias salvo transit; se conservan las coordenadas exactas.",
+        "zh": "规划经过 2–27 个停靠点的路线；非公共交通可优化 2–25 个中间点，并保留精确坐标。",
+        "ja": "2–27 立ち寄り点の経路を計画します。公共交通以外は 2–25 中間点を最適化でき、正確な座標を保持します。",
+        "ar": "تخطيط مسار يمر بـ 2–27 توقفًا. تحسين 2–25 توقفًا وسيطًا عدا النقل العام. تبقى الإحداثيات الدقيقة محفوظة.",
+        "he": "תכנון מסלול דרך 2–27 עצירות. אופטימיזציה של 2–25 עצירות ביניים, למעט תחבורה ציבורית. קואורדינטות מדויקות נשמרות."
       }
     },
     {
@@ -187,7 +307,13 @@
       "summary": {
         "en": "Search and compare places with detailed information and optional driving distance from userLocation.",
         "fr": "Rechercher et comparer des lieux avec des informations détaillées et, en option, la distance en voiture depuis userLocation.",
-        "it": "Cerca e confronta luoghi con informazioni dettagliate e distanza in auto facoltativa da userLocation."
+        "it": "Cerca e confronta luoghi con informazioni dettagliate e distanza in auto facoltativa da userLocation.",
+        "de": "Orte mit Detailinformationen und optionaler Fahrentfernung ab userLocation suchen und vergleichen.",
+        "es": "Buscar y comparar lugares con detalles y distancia en coche opcional desde userLocation.",
+        "zh": "搜索并比较地点详情，可选比较到 userLocation 的驾车距离。",
+        "ja": "場所を検索し詳細を比較します。userLocation からの運転距離も任意で取得します。",
+        "ar": "البحث عن أماكن ومقارنتها بمعلومات مفصلة ومسافة قيادة اختيارية من userLocation.",
+        "he": "חיפוש והשוואת מקומות עם פרטים ומרחק נהיגה אופציונלי מ-userLocation."
       }
     },
     {
@@ -196,7 +322,13 @@
       "summary": {
         "en": "Find places along a route using its encoded polyline.",
         "fr": "Trouver des lieux le long d’un itinéraire à l’aide de sa polyligne encodée.",
-        "it": "Trova luoghi lungo un percorso usando la sua polilinea codificata."
+        "it": "Trova luoghi lungo un percorso usando la sua polilinea codificata.",
+        "de": "Orte entlang einer Route anhand ihrer kodierten Polylinie finden.",
+        "es": "Encontrar lugares a lo largo de una ruta usando su polilínea codificada.",
+        "zh": "使用路线编码折线查找沿途地点。",
+        "ja": "経路のエンコード済みポリラインで沿道の場所を検索します。",
+        "ar": "العثور على أماكن على طول مسار باستخدام خطه المشفر.",
+        "he": "מציאת מקומות לאורך מסלול באמצעות הקו המקודד שלו."
       }
     },
     {
@@ -205,7 +337,13 @@
       "summary": {
         "en": "Track search rank across a geographic grid for 1-3 keywords; returns ARP, ATRP, SoLV and per-point errors.",
         "fr": "Mesurer le classement de recherche sur une grille géographique pour 1 à 3 mots-clés ; renvoie ARP, ATRP, SoLV et les erreurs par point.",
-        "it": "Misura il posizionamento di ricerca su una griglia geografica per 1–3 parole chiave; restituisce ARP, ATRP, SoLV ed errori per punto."
+        "it": "Misura il posizionamento di ricerca su una griglia geografica per 1–3 parole chiave; restituisce ARP, ATRP, SoLV ed errori per punto.",
+        "de": "Suchrang für 1–3 Schlüsselwörter über ein geografisches Raster messen; liefert ARP, ATRP, SoLV und Fehler je Punkt.",
+        "es": "Medir posiciones de búsqueda para 1–3 palabras clave en una cuadrícula; devuelve ARP, ATRP, SoLV y errores por punto.",
+        "zh": "对 1–3 个关键词在地理网格上跟踪搜索排名，返回 ARP、ATRP、SoLV 和逐点错误。",
+        "ja": "1–3 キーワードの検索順位を地理グリッドで測り、ARP・ATRP・SoLV と点別エラーを返します。",
+        "ar": "تتبع ترتيب البحث عبر شبكة جغرافية لـ 1–3 كلمات؛ يعيد ARP وATRP وSoLV وأخطاء لكل نقطة.",
+        "he": "מעקב דירוג חיפוש ברשת גאוגרפית ל-1–3 מילות מפתח; מחזיר ARP, ATRP, SoLV ושגיאות לכל נקודה."
       }
     }
   ]

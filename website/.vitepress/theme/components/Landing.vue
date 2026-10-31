@@ -3,10 +3,13 @@ import { computed, ref, onMounted, onUnmounted } from "vue";
 import { useData, withBase } from "vitepress";
 import RouteMap from "./RouteMap.vue";
 import catalog from "../../../data/catalog.json";
+import locales from "../../../data/locales.json";
 
-const { lang } = useData();
+const { localeIndex } = useData();
 const language = computed(() =>
-  lang.value === "fr" ? "fr" : lang.value === "it" ? "it" : "en",
+  localeIndex.value === "root"
+    ? "en"
+    : (localeIndex.value as keyof typeof locales),
 );
 const prefix = computed(() =>
   language.value === "en" ? "" : `/${language.value}`,
@@ -18,182 +21,7 @@ const copied = ref(false);
 const copyFailed = ref(false);
 let timer: ReturnType<typeof setTimeout>;
 let observer: IntersectionObserver | undefined;
-const text = {
-  en: {
-    edition: "THE FIELD MANUAL",
-    tagline: "The world. Within reach.",
-    intro:
-      "Google Maps for your terminal and your agents. One Rust binary. Every coordinate, a possibility.",
-    start: "Open the manual",
-    browse: "Explore the tools",
-    copy: "Copy install command",
-    copied: "Copied",
-    failed: "Select the command to copy it",
-    map: "ILLUSTRATIVE ROUTE · NO LIVE DATA",
-    scroll: "A LITTLE FURTHER",
-    section: "01 / ONE BINARY, THREE WAYS IN",
-    ways: "Fits the way\nyou work.",
-    waysIntro:
-      "From a quick lookup to a production agent. The same tools, wherever you run them.",
-    cli: "Your terminal.",
-    cliText:
-      "Find a place, validate an address, plan a route. Structured JSON. Scripts welcome.",
-    stdio: "Your agent.",
-    stdioText:
-      "Launch an MCP stdio server. Connect your host. Give your agent a sense of place.",
-    http: "Your infrastructure.",
-    httpText:
-      "Streamable HTTP, native TLS and mTLS. Ready for containers and Kubernetes.",
-    catalog: "02 / THE TOOLKIT",
-    toolsTitle: "A world of answers.",
-    toolsIntro:
-      "23 tools. From street-level details to the conditions overhead. Every parameter, default and example is documented.",
-    search: "Filter tools",
-    count: "tools",
-    all: "All tools",
-    places: "Places & addresses",
-    routes: "Routes & roads",
-    environment: "Local conditions",
-    geography: "Geography & maps",
-    empty: "No matching tools. Try another search.",
-    reference: "Read the full reference",
-    journey: "03 / FROM FIRST CALL TO PRODUCTION",
-    journeyTitle: "Start small.\nGo anywhere.",
-    guide: "YOUR NEXT STEP",
-    quick: "Up and running",
-    quickText: "Install the binary and make your first call.",
-    auth: "Connect to Google",
-    authText: "API keys, service accounts and OAuth, explained.",
-    deploy: "Take it to production",
-    deployText: "Docker, Kubernetes, TLS and the controls that matter.",
-    final: "Bring a sense of place\nto your next agent.",
-    finalAction: "Start building",
-    footer: "Built in Rust. Documented in three languages.",
-    source: "Source",
-    release: "Releases",
-    rustdoc: "Rust API",
-    top: "Back to top",
-    locale: "EN / FR / IT",
-    toolsLink: "Tool reference",
-    manualLink: "Manual",
-  },
-  fr: {
-    edition: "LE MANUEL DE TERRAIN",
-    tagline: "Le monde. À portée de main.",
-    intro:
-      "Google Maps pour votre terminal et vos agents. Un binaire Rust. Chaque coordonnée ouvre des possibilités.",
-    start: "Ouvrir le manuel",
-    browse: "Explorer les outils",
-    copy: "Copier la commande",
-    copied: "Copié",
-    failed: "Sélectionnez la commande pour la copier",
-    map: "ITINÉRAIRE ILLUSTRATIF · AUCUNE DONNÉE EN DIRECT",
-    scroll: "UN PEU PLUS LOIN",
-    section: "01 / UN BINAIRE, TROIS FAÇONS DE L’UTILISER",
-    ways: "À votre façon\nde travailler.",
-    waysIntro:
-      "D’une recherche rapide à un agent en production. Les mêmes outils, partout où vous les exécutez.",
-    cli: "Votre terminal.",
-    cliText:
-      "Trouvez un lieu, validez une adresse, calculez un trajet. Du JSON structuré pour vos scripts.",
-    stdio: "Votre agent.",
-    stdioText:
-      "Lancez un serveur MCP stdio. Connectez votre hôte. Donnez à votre agent le sens du lieu.",
-    http: "Votre infrastructure.",
-    httpText:
-      "HTTP streamable, TLS et mTLS natifs. Pour les conteneurs et Kubernetes.",
-    catalog: "02 / LES OUTILS",
-    toolsTitle: "Un monde de réponses.",
-    toolsIntro:
-      "23 outils. Des détails d’une rue aux conditions locales. Chaque paramètre, valeur par défaut et exemple est documenté.",
-    search: "Filtrer les outils",
-    count: "outils",
-    all: "Tous les outils",
-    places: "Lieux et adresses",
-    routes: "Itinéraires et routes",
-    environment: "Conditions locales",
-    geography: "Géographie et cartes",
-    empty: "Aucun outil trouvé. Essayez une autre recherche.",
-    reference: "Consulter toute la référence",
-    journey: "03 / DU PREMIER APPEL À LA PRODUCTION",
-    journeyTitle: "Commencez petit.\nAllez plus loin.",
-    guide: "LA PROCHAINE ÉTAPE",
-    quick: "Démarrer rapidement",
-    quickText: "Installez le binaire et lancez votre premier appel.",
-    auth: "Se connecter à Google",
-    authText: "Clés API, comptes de service et OAuth, expliqués.",
-    deploy: "Passer en production",
-    deployText: "Docker, Kubernetes, TLS et les contrôles utiles.",
-    final: "Donnez le sens du lieu\nà votre prochain agent.",
-    finalAction: "Commencer",
-    footer: "Écrit en Rust. Documenté en trois langues.",
-    source: "Code source",
-    release: "Versions",
-    rustdoc: "API Rust",
-    top: "Retour en haut",
-    locale: "EN / FR / IT",
-    toolsLink: "Référence des outils",
-    manualLink: "Manuel",
-  },
-  it: {
-    edition: "IL MANUALE SUL CAMPO",
-    tagline: "Il mondo. A portata di mano.",
-    intro:
-      "Google Maps per il tuo terminale e i tuoi agenti. Un binario Rust. Ogni coordinata, una possibilità.",
-    start: "Apri il manuale",
-    browse: "Esplora gli strumenti",
-    copy: "Copia il comando",
-    copied: "Copiato",
-    failed: "Seleziona il comando per copiarlo",
-    map: "PERCORSO ILLUSTRATIVO · NESSUN DATO IN TEMPO REALE",
-    scroll: "UN PO’ PIÙ AVANTI",
-    section: "01 / UN BINARIO, TRE MODI DI USARLO",
-    ways: "Segue il tuo modo\ndi lavorare.",
-    waysIntro:
-      "Da una ricerca veloce a un agente in produzione. Gli stessi strumenti, ovunque li esegui.",
-    cli: "Il tuo terminale.",
-    cliText:
-      "Trova un luogo, convalida un indirizzo, pianifica un percorso. JSON strutturato, pronto per gli script.",
-    stdio: "Il tuo agente.",
-    stdioText:
-      "Avvia un server MCP stdio. Collega il tuo host. Dai al tuo agente il senso del luogo.",
-    http: "La tua infrastruttura.",
-    httpText: "HTTP streamable, TLS e mTLS nativi. Per container e Kubernetes.",
-    catalog: "02 / GLI STRUMENTI",
-    toolsTitle: "Un mondo di risposte.",
-    toolsIntro:
-      "23 strumenti. Dai dettagli di una strada alle condizioni locali. Ogni parametro, valore predefinito ed esempio è documentato.",
-    search: "Filtra gli strumenti",
-    count: "strumenti",
-    all: "Tutti gli strumenti",
-    places: "Luoghi e indirizzi",
-    routes: "Percorsi e strade",
-    environment: "Condizioni locali",
-    geography: "Geografia e mappe",
-    empty: "Nessuno strumento trovato. Prova un’altra ricerca.",
-    reference: "Leggi il riferimento completo",
-    journey: "03 / DALLA PRIMA CHIAMATA ALLA PRODUZIONE",
-    journeyTitle: "Inizia in piccolo.\nVai ovunque.",
-    guide: "IL PROSSIMO PASSO",
-    quick: "Subito operativo",
-    quickText: "Installa il binario e fai la prima chiamata.",
-    auth: "Collegati a Google",
-    authText: "Chiavi API, account di servizio e OAuth, spiegati.",
-    deploy: "Passa alla produzione",
-    deployText: "Docker, Kubernetes, TLS e i controlli essenziali.",
-    final: "Dai il senso del luogo\nal tuo prossimo agente.",
-    finalAction: "Inizia a creare",
-    footer: "Scritto in Rust. Documentato in tre lingue.",
-    source: "Sorgente",
-    release: "Release",
-    rustdoc: "API Rust",
-    top: "Torna in alto",
-    locale: "EN / FR / IT",
-    toolsLink: "Riferimento strumenti",
-    manualLink: "Manuale",
-  },
-};
-const t = computed(() => text[language.value]);
+const t = computed(() => locales[language.value].landing);
 const categories = [
   "all",
   "places",

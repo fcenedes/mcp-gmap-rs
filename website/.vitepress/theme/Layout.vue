@@ -1,10 +1,20 @@
 <script setup lang="ts">
+import { computed } from "vue";
 import DefaultTheme from "vitepress/theme";
-import { useData } from "vitepress";
+import { useData, withBase } from "vitepress";
 import Landing from "./components/Landing.vue";
 import { version } from "../../data/catalog.json";
-const { frontmatter, lang } = useData();
-const labels = { en: "THE MANUAL", fr: "LE MANUEL", it: "IL MANUALE" };
+import locales from "../../data/locales.json";
+const { frontmatter, localeIndex } = useData();
+const key = computed(() =>
+  localeIndex.value === "root"
+    ? "en"
+    : (localeIndex.value as keyof typeof locales),
+);
+const strings = computed(() => locales[key.value]);
+const home = computed(() =>
+  withBase(key.value === "en" ? "/" : `/${key.value}/`),
+);
 </script>
 
 <template>
@@ -14,21 +24,12 @@ const labels = { en: "THE MANUAL", fr: "LE MANUEL", it: "IL MANUALE" };
     /></template>
     <template #doc-before
       ><div class="manual-eyebrow">
-        {{ labels[lang as keyof typeof labels] || labels.en }} / v{{ version }}
+        {{ strings.eyebrow }} / v{{ version }}
       </div></template
     >
     <template #sidebar-nav-before
-      ><a
-        class="sidebar-intro"
-        :href="lang === 'en' ? '/mcp-gmap-rs/' : `/mcp-gmap-rs/${lang}/`"
-        >{{
-          lang === "fr"
-            ? "Votre atlas de possibilités."
-            : lang === "it"
-              ? "Il tuo atlante di possibilità."
-              : "Your atlas of possibilities."
-        }}
-        <span>↗</span></a
+      ><a class="sidebar-intro" :href="home"
+        >{{ strings.sidebarIntro }} <span>↗</span></a
       ></template
     >
   </DefaultTheme.Layout>

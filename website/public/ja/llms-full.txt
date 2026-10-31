@@ -1,0 +1,2056 @@
+# mcp-gmap-rs / ja
+
+https://fcenedes.github.io/mcp-gmap-rs/ja/
+
+
+<!-- https://fcenedes.github.io/mcp-gmap-rs/ja/guide/agent-skill -->
+
+# エージェントスキル {#agent-skill}
+
+移植可能な `mcp-gmap` スキルは、ツール選択、MCP・CLI の安全な呼び出し、部分失敗の確認、Google の帰属情報の保持をエージェントに教えます。別途設定する実行ファイルや MCP 接続を補助します。
+
+## ソースまたはリリースからのインストール {#install-from-source-or-a-release}
+
+ソースパッケージと各リリースアーカイブに[スキルフォルダー](https://github.com/fcenedes/mcp-gmap-rs/tree/main/skills/mcp-gmap)を含みます。チェックアウトまたは展開先から Codex 用にインストールできます。
+
+```sh
+mkdir -p "${CODEX_HOME:-$HOME/.codex}/skills"
+cp -R skills/mcp-gmap "${CODEX_HOME:-$HOME/.codex}/skills/"
+```
+
+たとえば `$mcp-gmap` として呼び出します。
+
+> $mcp-gmap を使って Gare de Lyon 周辺のカフェを探し、徒歩経路を比較して、ソースリンクを保持してください。
+
+他のエージェントでは同じフォルダーを対応スキルディレクトリへ配置するか、`SKILL.md` とリンク先を読み込みます。指示本文はエージェントに依存せず、`agents/openai.yaml` は任意の Codex UI メタデータです。エージェントの PATH に動く実行ファイルを置くか、[MCP 接続](./mcp)を設定してください。
+
+## スキルが追加するもの {#what-the-skill-adds}
+
+スキルはツール検出から始めるため、古いインストール済みバージョンが最新カタログを持つと仮定しません。正確な座標と返された場所 ID を優先し、検索範囲を小さく保ち、住所検証・集計・沿道検索には無関係な結果から推測するのでなく専用ツールを選びます。
+
+認証情報はツール引数ではなくプロセス・デプロイ設定として扱います。受信 MCP 認可と送信 Google 認証を区別し、まずオフライン診断を使います。ライブ診断プローブには料金が発生する場合があります。トップレベル呼び出しが成功しても、複合出力内の入れ子エラーを確認する必要があります。
+
+[ツール選択リファレンス](https://github.com/fcenedes/mcp-gmap-rs/blob/main/skills/mcp-gmap/references/tool-selection.md)は判断規則、[CLI リファレンス](https://github.com/fcenedes/mcp-gmap-rs/blob/main/skills/mcp-gmap/references/cli.md)は構造化呼び出しと接続診断を解説します。全体の手順は本マニュアルの[活用例](./recipes)、全引数は[ツールリファレンス](../reference/tools)を参照してください。
+
+
+<!-- https://fcenedes.github.io/mcp-gmap-rs/ja/guide/authentication -->
+
+# 認証 {#authentication}
+
+Google への外向き認証情報と MCP HTTP クライアント用の認証情報は別に設定します。既定は API キーモードであり、サービスアカウントのパスだけでは OAuth は有効になりません。
+
+## API キーと OAuth の対応範囲 {#api-key-and-oauth-coverage}
+
+| エンドポイントの種類 | API キー | この実行ファイルでの OAuth |
+| --- | --- | --- |
+| Places (New)、Routes、Weather、Air Quality、Address Validation、Places Aggregate | 対応 | 対応 |
+| Geocoding v3、Elevation、Time Zone、Maps Static、Pollen、Roads | 対応 | 非対応 |
+
+主処理が OAuth に対応していても、名前付きの場所解決や複合呼び出しでキーが必要になる場合があります。不要なジオコーディングを避けるには正確な座標を使ってください。OAuth の失敗が API キーに暗黙にフォールバックすることはありません。[Google Cloud の設定](./google-cloud)で正確なサービスの有効化とキーの制限を確認してください。
+
+## サービスアカウント OAuth {#service-account-oauth}
+
+OAuth モードでは、Places (New)、Routes、Weather、Air Quality、Address Validation、Places Aggregate のリクエストに OAuth **アクセストークン**と `X-Goog-User-Project` ヘッダーを付けます。これらの API が文書化する `https://www.googleapis.com/auth/cloud-platform` スコープを要求します。Google の Rust 認証ライブラリがトークンを取得・キャッシュ・更新します。`GOOGLE_MAPS_TIMEOUT` は認証初期化とトークン取得にも適用されます。サービスアカウントのフローでは、手動のトークン貼り付けやアプリの OAuth 同意画面は不要です。[Maps のサーバー側 OAuth ガイド](https://developers.google.com/maps/api-security-best-practices#use-oauth-for-server-side-apps)を参照してください。
+
+専用サービスアカウントを作成し、Maps の課金・割り当てプロジェクトでサービスを消費する権限を与えます。
+
+```sh
+export PROJECT_ID='your-project-id'
+export SA_EMAIL="mcp-gmap@${PROJECT_ID}.iam.gserviceaccount.com"
+gcloud iam service-accounts create mcp-gmap --project="$PROJECT_ID" \
+  --display-name='MCP Google Maps'
+gcloud projects add-iam-policy-binding "$PROJECT_ID" \
+  --member="serviceAccount:${SA_EMAIL}" \
+  --role='roles/serviceusage.serviceUsageConsumer'
+```
+
+Service Usage Consumer ロールには課金・割り当てのための `serviceusage.services.use` が含まれます。ただしサービスの有効化やキー作成の権限はなく、その準備には別途権限を持つ管理者が必要です。[Google Cloud 設定ガイド](./google-cloud)に従って割り当てプロジェクトで Maps API を有効化してください。[Service Usage の権限](https://docs.cloud.google.com/service-usage/docs/access-control)も参照してください。
+
+以下から認証情報の取得元を 1 つ選びます。CLI、stdio、HTTP で同じ設定を使い、通常のファイル → 環境変数 → オプションの優先順位に従います。
+
+### A. サービスアカウント JSON キーのマウント {#a-mounted-service-account-json-key}
+
+組織で JSON キーが許可されている場合は、**IAM & Admin → Service Accounts** でアカウントを選び、**Keys → Add key → Create new key → JSON** を選択します。ソースのチェックアウト外に保存してください。次のコマンドでも作成できます。
+
+```sh
+mkdir -p "$HOME/.config/mcp-gmap-rs"
+gcloud iam service-accounts keys create \
+  "$HOME/.config/mcp-gmap-rs/service-account.json" \
+  --iam-account="$SA_EMAIL" --project="$PROJECT_ID"
+chmod 600 "$HOME/.config/mcp-gmap-rs/service-account.json"
+export GOOGLE_APPLICATION_CREDENTIALS="$HOME/.config/mcp-gmap-rs/service-account.json"
+export GOOGLE_CLOUD_QUOTA_PROJECT="$PROJECT_ID"
+export GOOGLE_MAPS_AUTH_MODE=oauth
+```
+
+マウントするファイルの場合、同等の `.env` は次のとおりです。
+
+```dotenv
+GOOGLE_MAPS_AUTH_MODE=oauth
+GOOGLE_APPLICATION_CREDENTIALS=/credentials/service-account.json
+GOOGLE_CLOUD_QUOTA_PROJECT=your-project-id
+# Optional, for Geocoding v3 / Elevation / Time Zone / Static Maps / Pollen / Roads:
+# GOOGLE_MAPS_API_KEY=your-restricted-api-key
+```
+
+読み取り可能な JSON ファイルを使う場合だけパスを設定してください。空文字列や JSON 本文を設定してはいけません。相対パスは作業ディレクトリから解決され、ファイルの値はプロセス環境を変更せず直接利用されます。ローダーは ADC の `external_account`、`impersonated_service_account`、`authorized_user` JSON 設定にも対応します。認証ファイル変更後はプロセスを再起動してください。
+
+サービスアカウントキーは長期認証情報です。利用できる場合は以下のキーレス方式を優先し、JSON キーを Git やイメージ層に含めず、未使用キーをローテーションまたは削除してください。Google の[キー作成と組織ポリシー](https://docs.cloud.google.com/iam/docs/keys-create-delete)を参照してください。
+
+### B. JSON キーを使わない Application Default Credentials {#b-application-default-credentials-without-a-json-key}
+
+`GOOGLE_APPLICATION_CREDENTIALS` は、プロセス環境と選択した dotenv ファイルまたは Kubernetes Secret/ConfigMap の両方で未設定にします。シェルの `unset` だけではファイル層の値は消えません。空パスを設定するのでなく項目自体を削除し、次を設定してください。
+
+```dotenv
+GOOGLE_MAPS_AUTH_MODE=oauth
+GOOGLE_CLOUD_QUOTA_PROJECT=your-project-id
+```
+
+公式認証ライブラリは [Application Default Credentials (ADC)](https://docs.cloud.google.com/docs/authentication/application-default-credentials) を使います。ローカル ADC があれば利用し、なければメタデータサーバー経由で付与されたワークロード・サービスアカウントを使用します。認証情報の検出は遅延実行され、`tools`、`schema`、ヘルプはトークン取得なしで動作します。OAuth API 呼び出しには割り当てプロジェクトと有効な認証情報が必要です。
+
+ローカル開発でサービスアカウントの権限借用を使うには、IAM Credentials API を有効化し、開発者アカウントにそのサービスアカウントの Token Creator を付与してからローカル ADC を作成します。
+
+```sh
+gcloud services enable iamcredentials.googleapis.com --project="$PROJECT_ID"
+gcloud iam service-accounts add-iam-policy-binding "$SA_EMAIL" \
+  --project="$PROJECT_ID" --member='user:you@example.com' \
+  --role='roles/iam.serviceAccountTokenCreator'
+unset GOOGLE_APPLICATION_CREDENTIALS
+gcloud auth application-default login --impersonate-service-account="$SA_EMAIL"
+export GOOGLE_MAPS_AUTH_MODE=oauth
+export GOOGLE_CLOUD_QUOTA_PROJECT="$PROJECT_ID"
+```
+
+この方式は短期のサービスアカウントトークンで Maps を呼び出し、秘密鍵のダウンロードが不要です。[サービスアカウントの権限借用](https://docs.cloud.google.com/iam/docs/service-account-impersonation)を参照してください。
+
+### C. Kubernetes と GKE のワークロード ID {#c-kubernetes-and-gke-workload-identity}
+
+一般的な Kubernetes では、認証 JSON を Secret ファイルとしてマウントし、方式 A の 3 つの OAuth 変数を設定します。コンテナの UID 10001 が読める必要があります。読み取り専用でマウントし、`MCP_HTTP_TOKEN` は別の実行時 Secret に保存してください。[コンテナガイド](./deployment)で基本 Deployment を解説します。
+
+GKE では、Kubernetes ServiceAccount を IAM サービスアカウントに関連付ける [Workload Identity Federation for GKE](https://docs.cloud.google.com/kubernetes-engine/docs/how-to/workload-identity) を優先します。まずクラスター・ノードプールで有効化し（Autopilot では有効）、続いて次を実行します。
+
+```sh
+gcloud services enable iamcredentials.googleapis.com --project="$PROJECT_ID"
+kubectl create serviceaccount mcp-gmap-rs --namespace default
+gcloud iam service-accounts add-iam-policy-binding "$SA_EMAIL" \
+  --project="$PROJECT_ID" --role='roles/iam.workloadIdentityUser' \
+  --member="serviceAccount:${PROJECT_ID}.svc.id.goog[default/mcp-gmap-rs]"
+kubectl annotate serviceaccount mcp-gmap-rs --namespace default \
+  "iam.gke.io/gcp-service-account=${SA_EMAIL}"
+kubectl patch deployment mcp-gmap-rs --namespace default --type=merge \
+  -p '{"spec":{"template":{"spec":{"serviceAccountName":"mcp-gmap-rs"}}}}'
+kubectl set env deployment/mcp-gmap-rs --namespace default \
+  GOOGLE_MAPS_AUTH_MODE=oauth GOOGLE_CLOUD_QUOTA_PROJECT="$PROJECT_ID"
+```
+
+これらのコマンドはクラスターと IAM サービスアカウントが `PROJECT_ID` 内にあり、基本 Deployment が `default` にある前提です。環境に合わせてプロジェクト・名前空間を変更してください。メタデータ方式では `GOOGLE_APPLICATION_CREDENTIALS` を設定しません。Pod は GKE メタデータサーバーからアクセストークンを取得します。GKE 以外では、`external_account` 設定とプロバイダーの投射 ID トークンを Google Workload Identity Federation と組み合わせられます。
+
+OAuth のみで運用する場合は実行時 Secret から Google API キーを削除し、OAuth 対応 API だけを使うツール・入力を有効化します。表のキー専用エンドポイントや、それを必要とする複合処理を使う場合はキーを保持します。対応 API の OAuth 失敗は明示的なエラーとなり、暗黙にキーへ切り替わることはありません。
+
+## 検証とトラブルシューティング {#verify-and-troubleshoot}
+
+```sh
+mcp-gmap-rs --auth-mode oauth search-places --query 'coffee in Paris'
+mcp-gmap-rs --auth-mode oauth weather --latitude 48.8584 --longitude 2.2945
+```
+
+これらは料金が発生し得る実際の呼び出しです。テスト時に有効なモードと割り当てプロジェクトを確認してください。OAuth の課金先は `GOOGLE_CLOUD_QUOTA_PROJECT`、キー認証の呼び出しはキーのプロジェクトです。両者が異なる場合があります。
+
+オフライン設定検査には `mcp-gmap-rs doctor`、明示的に料金の発生し得る API プローブを行うには `doctor --live` を使います。[本番運用ガイド](./production)でレポートとツールの絞り込みを説明しています。
+
+OAuth 変数をエクスポートした後、明示的に有効化する 6 つのライブ受け入れテストを実行できます。
+
+```sh
+cargo test --locked --test live live_oauth_ -- --ignored --test-threads=1
+```
+
+各テストは子プロセスから API キーを明示的に除去するため、成功は OAuth の動作を示します。Places、Routes、Weather、Air Quality、Address Validation、Places Aggregate を対象とし、対応 API の有効化が必要です。`.env` は読み込まないため、OAuth 設定をエクスポートするか設定済みワークロードで実行してください。通常のテスト・CI はローカルのトークン・API フィクスチャを使い、サービスアカウント不要で Google に接続しません。
+
+| 症状 | 確認事項 |
+| --- | --- |
+| `GOOGLE_MAPS_API_KEY is required` | 選択した処理がキー専用エンドポイントを使っているか、API キーモードが選択されています。 |
+| OAuth 認証失敗 | 認証ファイルのパス・種類、キーの有効性、ワークロード ID・権限借用の関連付け、利用する IAM Credentials API、トークンエンドポイントへの接続、時計の正確さを確認します。アプリのエラーに認証内容やトークンは含まれません。 |
+| `GOOGLE_CLOUD_QUOTA_PROJECT is required` | OAuth 呼び出し用の Maps 消費プロジェクト ID・番号を設定します。 |
+| Google `403` / API が無効 | 消費プロジェクトで正しいサービスを有効化し、課金と Service Usage 権限を確認します。 |
+| API キーの IP 拒否 | サーバー・クラスターの公開送信元 IP と制限を一致させます。 |
+| トークンのタイムアウト | Google のトークン・STS・IAM エンドポイントまたはメタデータサーバーへの接続を許可し、`GOOGLE_MAPS_TIMEOUT` を確認します。 |
+| この MCP サーバーの HTTP `401` | サーバーの `MCP_HTTP_TOKEN` を送ります。Google のサービスアカウントトークンは別の外向き接続を認証するものです。 |
+
+
+<!-- https://fcenedes.github.io/mcp-gmap-rs/ja/guide/cli -->
+
+# コマンドラインインターフェース {#command-line-interface}
+
+CLI は単発の照会、シェル自動化、構造化された子プロセス呼び出しに利用できます。各ツールの入力スキーマと実装は MCP と共通です。
+
+## インストール済みインターフェースの確認 {#discover-the-installed-interface}
+
+```sh
+mcp-gmap-rs --version
+mcp-gmap-rs --help
+mcp-gmap-rs tools
+mcp-gmap-rs schema search-nearby
+mcp-gmap-rs search-nearby --help
+```
+
+`tools` は有効なツールとスキーマを返します。最新版マニュアルの全機能があると仮定せず、インストール済みバージョンを確認してください。サブコマンドなしで起動すると stdio サーバーになるため、単発の自動化では必ずコマンドを指定します。
+
+## オプションと共通 JSON {#flags-or-shared-json}
+
+ツールのオプション名は kebab-case です。オブジェクト・配列の値は JSON で渡します。真偽値オプションは `true` または `false` を受け取り、値なしの指定は `true` を意味します。
+
+```sh
+mcp-gmap-rs search-nearby \
+  --center '{"value":"48.8584,2.2945","isCoordinates":true}' \
+  --keyword cafe --radius 500 --open-now
+```
+
+汎用の `call` は MCP の論理ツール名と CLI コマンド名のどちらも受け取り、MCP と同じ引数オブジェクトを使用します。
+
+```sh
+mcp-gmap-rs call maps_geocode --args '{"address":"Paris, France"}'
+printf '%s' '{"address":"Paris, France"}' | mcp-gmap-rs call geocode --args -
+```
+
+プログラムから子プロセスを起動するときは、シリアライズ済み JSON を独立した引数として渡してください。信頼できない文字列をシェルコマンドに埋め込まないでください。トップレベル引数にはオプションがあり、入れ子の項目は JSON オブジェクト内に保持します。
+
+## 出力と失敗の扱い {#output-and-failure-handling}
+
+通常のツール結果は stdout に JSON で出力します。エラーは stderr に出力し、終了ステータスは非ゼロになります。`doctor` は検査失敗時も JSON レポートを stdout に書きます。バッチ、行列、複合処理は終了ステータスが成功でも項目別エラーを含む場合があるため、完了と判断する前に確認してください。
+
+```sh
+mcp-gmap-rs place-details --place-id ChIJLU7jZClu5kcR4PcOOO6p3I0 --output place.json
+mcp-gmap-rs static-map --center Paris --zoom 12 --output paris.png
+```
+
+`--output` は通常のツールで JSON、静的地図では生の PNG を保存します。省略した場合、CLI の静的地図出力は base64 データです。時刻は通常、明示的なタイムゾーンを持つ RFC 3339 を使用します。Time Zone ツールの任意の `timestamp` は Unix **ミリ秒**です。[全ツールと実行例](../reference/tools)を参照してください。
+
+
+<!-- https://fcenedes.github.io/mcp-gmap-rs/ja/guide/configuration -->
+
+# 設定 {#configuration}
+
+CLI と両方の MCP トランスポートは同じ起動設定を共有します。ローカルではファイル、コンテナでは環境変数、プロセス単位で明示的に上書きする場合はオプションを使用します。
+
+## 優先順位 {#precedence}
+
+値は次の順番で適用され、後の層が優先されます。
+
+**組み込みの既定値 → 任意の dotenv ファイル → プロセス環境変数 → CLI オプション**
+
+既定のファイルは現在の作業ディレクトリの `.env` です。親ディレクトリは検索しません。既定のファイルが存在しなくても起動できますが、読み取り不能や構文エラーがある場合は内容を表示せず起動に失敗します。
+
+```sh
+mcp-gmap-rs --env-file /etc/mcp-gmap/runtime.env serve http
+mcp-gmap-rs --no-env-file tools
+```
+
+`MCP_ENV_FILE` でもファイルを指定できますが、`--env-file` が優先されます。明示的に選択したファイルは存在する必要があります。`--no-env-file` は `MCP_ENV_FILE` を含むファイル読み込みを無効にし、`--env-file` とは併用できません。dotenv の解析はプロセス環境を変更しません。
+
+## マウントした設定の上書き {#override-a-mounted-configuration}
+
+```dotenv
+GOOGLE_MAPS_LANGUAGE=en
+GOOGLE_MAPS_TIMEOUT=30
+GOOGLE_MAPS_ENABLED_TOOLS=maps_search_places,maps_place_details
+```
+
+このファイルをマウントした状態で、環境変数により言語を、オプションによりタイムアウトを変更できます。
+
+```sh
+GOOGLE_MAPS_LANGUAGE=fr mcp-gmap-rs \
+  --env-file /etc/mcp-gmap/runtime.env --timeout 15 tools
+```
+
+`--allowed-host` と `--allowed-origin` を繰り返し指定すると、対応するファイル・環境変数のリスト全体を置き換えます。明示的な空の環境変数もファイルを上書きします。任意のトークンやリストは消去できますが、空のタイムアウトは無効です。
+
+## 公開するツールの制御 {#control-the-tool-surface}
+
+`GOOGLE_MAPS_ENABLED_TOOLS` または `--enabled-tools` に、`maps_weather,maps_air_quality` のような論理名をカンマ区切りで指定します。`*` は全ツールを表します。不明な名前は起動エラーになり、無効化されたツールは検出されず呼び出せません。ツール検出とスキーマ参照には認証情報が不要ですが、API 操作には適切な Google 認証情報が必要です。
+
+アプリケーション設定は起動時に読み込みます。環境変数、認証 JSON、Kubernetes Secret/ConfigMap の変更後は再起動してください。ネイティブ TLS の証明書・秘密鍵・クライアント CA ファイルは例外で、[SIGHUP による再読み込み](./production#native-tls-and-mutual-tls)に対応します。
+
+全 21 設定の既定値、オプション、範囲は[設定リファレンス](../reference/configuration)を参照してください。サイトの言語選択は、Google の応答言語を制御する `GOOGLE_MAPS_LANGUAGE` を変更しません。
+
+
+<!-- https://fcenedes.github.io/mcp-gmap-rs/ja/guide/deployment -->
+
+# デプロイ {#deployment}
+
+Google API キーの作成、API の有効化、サービスアカウント OAuth は [Google Cloud 設定ガイド](./google-cloud)を参照してください。コンテナでも同じ多層設定を使います。OAuth はマウントした JSON 認証ファイルまたはワークロードの ADC ID を利用でき、認証情報は実行時に渡します。
+
+[ソースリポジトリ](https://github.com/fcenedes/mcp-gmap-rs)をダウンロードまたはクローンし、ルートでビルドします。
+
+```sh
+docker build -t mcp-gmap-rs:local .
+```
+
+マルチステージ Dockerfile は Rust 1.94.1 とロックファイルでビルドします。実行環境にはバイナリ、Debian の CA 証明書、ライセンスが入り、UID/GID 10001 で動作し、読み取り専用ルートファイルシステムに対応します。許可リスト方式のビルドコンテキストはローカル `.env`、Git データ、ビルド出力を除外します。ビルドに認証情報は不要です。BuildKit は次回用に Cargo のダウンロードとビルド出力をキャッシュします。
+
+同じ Dockerfile で Linux amd64・arm64 のネイティブビルドが可能です。設定済み Buildx ビルダーで両方をビルドし、自分のレジストリへ送るには次を使います。
+
+```sh
+docker buildx build --platform linux/amd64,linux/arm64 \
+  -t registry.example.com/your-team/mcp-gmap-rs:YOUR_VERSION --push .
+```
+
+コンテナレジストリへの自動公開は設定されていません。イメージ名とバージョンを、自分でビルド・公開したものに置き換えてください。
+
+## HTTP、CLI、stdio の実行 {#run-http-cli-or-stdio}
+
+イメージは既定で `0.0.0.0:3000` に対して `serve http` を起動します。実行時に Bearer トークンを渡してください。たとえば `.env.example` と同じ形式の `.env` を使えます。
+
+```sh
+docker run --rm --read-only --cap-drop ALL --security-opt no-new-privileges \
+  --env-file .env -p 127.0.0.1:3000:3000 mcp-gmap-rs:local
+```
+
+コンテナはループバック外で待ち受けるため、`.env` に `MCP_HTTP_TOKEN` が必要です。Google 呼び出しは有効ツールに応じて `GOOGLE_MAPS_API_KEY`、または設定ガイドの OAuth 設定と認証ファイルのマウントを使います。クライアントは `http://127.0.0.1:3000/mcp` に `Authorization: Bearer <token>` を送ります。`GET /health` はトークン不要で Google に接続しません。
+
+Docker の `--env-file` は環境変数を注入します。アプリ自身のファイルローダーを使うには、読み取り可能なファイルをマウントして指定します。
+
+```sh
+docker run --rm --read-only \
+  --mount type=bind,src="$(pwd)/.env",dst=/etc/mcp-gmap/runtime.env,readonly \
+  -e GOOGLE_MAPS_LANGUAGE=fr -p 127.0.0.1:3000:3000 \
+  mcp-gmap-rs:local --env-file /etc/mcp-gmap/runtime.env serve http
+```
+
+環境変数はマウントファイルを、CLI オプションはその両方を上書きします。イメージの `MCP_HTTP_LISTEN=0.0.0.0:3000` も環境変数です。必要なら `-e MCP_HTTP_LISTEN=...` または `--listen` で変更してください。環境変数だけを使うには `--no-env-file serve http` を渡します。
+
+CLI・stdio ではイメージのコマンドを上書きします。
+
+```sh
+docker run --rm mcp-gmap-rs:local tools
+docker run --rm --env-file .env mcp-gmap-rs:local geocode --address Paris
+docker run --rm -i --env-file .env mcp-gmap-rs:local serve stdio
+```
+
+stdio では TTY を割り当てず `-i` を使います。CLI で出力ファイルを作る場合、UID 10001 が書けるディレクトリをマウントし、その中に `--output` を指定してください。
+
+## Kubernetes {#kubernetes}
+
+[基本 Kubernetes マニフェスト](https://github.com/fcenedes/mcp-gmap-rs/blob/main/deploy/kubernetes.yaml)は非機密設定を ConfigMap、認証情報を既存の `mcp-gmap-rs` Secret から取得します。`GOOGLE_MAPS_API_KEY` と `MCP_HTTP_TOKEN` を含むローカルファイルから Secret を作成します（そのファイルはコミットしません）。
+
+```sh
+kubectl create secret generic mcp-gmap-rs --from-env-file=/secure/credentials.env
+```
+
+Deployment の `mcp-gmap-rs:local` をレジストリのイメージに置き換えるか、ローカルイメージを開発クラスターに読み込んでから、例を適用します。
+
+```sh
+kubectl apply -f deploy/kubernetes.yaml
+kubectl rollout status deployment/mcp-gmap-rs
+kubectl port-forward service/mcp-gmap-rs 3000:3000
+```
+
+例は `default` 名前空間用です。別の名前空間や ingress ではサービス DNS ホスト名を調整してください。ClusterIP Service はクラスター内部用なので、リモート接続には TLS ingress・プロキシを使い、`MCP_HTTP_ALLOWED_HOSTS` 内の Host、認可、MCP/SSE ヘッダーを転送します。必要ならポートを含むブラウザーオリジンを明示します。
+
+Deployment は全設定を `envFrom` で注入するため `--no-env-file` を指定しています。代わりに dotenv ファイルを含む Secret をマウントする場合はそのオプションを削除し、`args: ["--env-file", "/etc/mcp-gmap/runtime.env", "serve", "http"]` を設定します。投射ファイルは UID 10001 が読める必要があり、Secret・ConfigMap の環境変数が引き続き優先します。Kubernetes の[環境変数注入](https://kubernetes.io/docs/tasks/inject-data-application/define-environment-variable-container/)と [Secret ボリューム](https://kubernetes.io/docs/concepts/configuration/secret/)を参照してください。
+
+設定は起動時に読み込みます。Secret・ConfigMap の変更後は Pod を再起動します。ネイティブ TLS ファイルは SIGHUP 再読み込みにも対応します。プローブの `/health` は HTTP の可用性を確認するだけで、Google API の有効化や認証の成功は保証しません。Google 呼び出しには外向き HTTPS と DNS が必要です。API キーの制限はクラスターの公開送信元アドレスを許可し、OAuth ではトークン・ID エンドポイントに接続できる必要があります。
+
+既定の MCP セッションストアはメモリ内なので 1 レプリカにします。複数レプリカには各セッションを所有 Pod に届けるセッションアフィニティが必要です。ローリング再起動はセッションを破棄するため、クライアントは再接続します。例のリソース要求・上限は出発点であり、負荷に合わせて調整してください。
+
+SIGTERM で MCP・HTTP を正常終了します。例では Kubernetes が 30 秒を与えます。イメージは capability を除去し、権限昇格を禁止して動作します。
+
+## 本番の HTTPS、メトリクス、制限 {#production-https-metrics-and-limits}
+
+[本番運用ガイド](./production)ではネイティブ TLS・mTLS、証明書再読み込み、任意の `deploy/gateway.yaml` HTTPS Gateway、メトリクス、リクエスト予算、HTTP レート制限、JSON ログ、オフライン・ライブの `doctor` 検査を解説します。イメージ名の後に同じ TLS オプションを渡すか、読み取り専用 PEM マウントとともに `MCP_TLS_CERT`、`MCP_TLS_KEY`、任意の `MCP_TLS_CLIENT_CA` を注入します。実際のキーはイメージの外に置きます。既定の ConfigMap はリクエスト制限と JSON ログを設定し、メトリクスは明示的に有効化するまで無効です。平文 Service は内部のゲートウェイ・Pod 間接続用です。
+
+## コンテナでの OAuth 認証情報 {#oauth-credentials-in-a-container}
+
+サービスアカウント JSON を読み取り専用でマウントし、ホスト側ではなくコンテナ内のパスを指定します。
+
+```sh
+docker run --rm --read-only --env-file /secure/oauth.env \
+  --mount type=bind,src=/secure/service-account.json,dst=/credentials/service-account.json,readonly \
+  -p 127.0.0.1:3000:3000 mcp-gmap-rs:local
+```
+
+OAuth 環境ファイルには `GOOGLE_MAPS_AUTH_MODE=oauth`、`GOOGLE_APPLICATION_CREDENTIALS=/credentials/service-account.json`、`GOOGLE_CLOUD_QUOTA_PROJECT=your-project-id`、`MCP_HTTP_TOKEN` を設定します。UID 10001 がマウントファイルを読める必要があります。API キーはキー専用エンドポイントを使うツールの場合だけ保持します。GKE では長期キーをマウントする代わりに[ワークロード ID の手順](./authentication#c-kubernetes-and-gke-workload-identity)を使ってください。
+
+
+<!-- https://fcenedes.github.io/mcp-gmap-rs/ja/guide/development -->
+
+# 開発とリリース {#development-and-releases}
+
+ランタイムは独立した Rust プロジェクトです。CLI、MCP stdio、Streamable HTTP は同じツール実装を共有します。ドキュメントサイトは別の執筆・ビルドツールで、利用者に必要なのはコンパイル済み実行ファイルだけです。
+
+## ビルドと検証 {#build-and-check}
+
+[リポジトリ](https://github.com/fcenedes/mcp-gmap-rs)をクローンし、ロックファイルを使います。
+
+```sh
+cargo fmt --check
+cargo clippy --all-targets --all-features --locked -- -D warnings
+cargo test --all-targets --all-features --locked
+cargo test --doc --all-features --locked
+cargo build --release --locked
+```
+
+宣言上の最低バージョンは Rust 1.88、リリースバイナリは Rust 1.94.1 で作成します。既定テストはローカル Google・トークンフィクスチャを使い、認証情報も Google への接続も不要です。CI は Linux・macOS、最低 Rust、stable・nightly rustdoc、ソースパッケージ、Docker・MCP・TLS のスモークテスト、Kubernetes マニフェストも検証します。
+
+ローカル検証後は `cargo clean` で生成物を回収できます。次回ビルドでは再コンパイルします。
+
+## リファレンスの完全性を保つ {#keep-the-reference-complete}
+
+正規のツールガイドは実行ファイルの実際のスキーマと、レビュー済みの既定値・結果・動作の説明を組み合わせます。
+
+```sh
+python3 .github/scripts/tool-reference.py --binary /path/to/mcp-gmap-rs
+python3 .github/scripts/tool-reference.py --binary /path/to/mcp-gmap-rs --check --verify-examples
+```
+
+チェッカーは認証情報を除去して dotenv 読み込みを無効にし、キー不足の境界まで全実行例を検証します。Google には接続しません。引数や動作の変更時にはレビュー済み JSON 説明を更新してください。
+
+ライブテストはオプトインで、料金が発生する場合があります。テストキーを明示的に設定して `cargo test --locked --test live live_maps_ -- --ignored --test-threads=1` を実行します。6 つの OAuth テストは `live_oauth_` フィルターを使い、子プロセスからキーを除去します。認証情報をコミットしたり、通常の CI でライブテストを有効化したりしないでください。
+
+## バージョンの公開 {#publish-a-version}
+
+Cargo のバージョン、ロックファイル、変更履歴、インストール例、リリースノートを一緒に更新します。プッシュして CI を待ち、一致する注釈付き `vX.Y.Z` タグを作ります。Release ワークフローは正確なタグを検証し、3 つのネイティブ対象をビルドし、アーカイブとチェックサムを確認してから準備済みドラフトを公開します。
+
+別の **Publish crate** ワークフローには、公開済み GitHub Release が必要です。同じタグで手動実行します。範囲を限定した `CARGO_REGISTRY_TOKEN` は `crates-io` GitHub 環境に保存し、リポジトリには入れません。crates.io 公開後に docs.rs が自動ビルドします。GitHub Release だけでは Rust の公開ドキュメントは更新されないため、アップロード後に実際のホスト側ビルドを確認してください。
+
+[公開手順](https://github.com/fcenedes/mcp-gmap-rs/blob/main/docs/releases.md)、[検証記録](https://github.com/fcenedes/mcp-gmap-rs/blob/main/docs/validation.md)、[公開 Rust エントリーポイント](https://docs.rs/mcp-gmap-rs/latest/mcp_gmap_rs/fn.run.html)も参照してください。
+
+
+<!-- https://fcenedes.github.io/mcp-gmap-rs/ja/guide/getting-started -->
+
+# はじめに {#getting-started}
+
+実行ファイルを 1 つインストールして Google の認証を設定すれば、ターミナルや MCP クライアントから同じ 23 ツールを使えます。本マニュアルは v0.3.1 を対象としています。
+
+## インストール {#install}
+
+Linux x86_64、macOS Apple Silicon、macOS Intel のビルド済みバイナリを [GitHub Releases](https://github.com/fcenedes/mcp-gmap-rs/releases) で公開しています。環境に合うアーカイブをダウンロードし、`SHA256SUMS` と照合してから展開し、`mcp-gmap-rs` を `PATH` に置いてください。Linux バイナリには glibc 2.35 以降が必要です。macOS バイナリは署名・公証されていません。
+
+Rust 1.88 以降では crates.io からインストールできます。
+
+```sh
+cargo install mcp-gmap-rs --version 0.3.1 --locked
+mcp-gmap-rs --version
+```
+
+ビルド後の実行には Rust、Python、JavaScript のランタイムは不要です。ホストには CA 証明書、DNS、Google への外向き HTTPS 接続が必要です。
+
+## 認証情報の設定 {#configure-access}
+
+[制限付きキーを作成してサービスを有効化](./google-cloud)するか、[サービスアカウントの OAuth](./authentication) を設定します。作業ディレクトリ内の Git 管理対象外の `.env` に認証情報を保存します。
+
+```dotenv
+GOOGLE_MAPS_AUTH_MODE=api-key
+GOOGLE_MAPS_API_KEY=your-restricted-api-key
+```
+
+環境変数はファイルの値を上書きします。認証情報をバージョン管理やイメージ層に含めないでください。`.env` は親ディレクトリを検索しないため、作業ディレクトリに注意してください。
+
+## 検出、確認、呼び出し {#discover-check-call}
+
+ツール検出とオフライン診断は Google にリクエストを送信しません。
+
+```sh
+mcp-gmap-rs tools
+mcp-gmap-rs schema search-places
+mcp-gmap-rs doctor
+```
+
+続いて、料金が発生する可能性のある最初の呼び出しを実行します。
+
+```sh
+mcp-gmap-rs search-places --query 'coffee near Gare de Lyon, Paris'
+```
+
+結果は JSON です。返された場所 ID を保存して詳細取得に再利用し、同じ名前を何度も解決しないようにします。自動化には [CLI の使い方](./cli)、エージェント接続には [MCP 統合](./mcp)を参照してください。[活用例](./recipes)ではツールの組み合わせ、[完全なリファレンス](../reference/tools)ではすべての引数・既定値・結果を説明しています。
+
+
+<!-- https://fcenedes.github.io/mcp-gmap-rs/ja/guide/google-cloud -->
+
+# Google Cloud の設定 {#google-cloud-setup}
+
+この実行ファイルは API キーまたは OAuth 2.0 認証情報で **Google への外向き呼び出し**を認証します。MCP HTTP サーバーに接続するクライアントの認証には独立した `MCP_HTTP_TOKEN` を使い、Google OAuth を選んでも置き換わりません。
+
+## サービスと課金の有効化 {#enable-services-and-billing}
+
+[Google Cloud コンソール](https://console.cloud.google.com/)でプロジェクトを選択または作成し、**Billing** で有効な請求先アカウントに関連付けます。**APIs & Services → Library** で必要な API を有効化してください。API の有効化と API キーの制限での許可は別の手順です。呼び出しには料金が発生する場合があります。
+
+このバージョンで利用するエンドポイントは次のとおりです。
+
+| Google API | 有効化するサービス | この実装での認証 |
+| --- | --- | --- |
+| [Places API (New)](https://developers.google.com/maps/documentation/places/web-service/get-api-key) | `places.googleapis.com` | API キーまたは OAuth |
+| [Routes API](https://developers.google.com/maps/documentation/routes/get-api-key) | `routes.googleapis.com` | API キーまたは OAuth |
+| [Weather API](https://developers.google.com/maps/documentation/weather/get-api-key) | `weather.googleapis.com` | API キーまたは OAuth |
+| [Air Quality API](https://developers.google.com/maps/documentation/air-quality/get-api-key) | `airquality.googleapis.com` | API キーまたは OAuth |
+| [Address Validation API](https://developers.google.com/maps/documentation/address-validation/get-api-key) | `addressvalidation.googleapis.com` | API キーまたは OAuth |
+| [Places Aggregate API](https://developers.google.com/maps/documentation/places-aggregate/get-api-key) | `areainsights.googleapis.com` | API キーまたは OAuth |
+| [Pollen API](https://developers.google.com/maps/documentation/pollen/get-api-key) | `pollen.googleapis.com` | API キー |
+| [Roads API](https://developers.google.com/maps/documentation/roads/get-api-key) | `roads.googleapis.com` | API キー |
+| [Geocoding API v3](https://developers.google.com/maps/documentation/geocoding/guides-v3/get-api-key) | `geocoding-backend.googleapis.com` | API キー |
+| [Elevation API](https://developers.google.com/maps/documentation/elevation/get-api-key) | `elevation-backend.googleapis.com` | API キー |
+| [Time Zone API](https://developers.google.com/maps/documentation/timezone/get-api-key) | `timezone-backend.googleapis.com` | API キー |
+| [Maps Static API](https://developers.google.com/maps/documentation/maps-static/get-api-key) | `static-maps-backend.googleapis.com` | API キー |
+
+管理者の `gcloud` ログインで全 12 サービスを有効化するには、次を実行します。
+
+```sh
+export PROJECT_ID='your-project-id'
+gcloud services enable --project="$PROJECT_ID" \
+  places.googleapis.com routes.googleapis.com \
+  weather.googleapis.com airquality.googleapis.com \
+  geocoding-backend.googleapis.com elevation-backend.googleapis.com \
+  timezone-backend.googleapis.com static-maps-backend.googleapis.com \
+  addressvalidation.googleapis.com areainsights.googleapis.com \
+  pollen.googleapis.com roads.googleapis.com
+```
+
+CLI の `directions` と `distance-matrix` は **Routes API** を使うため、従来の Directions API と Distance Matrix API は不要です。このプロジェクトの Geocoding は v3 のままであり、[Google Geocoding v4 の OAuth 対応](https://developers.google.com/maps/documentation/geocoding/geocoding-v4-overview)は v3 呼び出しの認証方式を変更しません。複合ツールは複数の API を使うことがあります。主処理が Places や Routes でも、名前による場所解決やフォールバックで Geocoding が必要になる場合があります。この依存を避ける場合は座標を使うか、キー専用エンドポイント用に制限付きキーを保持してください。
+
+## 制限付き API キーの作成 {#create-a-restricted-api-key}
+
+1. 選択したプロジェクトの [Google Maps Platform → Keys & Credentials](https://console.cloud.google.com/google/maps-apis/credentials) を開き、**Create credentials → API key** を選びます。
+2. このインスタンスが使う表内の API だけを選択します。既存のキーでは API 制限を編集して保存します。
+3. サーバー側アプリケーションなので、アプリケーション制限を **IP addresses** にします。Google が見る公開送信元 IP を許可してください。通常、Kubernetes の Pod IP・プライベート IP は公開送信元ではありません。固定 Cloud NAT などの送信元アドレスを用意すると制限を予測しやすくなります。
+4. キーは Git 管理対象外の `.env`、環境変数注入、Kubernetes Secret に保存します。[Google のキー制限ガイド](https://developers.google.com/maps/api-security-best-practices#restrict-your-api-keys)を参照してください。
+
+`.env` の例：
+
+```dotenv
+GOOGLE_MAPS_AUTH_MODE=api-key
+GOOGLE_MAPS_API_KEY=your-restricted-api-key
+```
+
+既定値は `api-key` です。サービスアカウントのパスを指定するだけでは認証モードは変わりません。ツール検出は Google に接続しないため、実際の呼び出しでプロジェクトの課金、API の有効化、制限を確認してください。
+
+```sh
+mcp-gmap-rs geocode --address 'Paris, France'
+```
+
+## 次のステップ {#next-steps}
+
+サービスアカウント JSON、ADC、ローカルでの権限借用、GKE の ID は[認証](./authentication)を参照し、その後 [CLI](./cli) または [MCP](./mcp) を選んでください。[ツールリファレンス](../reference/tools)に各ツールの認証要件を記載しています。
+
+
+<!-- https://fcenedes.github.io/mcp-gmap-rs/ja/guide/mcp -->
+
+# MCP 統合 {#mcp-integration}
+
+ローカルの子プロセスには stdio、常駐サービスには Streamable HTTP で MCP ホストを接続します。両者は同じ有効ツール一覧とスキーマを公開します。
+
+## ローカル stdio {#local-stdio}
+
+一般的な MCP クライアント設定は次のとおりです。
+
+```json
+{
+  "mcpServers": {
+    "google-maps": {
+      "command": "/absolute/path/to/mcp-gmap-rs",
+      "args": ["--env-file", "/secure/mcp-gmap/runtime.env", "serve", "stdio"]
+    }
+  }
+}
+```
+
+ホストの設定形式に従い、実行ファイルは絶対パスで指定します。選択した dotenv ファイルは存在する必要があります。ホストから環境変数を注入することも可能です。これは独立した MCP サーバーの設定であり、特定のアシスタント用ランタイムプラグインは不要です。
+
+```sh
+mcp-gmap-rs serve stdio
+```
+
+標準入力・標準出力は改行区切りの MCP JSON-RPC 専用です。診断は stderr に出力します。引数なしの起動も同じトランスポートです。コンテナを使う stdio ホストは TTY を割り当てず stdin を接続してください。
+
+## Streamable HTTP {#streamable-http}
+
+```sh
+mcp-gmap-rs serve http --listen 127.0.0.1:3000
+```
+
+MCP クライアントの Streamable HTTP URL を **`http://127.0.0.1:3000/mcp`** に設定します。リモート MCP の登録に対応するホストでは、エンドポイントと認可ヘッダーを指定します。
+
+```json
+{
+  "url": "https://maps.example.com/mcp",
+  "headers": {
+    "Authorization": "Bearer your-mcp-http-token"
+  }
+}
+```
+
+このエントリーを囲む具体的な形式は MCP ホストによって異なります。サーバーは Rust MCP SDK を通じ、プロトコルネゴシエーションと適切な POST、GET/SSE、DELETE のセッション操作に対応します。単独の JSON-RPC POST を完全なセッションとみなさず、MCP クライアントを使用してください。
+
+## バインドアドレスとアクセス {#bind-addresses-and-access}
+
+ループバック以外での待ち受けには `MCP_HTTP_TOKEN` が必要です。クライアントは Google OAuth・API キーとは別の Bearer 認証情報として送信します。エンドポイントの Host 値と実際に利用するブラウザーのオリジンを明示的に追加してください。
+
+```sh
+mcp-gmap-rs serve http --listen 0.0.0.0:3000 \
+  --allowed-host maps.example.com \
+  --allowed-origin https://app.example.com:443
+```
+
+既定では、許可リストにない Origin ヘッダー付きのリクエストを拒否します。本文の上限は 1 MiB です。`/health` は Google を呼ばずプロセスの生存だけを確認します。公開アクセスには[ネイティブ TLS・mTLS またはゲートウェイ](./production)を設定してください。プロキシは認可と MCP のプロトコル・セッションヘッダーを保持し、バッファリングしないストリーミングを許可する必要があります。セッションと Google の ID はプロセス単位なので、レプリカ追加前に[デプロイ](./deployment)を参照してください。
+
+
+<!-- https://fcenedes.github.io/mcp-gmap-rs/ja/guide/production -->
+
+# 本番運用 {#production-operations}
+
+このガイドは v0.3.x を対象とします。CLI、MCP stdio、Streamable HTTP の全 Google ツールは同じ実装を共有します。
+
+## ネイティブ TLS と相互 TLS {#native-tls-and-mutual-tls}
+
+HTTP リスナーは rustls と TLS 1.2/1.3 を使って直接 HTTPS を提供できます。
+
+```sh
+mcp-gmap-rs serve http --listen 0.0.0.0:3443 \
+  --tls-cert /etc/mcp-gmap/tls/tls.crt \
+  --tls-key /etc/mcp-gmap/tls/tls.key \
+  --allowed-host maps.example.com:3443
+```
+
+`MCP_HTTP_TOKEN` は環境変数または Secret で別途渡します。クライアントは `https://maps.example.com:3443/mcp` に接続し、サーバー証明書を検証して `Authorization: Bearer <token>` を送ります。証明書ファイルは PEM のリーフ証明書とその後の中間証明書チェーンで構成し、秘密鍵は一致する必要があります。実行ファイルは証明書発行や ACME を実装しません。発行・更新には既存 PKI、cert-manager、TLS ゲートウェイを使ってください。
+
+`--tls-client-ca /etc/mcp-gmap/tls/client-ca.pem` を追加すると、その CA が署名したクライアント証明書を必須にできます。ネイティブ mTLS は `/health`、`/metrics` を含む全パスに適用され、HTTP Bearer トークンの代わりにはなりません。TLS 層では設定済み信頼ルートの下の有効なクライアント ID を受け入れ、証明書ごとのツール権限や失効リスト確認はありません。
+
+Linux・macOS ではファイルをアトミックに置き換え、`SIGHUP` を送り、証明書・秘密鍵・任意のクライアント CA をまとめて再読み込みします。既存接続の TLS 状態は保持され、新規ハンドシェイクから新設定を使います。読み込みに失敗すると旧設定を維持し、キーデータを表示せずエラーを記録します。Kubernetes Secret の投射更新後も同様に再読み込みできます。その他の設定は再起動が必要です。
+
+コンテナの UID/GID 10001 が読める権限で、キーを読み取り専用マウントします。投射 Secret には適切なグループと `fsGroup` を使ってください。ネイティブ TLS では Kubernetes HTTP プローブに `scheme: HTTPS` が必要です。kubelet の HTTP プローブは mTLS クライアント証明書を送れないため、その構成では TCP プローブを使います。ただし検証対象はリスナーであり TLS や Google ではありません。
+
+## Kubernetes TLS ゲートウェイ {#kubernetes-tls-gateway}
+
+[Gateway マニフェスト](https://github.com/fcenedes/mcp-gmap-rs/blob/main/deploy/gateway.yaml)は[基本 Kubernetes マニフェスト](https://github.com/fcenedes/mcp-gmap-rs/blob/main/deploy/kubernetes.yaml)の Deployment 用に HTTPS Gateway と HTTPRoute を提供します。先に Gateway API CRD と準拠コントローラーを導入してください。`your-gateway-class` と `maps.example.com` を置き換え、同じ名前空間に `kubernetes.io/tls` 型の `mcp-gmap-tls` Secret を作ります。例は安定版 Gateway・HTTPRoute v1 フィールドと、Gateway API v1.2 以降の HTTPRoute タイムアウトを使います。コントローラーの対応を確認してください。
+
+```sh
+kubectl create secret tls mcp-gmap-tls --cert=/secure/fullchain.pem --key=/secure/key.pem
+kubectl set env deployment/mcp-gmap-rs \
+  MCP_HTTP_ALLOWED_HOSTS='maps.example.com,mcp-gmap-rs:3000,localhost:3000,127.0.0.1:3000'
+kubectl apply -f deploy/gateway.yaml
+kubectl get gateway,httproute
+```
+
+対応する allowed-host 設定を ConfigMap またはデプロイ元ファイルにも保存します。必要なブラウザーオリジンは `MCP_HTTP_ALLOWED_ORIGINS` に追加します。ルートは `/mcp` のみを公開し、ヘルス・メトリクスは非公開 Service に残します。認可と MCP のセッション・プロトコルヘッダーを変更せず通してください。選んだコントローラーで応答のバッファリング・キャッシュを無効にし、ストリーミング・アイドルタイムアウトを設定します。ルートではリクエスト・バックエンドリクエストの期限を無効化しているため、クライアントに合う接続・アイドル制限をゲートウェイに設定してください。
+
+この構成ではゲートウェイで TLS を終端し、ClusterIP バックエンドへ HTTP で接続します。ゲートウェイ・Pod 間も暗号化する場合は、ネイティブ TLS と、コントローラー対応の BackendTLSPolicy またはメッシュを使います。クラスターのネットワークポリシーで Pod・Service への直接アクセスを制限してください。TLS は MCP OAuth ログインを提供しません。実行ファイルはプロセス単位で共有 Bearer トークンと 1 つの Google ID を使います。
+
+上流の [Gateway TLS ガイド](https://gateway-api.sigs.k8s.io/guides/user-guides/tls/)と [HTTPRoute タイムアウトガイド](https://gateway-api.sigs.k8s.io/guides/http-timeouts/)を参照してください。
+
+## 制限、再試行、期限 {#limits-retries-and-deadlines}
+
+| 変数 | 既定値 | オプション | 意味 |
+| --- | --- | --- | --- |
+| `GOOGLE_MAPS_MAX_REQUESTS` | `200` | `--max-requests` | ツール呼び出し単位の Google HTTP 試行予算、1–10000。再試行を含む |
+| `GOOGLE_MAPS_MAX_RETRIES` | `2` | `--max-retries` | Google リクエストごとの追加試行、0–5 |
+| `GOOGLE_MAPS_TOOL_TIMEOUT` | `120` | `--tool-timeout` | ツール全体の期限、秒、1–3600 |
+| `MCP_HTTP_RATE_LIMIT` | `120` | HTTP `--rate-limit` | プロセス単位・1 分あたりの認証済み `/mcp` HTTP リクエスト。0 で無効 |
+| `MCP_METRICS_ENABLED` | `false` | HTTP `--metrics [true\|false]` | 保護された Prometheus `/metrics` を有効化 |
+| `MCP_LOG_FORMAT` | `text` | `--log-format text\|json` | stderr の診断イベント形式 |
+| `MCP_TLS_CERT` | 未設定 | HTTP `--tls-cert` | PEM サーバー証明書チェーンファイル |
+| `MCP_TLS_KEY` | 未設定 | HTTP `--tls-key` | 対応する PEM サーバー秘密鍵ファイル |
+| `MCP_TLS_CLIENT_CA` | 未設定 | HTTP `--tls-client-ca` | PEM CA バンドル。クライアント証明書を必須にする |
+
+これらは既定値 → 任意の dotenv → 環境変数 → オプションの順で適用します。TLS 証明書と秘密鍵は同時指定が必要です。空の環境変数の TLS パスはファイルの値を消去します。`GOOGLE_MAPS_TIMEOUT` は各 Google HTTP リクエストのセマフォ待機・再試行・バックオフ・応答読み取りを制限し、OAuth 取得も同じ値で別途制限します。ツール全体の期限には両方が含まれます。
+
+各呼び出しは新しいリクエスト予算を持ち、並行する全分岐で共有します。プロセスあたり 5 件の Google API リクエストを同時実行できます。予算が尽きると追加試行はローカルで失敗します。複合処理は成功出力に項目別の予算・その他のエラーを含むことがあるため確認してください。制限するのは金額ではなくリクエスト数です。リクエスト・フィールドごとに料金は異なり、行列は複数要素に課金される場合があります。
+
+読み取り専用の Google リクエストは HTTP 429、500、502、503、504 とネットワーク障害を再試行します。秒数・HTTP 日付の `Retry-After` に従い、なければジッター付き指数バックオフを使います。常にリクエスト期限と呼び出し予算の範囲内です。400・401・403 を含む他の HTTP エラーは再試行しません。認証失敗で API キーモードへ暗黙に切り替わることもありません。再試行を 0 にすると初回のみになります。従来の Google JSON 内部エラーステータスは再試行せず報告します。
+
+HTTP 制限は 1 分のレートと同じバースト容量を持ち、連続補充するトークンバケットです。全セッションの `/mcp` 初期化・POST・GET・DELETE に適用します。未認証リクエストは消費せず、拒否時は HTTP 429 と `Retry-After` を返します。ヘルスチェックとメトリクス取得は対象外です。ユーザー・IP 別ではなくプロセス全体の制限で、転送 IP ヘッダーは信頼しません。共有環境ではゲートウェイの認証とクライアント単位の制限を使ってください。
+
+## メトリクスと診断イベント {#metrics-and-diagnostic-events}
+
+```sh
+mcp-gmap-rs --log-format json serve http --metrics --rate-limit 120
+```
+
+Bearer トークンを設定していれば `GET /metrics` は `/mcp` と同じトークンを要求し、未認証のループバックリスナーでは認証不要です。既定では無効で、ネイティブ mTLS 有効時はその対象になります。信頼するスクレーパーだけに公開してください。Prometheus テキストエンドポイントは次を出力します。
+
+- `mcp_gmap_tool_calls_total{tool,outcome}`：完了したツール呼び出し。
+- `mcp_gmap_tool_duration_seconds{tool,outcome}`：所要時間のヒストグラム。
+- `mcp_gmap_google_requests_total{api,status}`：再試行を含む Google HTTP 試行。
+- `mcp_gmap_http_rate_limited_total`：拒否された HTTP リクエスト。
+
+ラベルは組み込みツール名、API ホスト名、HTTP ステータスコード、固定の結果値だけです。住所・座標・認証情報・トークン・セッション ID は含めません。項目別エラーのある複合処理もトップレベル成功として数える場合があるため、結果と上流ステータスのメトリクスを確認してください。再起動するとメトリクスはリセットされます。
+
+`RUST_LOG=info` でツール名・成否・所要時間を含む完了イベントを確認できます。引数と Google の応答本文は含みません。リスナーの起動アドレスは別途 stderr に出力し、stdout は CLI JSON または MCP 通信専用です。
+
+## Doctor 診断 {#doctor}
+
+```sh
+mcp-gmap-rs doctor
+# Explicit opt-in: makes potentially billable requests.
+mcp-gmap-rs doctor --live
+# Check only the API dependencies of selected tools:
+mcp-gmap-rs --enabled-tools maps_pollen,maps_area_insights doctor --live
+```
+
+`--live` なしの doctor はネットワーク通信をせず、ローカル認証設定、HTTP 設定、TLS ファイル・キーの一致を確認します。キーの有効性、IAM、API の有効化、証明書の信頼・ホスト名・期限、ADC 接続を保証しません。ADC 検出はライブ要求まで `not_tested` です。認証値・JSON は表示せず、JSON レポートを stdout に出し、失敗時の終了ステータスは 1 です。`checks[].status` の `pass`、`fail`、`not_tested` を解析してください。
+
+ライブモードは、有効ツールが使う Google API ごとに代表的なツール呼び出しを 1 回行い、通常の再試行・期限・予算に従います。高コストの複合処理は避け、Routes は正確な座標、Roads は最寄り道路検索を使います。プローブはユーザー住所でなくパリの公開ランドマークを用います。成功はそのプローブが受理されたことだけを意味し、全操作・地域の利用可能性を保証しません。
+
+## 終了と設定変更 {#shutdown-and-configuration-changes}
+
+Ctrl-C と SIGTERM は HTTP サーバーと有効な MCP セッションを終了します。Kubernetes の例では 30 秒を与えます。環境変数で注入した Secret の変更を含むその他の設定は再起動が必要で、SIGHUP 再読み込みに対応するのはネイティブ TLS の証明書・秘密鍵・クライアント CA ファイルだけです。セッションとメトリクスはメモリ内なので再起動で失われます。単一レプリカまたはセッションアフィニティを使用し、所有プロセス終了時にはクライアントが再接続します。
+
+コンテナの権限、プローブ、実行時認証情報のマウントは[デプロイ](./deployment)、全設定とオプションは[設定リファレンス](../reference/configuration)を参照してください。
+
+
+<!-- https://fcenedes.github.io/mcp-gmap-rs/ja/guide/recipes -->
+
+# 活用例 {#recipes}
+
+1 つの場所や返された場所 ID の候補一覧を中心に、小さく明示的な呼び出しを組み合わせます。これらの例は料金が発生し得る Google リクエストを送ります。まず[認証](./authentication)を確認してください。複合ツールは複数 API を使い、部分エラーを返す場合があります。
+
+## カフェを探して移動を比較する {#find-a-cafe-and-compare-the-trip}
+
+実際の半径内を検索し、候補 ID だけの詳細を取得して移動を比較します。Nearby の `keyword` は自由文ではなく Google の場所タイプです。
+
+```sh
+mcp-gmap-rs search-nearby \
+  --center '{"value":"48.8584,2.2945","isCoordinates":true}' \
+  --keyword cafe --radius 500 --open-now --min-rating 4
+mcp-gmap-rs place-details --place-id ChIJLU7jZClu5kcR4PcOOO6p3I0 --max-photos 0
+mcp-gmap-rs distance-matrix --origins '["48.8584,2.2945"]' \
+  --destinations '["48.8606,2.3376","48.8530,2.3499"]' --mode walking
+```
+
+自然言語の意図には [`search-places`](../reference/tools#maps_search_places)、詳細候補と任意の運転距離には [`compare-places`](../reference/tools#maps_compare_places)、カテゴリ探索には [`explore-area`](../reference/tools#maps_explore_area) を使います。検索 1 ページは網羅的な一覧ではありません。Google のソースリンク、レビュー著者、AI 開示情報を保持してください。
+
+## 立ち寄り先を計画して寄り道を探す {#plan-stops-and-find-a-detour}
+
+```sh
+mcp-gmap-rs plan-route \
+  --stops '["48.8584,2.2945","48.8606,2.3376","48.8530,2.3499"]' \
+  --mode walking --optimize false
+mcp-gmap-rs search-along-route --text-query cafes \
+  --origin '48.8584,2.2945' --destination '48.8606,2.3376' \
+  --mode walking --max-results 3
+```
+
+[`directions`](../reference/tools#maps_directions) は時刻・回避設定を含む 1 行程、[`plan-route`](../reference/tools#maps_plan_route) は始終点を保持した中間地点の最適化に使います。公共交通は合計 2 停留点だけです。沿道検索は中点の円で代用せずポリラインに沿って検索します。既定は徒歩なので、意図する移動方法を明示してください。
+
+## 一度解決して周辺環境を調べる {#resolve-once-inspect-local-conditions}
+
+```sh
+mcp-gmap-rs geocode --address 'Eiffel Tower, Paris, France'
+mcp-gmap-rs weather --latitude 48.8584 --longitude 2.2945 \
+  --type forecast_daily --forecast-days 3
+mcp-gmap-rs air-quality --latitude 48.8584 --longitude 2.2945
+mcp-gmap-rs pollen --latitude 48.8584 --longitude 2.2945 --days 3
+mcp-gmap-rs timezone --latitude 48.8584 --longitude 2.2945
+mcp-gmap-rs elevation --locations '[{"latitude":48.8584,"longitude":2.2945}]'
+```
+
+座標を再利用して解決を繰り返さないようにします。観測・予報・提供者の助言を区別し、対応地域が異なることを考慮してください。[`reverse-geocode`](../reference/tools#maps_reverse_geocode) は座標を住所に、[`batch-geocode`](../reference/tools#maps_batch_geocode) は最大 50 住所を項目別エラー付きで解決します。Time Zone の任意のタイムスタンプは Unix ミリ秒、標高はメートルです。
+
+## 郵便住所を検証する {#validate-a-postal-address}
+
+```sh
+mcp-gmap-rs validate-address --address-lines '["5 Avenue Anatole France"]' \
+  --locality Paris --postal-code 75007 --region-code FR
+```
+
+判定、修正、未解決の構成要素を確認してください。住所検証とジオコーディングは別で、配送を保証しません。この実装の USPS CASS はオプトインで、`regionCode` が US または PR である必要があります。
+
+## 検索ヒット数ではなく場所を集計する {#count-places-without-counting-search-hits}
+
+```sh
+mcp-gmap-rs area-insights \
+  --area '{"circle":{"latLng":{"latitude":48.8584,"longitude":2.2945},"radius":500}}' \
+  --included-types '["restaurant"]' --min-rating 4
+```
+
+集計数は通常 Google の文字列 int64 表現です。任意の場所 ID は件数が 100 以下の場合だけ取得でき、詳細は自動取得しません。明示的な可視性分析には [`local-rank-tracker`](../reference/tools#maps_local_rank_tracker) でグリッド上のキーワード順位を測定します。最初は 1 キーワードと 3×3 グリッドを使ってください。順位はレビュー評価ではなく、失敗した点も表示する必要があります。
+
+## GPS データを道路に対応付けて地図を保存する {#match-gps-data-and-save-a-map}
+
+順序付き軌跡には [`snap-to-roads`](../reference/tools#maps_snap_to_roads)、独立した点には [`nearest-roads`](../reference/tools#maps_nearest_roads) を使います。`originalIndex` を保持してください。補間で追加される点はこの値を持たない場合があります。速度制限は返しません。
+
+```sh
+mcp-gmap-rs nearest-roads --points '[{"latitude":48.8584,"longitude":2.2945}]'
+mcp-gmap-rs static-map --center '48.8584,2.2945' --zoom 14 --output area.png
+```
+
+[ツールリファレンス](../reference/tools)に各操作の正確な範囲、必須項目、既定値、結果形式を記載しています。
+
+
+<!-- https://fcenedes.github.io/mcp-gmap-rs/ja/guide/troubleshooting -->
+
+# トラブルシューティング {#troubleshooting}
+
+最初に、ローカル設定、MCP クライアント・サーバー間、Google への外向きリクエストのどこが失敗したかを特定します。該当する層を修正してから、その操作を再実行してください。
+
+## オフラインから確認する {#start-offline}
+
+```sh
+mcp-gmap-rs --version
+mcp-gmap-rs tools
+mcp-gmap-rs doctor
+```
+
+`doctor` は検査に失敗しても JSON を出力します。終了ステータスと `checks[].status` の `pass`、`fail`、`not_tested` を確認してください。オフライン検査は IAM、API の有効化、課金、証明書の信頼・期限、ADC アクセスを保証しません。`/health` はプロセス生存のみの確認です。
+
+ローカル dotenv の構文エラーでツール検出できない場合、`--no-env-file tools` でファイルを無視できます。ただし有効ツールが変わる場合があり、本来のファイル設定の検証成功と混同しないでください。
+
+## よくある失敗の解釈 {#interpret-common-failures}
+
+| 症状 | 次の確認 |
+| --- | --- |
+| `GOOGLE_MAPS_API_KEY is required` | API キーモードが選択されたか、キー専用エンドポイントを使っています。 |
+| `GOOGLE_CLOUD_QUOTA_PROJECT is required` | OAuth の消費プロジェクト ID・番号を設定します。 |
+| Google 403 / API が無効 | 認証情報の消費プロジェクトで正しい API を有効にし、課金とキーの制限を確認します。 |
+| `serviceusage.services.use` の拒否 | 割り当てプロジェクトでサービスアカウントに `roles/serviceusage.serviceUsageConsumer` を付与し、IAM の反映を待って再試行します。 |
+| API キーの IP 拒否 | プライベート Pod IP ではなく、サーバー・クラスターの公開送信元 IP を許可します。 |
+| MCP HTTP 401 | サーバーの Bearer トークンを送信します。Google アクセストークンは別の接続の認証です。 |
+| Host/Origin の拒否 | ポートも含め、設定した Host とブラウザーオリジンを正確に一致させます。 |
+| MCP の HTTP 429 | プロセス全体のリミッターが枯渇しています。`Retry-After` に従いクライアントの並列数を確認します。 |
+| OAuth タイムアウト | トークン・STS・IAM またはメタデータへの接続、時計、リクエストタイムアウトを確認します。 |
+| TLS 接続失敗 | 証明書チェーン、ホスト名、信頼、任意の mTLS クライアント証明書を HTTP 認可と別に確認します。 |
+| 終了 0 でも不完全な結果 | プロセスの終了ステータスだけでなく行列・複合処理の項目別エラーを確認します。 |
+
+## 意図を持ってライブ接続を検証する {#verify-live-access-deliberately}
+
+ライブプローブには料金が発生する場合があります。必要な API 依存関係に範囲を絞ってください。
+
+```sh
+mcp-gmap-rs --enabled-tools maps_weather doctor --live
+```
+
+プローブ成功は全地域・全操作を保証しません。Google Cloud の変更後はコンソール設定から成功を推測せず、元の失敗した呼び出しを再実行してください。IAM と認証取得元は[認証](./authentication)、優先順位は[設定](./configuration)、予算・期限・メトリクスは[本番運用](./production)を参照してください。問題報告に認証 JSON や環境変数全体を出力しないでください。
+
+
+<!-- https://fcenedes.github.io/mcp-gmap-rs/ja/reference/configuration -->
+
+# 設定リファレンス {#configuration-reference}
+
+以下の 21 設定は、必要に応じて CLI、MCP stdio、Streamable HTTP に適用されます。優先順位は **既定値 → 任意の dotenv → 環境変数 → オプション** です。ファイルの選択と上書きは[設定](../guide/configuration)を参照してください。
+
+グローバルオプションはツールまたは `serve` の前、HTTP 専用オプションは `serve http` の後に指定します。オプション欄のダッシュは対応する CLI オプションがないことを示し、環境変数または選択した dotenv ファイルで渡します。
+
+## Google アクセスとツール実行 {#google-access-and-tool-execution}
+
+| 環境変数 | 既定値 | CLI オプション | 意味と許容値 |
+| --- | --- | --- | --- |
+| `GOOGLE_MAPS_API_KEY` | 未設定 | — | 制限付き Google API キー。`api-key` モードと、この実装のキー専用エンドポイントに必須です。OAuth モードでも後者には必要で、ツール引数にはしません。 |
+| `GOOGLE_MAPS_AUTH_MODE` | `api-key` | `--auth-mode` | `api-key` または `oauth`。OAuth は Places (New)、Routes、Weather、Air Quality、Address Validation、Places Aggregate に対応します。 |
+| `GOOGLE_APPLICATION_CREDENTIALS` | ADC 検出 | — | 読み取り可能なサービスアカウントまたは対応 ADC JSON のパス。相対パスは作業ディレクトリ基準。ローカル ADC・メタデータ検出では未設定にします。 |
+| `GOOGLE_CLOUD_QUOTA_PROJECT` | 未設定 | — | OAuth に必要な消費側の課金・割り当てプロジェクト ID または番号。サービスアカウントにそのプロジェクトの `serviceusage.services.use` が必要です。 |
+| `GOOGLE_MAPS_LANGUAGE` | `en` | `--language` | 言語指定に対応した Google 応答の言語コード。本マニュアルの言語選択とは独立です。 |
+| `GOOGLE_MAPS_TIMEOUT` | `30` | `--timeout` | リクエスト単位のタイムアウト秒数、整数 1–600。待機、再試行、バックオフ、応答読み取りを含み、OAuth 取得は同じ値で別途制限します。 |
+| `GOOGLE_MAPS_ENABLED_TOOLS` | 全部（`*`） | `--enabled-tools` | カンマ区切りの `maps_*` 名または `*`。不明名は起動失敗です。無効ツールは検出されず呼び出せません。 |
+| `GOOGLE_MAPS_MAX_REQUESTS` | `200` | `--max-requests` | 呼び出し単位の Google HTTP 試行予算、整数 1–10000。複合分岐で共有し、再試行も消費します。 |
+| `GOOGLE_MAPS_MAX_RETRIES` | `2` | `--max-retries` | Google リクエストの一時障害に対する追加試行、整数 0–5。0 は初回のみ。タイムアウト・予算内で実行します。 |
+| `GOOGLE_MAPS_TOOL_TIMEOUT` | `120` | `--tool-timeout` | ツール全体の期限秒数、整数 1–3600。認証取得、待機、API 呼び出し、再試行を含みます。 |
+
+プロセスあたり 5 件の Google HTTP リクエストを同時実行できます。予算は金額でなく試行数を制限し、行列 1 リクエストでも複数要素に課金される場合があります。分岐が予算・期限に達した場合、複合ツールによっては項目別エラーを返します。[本番の制限](../guide/production#limits-retries-and-deadlines)を参照してください。
+
+## HTTP リスナーとアクセス {#http-listener-and-access}
+
+| 環境変数 | 既定値 | HTTP オプション | 意味と許容値 |
+| --- | --- | --- | --- |
+| `MCP_HTTP_TOKEN` | 未設定 | — | MCP クライアントの共有 Bearer トークン。ループバック外で必須です。Google 認証情報とは別で、ネイティブ mTLS でも必要です。 |
+| `MCP_HTTP_LISTEN` | `127.0.0.1:3000` | `--listen` | 待ち受ける IP とポート。Docker イメージでは環境値を `0.0.0.0:3000` に設定します。 |
+| `MCP_HTTP_ALLOWED_HOSTS` | ループバックホスト | `--allowed-host` | 許可する HTTP Host をカンマ区切りで指定。複数指定のオプションはファイル・環境変数の一覧全体を置換します。適切なポートを含めます。 |
+| `MCP_HTTP_ALLOWED_ORIGINS` | なし | `--allowed-origin` | 許可するブラウザーオリジンをカンマ区切りで指定。許可されない Origin ヘッダーは拒否します。ポートを明示し、繰り返すオプションは一覧を置換します。 |
+| `MCP_HTTP_RATE_LIMIT` | `120` | `--rate-limit` | プロセス・分あたりの認証済み `/mcp` リクエスト数、整数 0–1000000。0 で無効。レートと同じバースト容量で連続補充します。 |
+| `MCP_METRICS_ENABLED` | `false` | `--metrics [true\|false]` | Prometheus `/metrics` を有効化。`--metrics` 単独は true。設定済みの Bearer 認証を共用し、ネイティブ mTLS も適用されます。 |
+| `MCP_TLS_CERT` | 未設定 | `--tls-cert` | PEM のサーバーリーフ証明書と中間チェーン。一致する秘密鍵との同時指定が必要です。 |
+| `MCP_TLS_KEY` | 未設定 | `--tls-key` | PEM サーバー秘密鍵のパス。実行時の ID に読み取り権限を与え、ソース・イメージから除外します。 |
+| `MCP_TLS_CLIENT_CA` | 未設定 | `--tls-client-ca` | 全リスナーパスでクライアント証明書を必須にする PEM クライアント CA バンドル。Bearer トークンを置き換えません。 |
+
+HTTP のトークンバケットはユーザー・IP 単位でなくプロセス全体です。未認可リクエストは消費せず、ヘルスとメトリクスは対象外です。拒否は 429 と `Retry-After` を返します。本文上限は 1 MiB です。[MCP アクセス](../guide/mcp#bind-addresses-and-access)と [TLS 運用](../guide/production#native-tls-and-mutual-tls)を参照してください。
+
+## 診断イベント {#diagnostic-events}
+
+| 環境変数 | 既定値 | CLI オプション | 意味と許容値 |
+| --- | --- | --- | --- |
+| `RUST_LOG` | `warn` | — | 診断ログフィルター。`info` でツール完了イベントを有効化。引数と Google の応答本文は記録しません。 |
+| `MCP_LOG_FORMAT` | `text` | `--log-format` | `text` または `json`。診断は常に stderr に出力し、stdout は CLI JSON・MCP 通信専用にします。 |
+
+## ファイル選択と出力制御 {#file-selection-and-output-controls}
+
+ファイル選択は上記のアプリケーション設定層より先です。`MCP_ENV_FILE` は dotenv パスを指定し、グローバル `--env-file PATH` が優先します。明示したファイルは存在する必要があります。`--no-env-file` は全 dotenv 読み込みを無効化し、`--env-file` と併用できません。未指定なら作業ディレクトリの任意の `.env` だけを読みます。
+
+明示的な空の環境値もファイルを上書きし、任意のトークン・TLS パス・許可リストを消去できます。ただし空の数値設定は無効です。ファイルの読み込みはプロセス環境を変更しません。
+
+`doctor --live` は料金が発生し得るプローブへのオプトインで、通常の `doctor` はオフラインです。ツールの `--output PATH` は JSON、`static-map` では生の PNG を保存します。これらは追加の環境設定ではなくコマンド制御です。
+
+アプリケーション設定と認証ファイルの変更は再起動が必要です。Linux・macOS では SIGHUP でネイティブ TLS の証明書・秘密鍵・クライアント CA をまとめて再読み込みでき、失敗すると既存設定を維持します。[設定](../guide/configuration)と[本番運用](../guide/production)を参照してください。
+
+
+<!-- https://fcenedes.github.io/mcp-gmap-rs/ja/reference/tools -->
+
+
+<!-- Generated by scripts/generate-reference.py. Edit the source notes, then regenerate. -->
+
+# ツールリファレンス
+
+全 23 ツールの引数、既定値、制約、実行例を網羅しています。MCP と CLI から同じインターフェースを利用できます。
+
+## 呼び出し規約
+
+実行例は MCP の引数オブジェクトです。MCP の `tools/call` を直接呼ぶ場合は、`name` にツール名、`arguments` にオブジェクトを指定します。ホストがツール名に接頭辞を付ける場合があります。以下の同等の CLI 呼び出しは `mcp-gmap-rs call TOOL --args JSON` を使用します。
+
+CLI オプションがあるのはトップレベルの引数だけです。入れ子のオブジェクトと配列は JSON で渡します。値を省略した真偽値オプションは `true`、`--flag false` は `false` を意味します。不明なプロパティは拒否されます。`tools` または `schema TOOL` でインストール済みバージョンを確認してください。
+
+Google の認証情報と言語はプロセスの設定であり、ツールの引数ではありません。経路に正確な座標を使うと住所解決を回避できます。名前付きの場所では Geocoding 用 API キーも必要になる場合があります。[認証](../guide/authentication)と[設定](../guide/configuration)を参照してください。
+
+呼び出しには Google の料金が発生する場合があります。ツールが成功しても、複合結果や行列の結果には項目別のエラーが含まれる場合があります。Google のソースリンク、レビュー・写真の著者、AI 要約の開示情報を保持してください。実行例は入力を示すもので、現在の対応地域や結果を保証しません。
+
+型、必須項目、スキーマの範囲は、実行ファイルのスキーマから生成したリファレンスに基づきます。既定値、結果の説明、項目間の制約は実装と照合しています。Google 側で追加の対応地域や割り当て制限が課される場合があります。
+
+## ツール
+
+- [`maps_geocode`](#maps_geocode)
+- [`maps_validate_address`](#maps_validate_address)
+- [`maps_pollen`](#maps_pollen)
+- [`maps_area_insights`](#maps_area_insights)
+- [`maps_snap_to_roads`](#maps_snap_to_roads)
+- [`maps_nearest_roads`](#maps_nearest_roads)
+- [`maps_reverse_geocode`](#maps_reverse_geocode)
+- [`maps_search_places`](#maps_search_places)
+- [`maps_search_nearby`](#maps_search_nearby)
+- [`maps_place_details`](#maps_place_details)
+- [`maps_directions`](#maps_directions)
+- [`maps_distance_matrix`](#maps_distance_matrix)
+- [`maps_elevation`](#maps_elevation)
+- [`maps_timezone`](#maps_timezone)
+- [`maps_weather`](#maps_weather)
+- [`maps_air_quality`](#maps_air_quality)
+- [`maps_static_map`](#maps_static_map)
+- [`maps_batch_geocode`](#maps_batch_geocode)
+- [`maps_explore_area`](#maps_explore_area)
+- [`maps_plan_route`](#maps_plan_route)
+- [`maps_compare_places`](#maps_compare_places)
+- [`maps_search_along_route`](#maps_search_along_route)
+- [`maps_local_rank_tracker`](#maps_local_rank_tracker)
+
+## maps_geocode {#maps_geocode}
+
+住所・ランドマークを座標に変換します。
+
+住所・ランドマークを最初の Geocoding 一致結果へ解決し、再利用できる座標と場所 ID を取得します。郵便の配達可能性は検証しません。
+
+**CLI コマンド:** `geocode`. **Google の認証:** この実装では API キーが必要です。
+
+### 引数
+
+| 引数 / CLI オプション | 型とスキーマの制約 | 必須 | 省略時の既定値 | 説明 |
+| --- | --- | --- | --- | --- |
+| `address` / `--address` | 文字列; 最低 1 文字 | はい | — | ジオコーディングする住所・都市・ランドマーク。 |
+
+### 動作と制約
+
+- 一致なしは空の成功結果ではなくツールエラーです。
+- この直接ツールは Geocoding v3 を使います。Places へのフォールバックは場所解決を行う複合ツール用で、この呼び出しでは使いません。
+
+### 結果
+
+`location.lat`、`location.lng`、`formatted_address`、`place_id` を持つオブジェクトです。最初の結果だけを返します。
+
+### 実行例
+
+MCP 引数:
+
+```json
+{
+  "address": "Eiffel Tower, Paris, France"
+}
+```
+
+同等の CLI 呼び出し:
+
+```sh
+mcp-gmap-rs call maps_geocode --args '{"address":"Eiffel Tower, Paris, France"}'
+```
+
+
+## maps_validate_address {#maps_validate_address}
+
+郵便住所を検証・標準化し、Google の判定、修正、構成要素、座標を返します。配送の保証ではありません。
+
+郵便住所の構成要素を検証し、修正、標準化住所、Google の判定を返します。判定と未解決要素を呼び出し側に表示してください。
+
+**CLI コマンド:** `validate-address`. **Google の認証:** 主 API は API キーまたは OAuth に対応します。
+
+### 引数
+
+| 引数 / CLI オプション | 型とスキーマの制約 | 必須 | 省略時の既定値 | 説明 |
+| --- | --- | --- | --- | --- |
+| `addressLines` / `--address-lines` | 文字列の配列; 1–10 項目; 各項目は最低 1 文字 | はい | — | 順序付きの 1 行以上の郵便住所。 |
+| `administrativeArea` / `--administrative-area` | 文字列; 最低 1 文字 | いいえ | 未指定 | 州・県など対応する行政区域。 |
+| `enableUspsCass` / `--enable-usps-cass` | 真偽値 | いいえ | false | USPS CASS 処理を要求します。この実装では true の場合 regionCode が US または PR である必要があります。 |
+| `locality` / `--locality` | 文字列; 最低 1 文字 | いいえ | 未指定 | 都市または地域。 |
+| `postalCode` / `--postal-code` | 文字列; 最低 1 文字 | いいえ | 未指定 | 郵便番号・ZIP コード。 |
+| `regionCode` / `--region-code` | 文字列; パターン： `^[A-Z]{2}$` | いいえ | 未指定。Google が推測する場合があります | 大文字 2 文字の国・地域コード。住所の曖昧さを避けるため指定を推奨します。 |
+
+### 動作と制約
+
+- 検証判定は配送を保証しません。
+- 地域・API の対応範囲は異なります。検証フィードバックの送信や修正の自動承認は行いません。
+
+### 結果
+
+通常 `result.verdict`、`result.address`、`result.geocode`、`responseId` を含む完全な検証応答です。利用できない項目は省略される場合があります。
+
+### 実行例
+
+MCP 引数:
+
+```json
+{
+  "addressLines": [
+    "5 Avenue Anatole France"
+  ],
+  "regionCode": "FR",
+  "locality": "Paris",
+  "postalCode": "75007"
+}
+```
+
+同等の CLI 呼び出し:
+
+```sh
+mcp-gmap-rs call maps_validate_address --args '{"addressLines":["5 Avenue Anatole France"],"regionCode":"FR","locality":"Paris","postalCode":"75007"}'
+```
+
+
+## maps_pollen {#maps_pollen}
+
+正確な座標の 1–5 日分の花粉予報、指数、健康上の助言を取得します。対応範囲は場所・季節によります。
+
+正確な座標の日別短期花粉予報を取得し、花粉タイプ、指数、植物情報、提供者の助言を保持します。
+
+**CLI コマンド:** `pollen`. **Google の認証:** この実装では API キーが必要です。
+
+### 引数
+
+| 引数 / CLI オプション | 型とスキーマの制約 | 必須 | 省略時の既定値 | 説明 |
+| --- | --- | --- | --- | --- |
+| `days` / `--days` | 整数; 1–5 | いいえ | 1 | 要求する日別予報の件数。 |
+| `latitude` / `--latitude` | 数値; -90.0–90.0 | はい | — | WGS84 の緯度（十進度）。北が正です。 |
+| `longitude` / `--longitude` | 数値; -180.0–180.0 | はい | — | WGS84 の経度（十進度）。東が正です。 |
+| `plantsDescription` / `--plants-description` | 真偽値 | いいえ | false | 利用可能な場合に植物の詳細説明と関連情報を含めます。 |
+
+### 動作と制約
+
+- ページサイズ 5 で要求し、ツールの最大 5 日分を収容します。追加ページは自動取得しません。
+- 利用可能性は場所、季節、Google の対応範囲によります。
+
+### 結果
+
+`regionCode`、`dailyInfo`、任意の `nextPageToken` を含む元の Pollen 応答です。日ごとに花粉タイプや植物情報を含みます。
+
+### 実行例
+
+MCP 引数:
+
+```json
+{
+  "latitude": 48.8584,
+  "longitude": 2.2945,
+  "days": 3,
+  "plantsDescription": false
+}
+```
+
+同等の CLI 呼び出し:
+
+```sh
+mcp-gmap-rs call maps_pollen --args '{"latitude":48.8584,"longitude":2.2945,"days":3,"plantsDescription":false}'
+```
+
+
+## maps_area_insights {#maps_area_insights}
+
+Places Aggregate で円・地域・多角形内の場所を集計します。100 件以下では ID を取得でき、詳細は自動照会しません。
+
+Places Aggregate で円・地域・多角形内の一致する場所を集計します。限定された Places 検索ページの件数でなく集計クエリです。
+
+**CLI コマンド:** `area-insights`. **Google の認証:** 主 API は API キーまたは OAuth に対応します。
+
+### 引数
+
+| 引数 / CLI オプション | 型とスキーマの制約 | 必須 | 省略時の既定値 | 説明 |
+| --- | --- | --- | --- | --- |
+| `area` / `--area` | オブジェクト | はい | — | circle、region、customArea のうちちょうど 1 つ。 |
+| `area.circle` | オブジェクト | いいえ | 未指定 | 円形領域。region・customArea と排他的です。 |
+| `area.circle.latLng` | オブジェクト | 親オブジェクトを指定した場合に必須 | — | 円の中心の正確な座標。 |
+| `area.circle.latLng.latitude` | 数値; -90.0–90.0 | 親オブジェクトを指定した場合に必須 | — | WGS84 の緯度（十進度）。北が正です。 |
+| `area.circle.latLng.longitude` | 数値; -180.0–180.0 | 親オブジェクトを指定した場合に必須 | — | WGS84 の経度（十進度）。東が正です。 |
+| `area.circle.radius` | 整数; 23–50000 | 親オブジェクトを指定した場合に必須 | — | 円の半径（メートル）。 |
+| `area.customArea` | オブジェクト | いいえ | 未指定 | カスタム多角形領域。circle・region と排他的です。 |
+| `area.customArea.polygon` | オブジェクト | 親オブジェクトを指定した場合に必須 | — | 多角形の境界。 |
+| `area.customArea.polygon.coordinates` | オブジェクトの配列; 4–1000 項目 | 親オブジェクトを指定した場合に必須 | — | 順序付き座標オブジェクトのリング。始点・終点は一致する必要があります。 |
+| `area.customArea.polygon.coordinates[].latitude` | 数値; -90.0–90.0 | 親オブジェクトを指定した場合に必須 | — | WGS84 の緯度（十進度）。北が正です。 |
+| `area.customArea.polygon.coordinates[].longitude` | 数値; -180.0–180.0 | 親オブジェクトを指定した場合に必須 | — | WGS84 の経度（十進度）。東が正です。 |
+| `area.region` | オブジェクト | いいえ | 未指定 | Google の場所リソースで識別する行政・地理領域。 |
+| `area.region.place` | 文字列; パターン： `^places/[A-Za-z0-9_-]+$` | 親オブジェクトを指定した場合に必須 | — | 自由記述の地域名でなく places/PLACE_ID 形式の領域リソース。 |
+| `excludedTypes` / `--excluded-types` | 文字列の配列; 1–50 項目; 各項目は最低 1 文字 | いいえ | 除外タイプの制限なし | 除外する Google 場所タイプ。 |
+| `includePlaces` / `--include-places` | 真偽値 | いいえ | false | 件数に加えて一致する場所リソース ID を要求します。 |
+| `includedTypes` / `--included-types` | 文字列の配列; 1–50 項目; 各項目は最低 1 文字 | はい | — | 対象に含める Google 場所タイプ。例：restaurant、cafe。 |
+| `maxRating` / `--max-rating` | 数値; 1.0–5.0 | いいえ | 評価の上限なし | 境界を含む評価上限。 |
+| `minRating` / `--min-rating` | 数値; 1.0–5.0 | いいえ | 評価の下限なし | 境界を含む評価下限。maxRating を超えられません。 |
+| `operatingStatus` / `--operating-status` | 文字列の配列; 1–3 項目; 値： `OPERATING_STATUS_OPERATIONAL`, `OPERATING_STATUS_PERMANENTLY_CLOSED`, `OPERATING_STATUS_TEMPORARILY_CLOSED` | いいえ | Google は既定で事業を継続している場所（operational）を対象にします | Google の事業の稼働状態フィルタ。開店時間や openNow のフィルタではありません。 |
+| `priceLevels` / `--price-levels` | 文字列の配列; 1–5 項目; 値： `PRICE_LEVEL_FREE`, `PRICE_LEVEL_INEXPENSIVE`, `PRICE_LEVEL_MODERATE`, `PRICE_LEVEL_EXPENSIVE`, `PRICE_LEVEL_VERY_EXPENSIVE` | いいえ | すべての価格帯 | 許可する価格帯。 |
+
+### 動作と制約
+
+- 領域形式はちょうど 1 種類指定します。CLI の入れ子オブジェクトは JSON で、子項目に個別オプションはありません。
+- 多角形リングは閉じる必要があります。Google は形状、対応タイプ、面積、対応地域も確認します。
+- 場所 ID は件数が 100 以下の場合のみ取得できます。Place Details は自動要求しません。
+
+### 結果
+
+`count`（通常は int64 文字列）と、ID を要求して取得できた場合の `placeInsights[].place` リソースを含む Google 応答です。
+
+### 実行例
+
+MCP 引数:
+
+```json
+{
+  "area": {
+    "circle": {
+      "latLng": {
+        "latitude": 48.8584,
+        "longitude": 2.2945
+      },
+      "radius": 500
+    }
+  },
+  "includedTypes": [
+    "restaurant"
+  ],
+  "minRating": 4
+}
+```
+
+同等の CLI 呼び出し:
+
+```sh
+mcp-gmap-rs call maps_area_insights --args '{"area":{"circle":{"latLng":{"latitude":48.8584,"longitude":2.2945},"radius":500}},"includedTypes":["restaurant"],"minRating":4}'
+```
+
+
+## maps_snap_to_roads {#maps_snap_to_roads}
+
+2–100 点の順序付き GPS を道路に合わせます。点間は約 300 メートル以内を推奨し、補間で形状を追加できます。
+
+順序付き GPS 軌跡を最も可能性の高い道路形状に対応付けます。独立した点には走行経路としてでなく Nearest Roads を使ってください。
+
+**CLI コマンド:** `snap-to-roads`. **Google の認証:** この実装では API キーが必要です。
+
+### 引数
+
+| 引数 / CLI オプション | 型とスキーマの制約 | 必須 | 省略時の既定値 | 説明 |
+| --- | --- | --- | --- | --- |
+| `interpolate` / `--interpolate` | 真偽値 | いいえ | false | 指定点の間に道路の中間形状を追加します。 |
+| `path` / `--path` | オブジェクトの配列; 2–100 項目 | はい | — | 移動順の GPS 座標オブジェクト。 |
+| `path[].latitude` | 数値; -90.0–90.0 | 親オブジェクトを指定した場合に必須 | — | WGS84 の緯度（十進度）。北が正です。 |
+| `path[].longitude` | 数値; -180.0–180.0 | 親オブジェクトを指定した場合に必須 | — | WGS84 の経度（十進度）。東が正です。 |
+
+### 動作と制約
+
+- 良好な対応付けのため、連続する点の間隔は約 300 メートル以内にします。
+- 補間点は originalIndex がない場合があります。このツールは速度制限を要求しません。
+
+### 結果
+
+`snappedPoints` と任意の `warningMessage` を含む元の Roads 応答です。提供される道路の `placeId`、`location`、`originalIndex` を保持します。
+
+### 実行例
+
+MCP 引数:
+
+```json
+{
+  "path": [
+    {
+      "latitude": -35.27801,
+      "longitude": 149.12958
+    },
+    {
+      "latitude": -35.28032,
+      "longitude": 149.12907
+    }
+  ],
+  "interpolate": true
+}
+```
+
+同等の CLI 呼び出し:
+
+```sh
+mcp-gmap-rs call maps_snap_to_roads --args '{"path":[{"latitude":-35.27801,"longitude":149.12958},{"latitude":-35.28032,"longitude":149.12907}],"interpolate":true}'
+```
+
+
+## maps_nearest_roads {#maps_nearest_roads}
+
+1–100 個の独立 GPS 点の最寄り道路区間を探し、Google の originalIndex と道路の場所 ID を保持します。
+
+独立 GPS 点に近い道路区間を検索し、1 本の連続した軌跡としては解釈しません。
+
+**CLI コマンド:** `nearest-roads`. **Google の認証:** この実装では API キーが必要です。
+
+### 引数
+
+| 引数 / CLI オプション | 型とスキーマの制約 | 必須 | 省略時の既定値 | 説明 |
+| --- | --- | --- | --- | --- |
+| `points` / `--points` | オブジェクトの配列; 1–100 項目 | はい | — | 対応付ける独立した座標オブジェクト。 |
+| `points[].latitude` | 数値; -90.0–90.0 | 親オブジェクトを指定した場合に必須 | — | WGS84 の緯度（十進度）。北が正です。 |
+| `points[].longitude` | 数値; -180.0–180.0 | 親オブジェクトを指定した場合に必須 | — | WGS84 の経度（十進度）。東が正です。 |
+
+### 動作と制約
+
+- 1 点が複数道路区間に一致する場合があります。1 入力 1 出力と仮定せず originalIndex を保持します。
+- このツールは速度制限を要求しません。
+
+### 結果
+
+`snappedPoints`、道路の `placeId`、`location`、入力点への対応を示す `originalIndex` を含む元の Roads 応答です。
+
+### 実行例
+
+MCP 引数:
+
+```json
+{
+  "points": [
+    {
+      "latitude": -35.27801,
+      "longitude": 149.12958
+    },
+    {
+      "latitude": -35.28032,
+      "longitude": 149.12907
+    }
+  ]
+}
+```
+
+同等の CLI 呼び出し:
+
+```sh
+mcp-gmap-rs call maps_nearest_roads --args '{"points":[{"latitude":-35.27801,"longitude":149.12958},{"latitude":-35.28032,"longitude":149.12907}]}'
+```
+
+
+## maps_reverse_geocode {#maps_reverse_geocode}
+
+座標を住所に変換します。
+
+正確な座標を最初の逆 Geocoding 結果に変換します。整形済み住所だけで足りない場合は構成要素を使ってください。
+
+**CLI コマンド:** `reverse-geocode`. **Google の認証:** この実装では API キーが必要です。
+
+### 引数
+
+| 引数 / CLI オプション | 型とスキーマの制約 | 必須 | 省略時の既定値 | 説明 |
+| --- | --- | --- | --- | --- |
+| `latitude` / `--latitude` | 数値; -90.0–90.0 | はい | — | WGS84 の緯度（十進度）。北が正です。 |
+| `longitude` / `--longitude` | 数値; -180.0–180.0 | はい | — | WGS84 の経度（十進度）。東が正です。 |
+
+### 動作と制約
+
+- 最初の結果だけを返します。一致なしはツールエラーです。
+
+### 結果
+
+最初のネイティブ Geocoding 結果で、利用できる `formatted_address`、`address_components`、`geometry`、`place_id` を含みます。
+
+### 実行例
+
+MCP 引数:
+
+```json
+{
+  "latitude": 48.8584,
+  "longitude": 2.2945
+}
+```
+
+同等の CLI 呼び出し:
+
+```sh
+mcp-gmap-rs call maps_reverse_geocode --args '{"latitude":48.8584,"longitude":2.2945}'
+```
+
+
+## maps_search_places {#maps_search_places}
+
+Places (New) をテキスト検索し、場所・評価フィルターを任意に指定します。
+
+Places (New) をテキストと任意の場所・評価・タイプで検索し、返された ID で必要な詳細だけを取得します。
+
+**CLI コマンド:** `search-places`. **Google の認証:** 主 API は API キーまたは OAuth に対応します。
+
+### 引数
+
+| 引数 / CLI オプション | 型とスキーマの制約 | 必須 | 省略時の既定値 | 説明 |
+| --- | --- | --- | --- | --- |
+| `includedType` / `--included-type` | 文字列; 最低 1 文字 | いいえ | タイプによる制限なし | Google 場所タイプ。例：cafe。 |
+| `locationBias` / `--location-bias` | オブジェクト | いいえ | 場所のバイアスなし | 任意の円形検索バイアス。厳密な地理制限ではありません。 |
+| `locationBias.latitude` | 数値; -90.0–90.0 | 親オブジェクトを指定した場合に必須 | — | WGS84 の緯度（十進度）。北が正です。 |
+| `locationBias.longitude` | 数値; -180.0–180.0 | 親オブジェクトを指定した場合に必須 | — | WGS84 の経度（十進度）。東が正です。 |
+| `locationBias.radius` | 数値; 0.1–50000.0 | いいえ | 5000 | バイアス半径（メートル）。 |
+| `minRating` / `--min-rating` | 数値; 0.0–5.0 | いいえ | 評価による制限なし | Google に要求する最低ユーザー評価。 |
+| `openNow` / `--open-now` | 真偽値 | いいえ | 営業状態の制限なし | true の場合は現在営業中の場所に制限します。 |
+| `query` / `--query` | 文字列; 最低 1 文字 | はい | — | 自然言語の場所クエリ。 |
+
+### 動作と制約
+
+- 20 件の 1 ページを要求し、ページトークンを返したり追跡したりしません。
+- 営業状態・評価の欠損は Google の対応範囲によります。網羅的な一覧とは解釈しないでください。
+
+### 結果
+
+最大 20 件の Google Place オブジェクト配列。選択した検索フィールド、Maps・ソースリンク、帰属メタデータを含みます。
+
+### 実行例
+
+MCP 引数:
+
+```json
+{
+  "query": "coffee near Gare de Lyon, Paris",
+  "openNow": true,
+  "minRating": 4
+}
+```
+
+同等の CLI 呼び出し:
+
+```sh
+mcp-gmap-rs call maps_search_places --args '{"query":"coffee near Gare de Lyon, Paris","openNow":true,"minRating":4}'
+```
+
+
+## maps_search_nearby {#maps_search_nearby}
+
+住所・正確な座標の周辺を場所タイプ、評価、営業状態で絞り込みます。
+
+解決済み中心の限定半径内で場所を探します。テキスト検索と異なり、厳密な円形の場所制限を使います。
+
+**CLI コマンド:** `search-nearby`. **Google の認証:** Places は API キーまたは OAuth に対応します。住所・ランドマークの中心点は Geocoding の解決に API キーも必要です。
+
+### 引数
+
+| 引数 / CLI オプション | 型とスキーマの制約 | 必須 | 省略時の既定値 | 説明 |
+| --- | --- | --- | --- | --- |
+| `center` / `--center` | オブジェクト | はい | — | 中心の入力とその解釈方法の指定。 |
+| `center.isCoordinates` | 真偽値 | いいえ | false | value を正確な座標として扱い、ジオコーディングしません。 |
+| `center.value` | 文字列; 最低 1 文字 | 親オブジェクトを指定した場合に必須 | — | 住所・ランドマーク、または isCoordinates が true の場合の latitude,longitude 文字列。 |
+| `keyword` / `--keyword` | 文字列; 最低 1 文字 | いいえ | タイプによる制限なし | includedTypes として渡す Google 場所タイプ（例：cafe）。自由なテキストキーワードではありません。 |
+| `minRating` / `--min-rating` | 数値; 0.0–5.0 | いいえ | 評価による制限なし | 返された場所にローカルで適用する最低評価。 |
+| `openNow` / `--open-now` | 真偽値 | いいえ | false | currentOpeningHours.openNow が true の結果だけを残します。 |
+| `radius` / `--radius` | 数値; 0.1–50000.0 | いいえ | 1000 | 検索半径（メートル）。 |
+
+### 動作と制約
+
+- 絞り込み時、営業状態不明は営業中とせず、評価なしは 0 と扱います。
+- 住所の中心点は場所解決が必要で、座標なら追加呼び出しを回避できます。
+
+### 結果
+
+最大 20 件の選択した Place オブジェクト配列です。ローカルの営業状態・評価フィルターでさらに減る場合があります。
+
+### 実行例
+
+MCP 引数:
+
+```json
+{
+  "center": {
+    "value": "48.8584,2.2945",
+    "isCoordinates": true
+  },
+  "keyword": "cafe",
+  "radius": 500
+}
+```
+
+同等の CLI 呼び出し:
+
+```sh
+mcp-gmap-rs call maps_search_nearby --args '{"center":{"value":"48.8584,2.2945","isCoordinates":true},"keyword":"cafe","radius":500}'
+```
+
+
+## maps_place_details {#maps_place_details}
+
+場所の詳細、レビュー、帰属情報を取得します。任意の写真 URL に著者を保持し、内容とともに出典・開示を表示します。
+
+既知の場所 ID から選択した詳細、レビュー、任意の写真 URL を取得します。著者・ソース情報と AI 開示文を保持してください。
+
+**CLI コマンド:** `place-details`. **Google の認証:** 主 API は API キーまたは OAuth に対応します。
+
+### 引数
+
+| 引数 / CLI オプション | 型とスキーマの制約 | 必須 | 省略時の既定値 | 説明 |
+| --- | --- | --- | --- | --- |
+| `maxPhotos` / `--max-photos` | 整数; 0–10 | いいえ | 0 | 実行する写真メディア URL 検索の最大数。 |
+| `placeId` / `--place-id` | 文字列; 最低 1 文字 | はい | — | Google 場所 ID。places/ 接頭辞は任意です。 |
+
+### 動作と制約
+
+- 選択した写真ごとに追加リクエストが生じる場合があり、0 枚なら回避できます。
+- 固定の詳細フィールドマスクを使い、全 Google Place フィールドは要求しません。利用できない項目は省略される場合があります。
+
+### 結果
+
+要求したフィールドマスクに対応するネイティブ Google Place オブジェクト。写真要求時の `photoUrls` はメディア URL、写真著者の帰属、ソースリンクを含みます。
+
+### 実行例
+
+MCP 引数:
+
+```json
+{
+  "placeId": "ChIJLU7jZClu5kcR4PcOOO6p3I0",
+  "maxPhotos": 1
+}
+```
+
+同等の CLI 呼び出し:
+
+```sh
+mcp-gmap-rs call maps_place_details --args '{"placeId":"ChIJLU7jZClu5kcR4PcOOO6p3I0","maxPhotos":1}'
+```
+
+
+## maps_directions {#maps_directions}
+
+2 地点間の経路、案内手順、距離・時間の合計を取得します。
+
+2 つの端点間の経路を計算し、選択した Google 経路データと正規化した合計を提供します。
+
+**CLI コマンド:** `directions`. **Google の認証:** Routes・Places は API キーまたは OAuth に対応します。場所名の解決には Geocoding の API キーも必要ですが、正確な座標文字列で回避できます。
+
+### 引数
+
+| 引数 / CLI オプション | 型とスキーマの制約 | 必須 | 省略時の既定値 | 説明 |
+| --- | --- | --- | --- | --- |
+| `arrival_time` / `--arrival-time` | 文字列; 最低 1 文字 | いいえ | 未指定 | 希望到着時刻。タイムゾーン付き RFC 3339 で、公共交通のみです。 |
+| `avoid_highways` / `--avoid-highways` | 真偽値 | いいえ | false | 高速道路を避けます。true は運転時のみ対応します。 |
+| `avoid_tolls` / `--avoid-tolls` | 真偽値 | いいえ | false | 有料道路を避けます。true は運転時のみ対応します。 |
+| `departure_time` / `--departure-time` | 文字列; 最低 1 文字 | いいえ | 未指定 | 出発時刻。Z または明示的な UTC オフセットを持つ RFC 3339 形式です。 |
+| `destination` / `--destination` | 文字列; 最低 1 文字 | はい | — | 目的地の住所・ランドマークまたは正確な latitude,longitude 文字列。 |
+| `mode` / `--mode` | 文字列; 値： `driving`, `walking`, `bicycling`, `transit` | いいえ | driving | 移動方法。運転では交通状況を考慮した経路を使います。 |
+| `origin` / `--origin` | 文字列; 最低 1 文字 | はい | — | 出発地の住所・ランドマークまたは正確な latitude,longitude 文字列。 |
+
+### 動作と制約
+
+- departure_time と arrival_time は同時指定できません。arrival_time は公共交通のみです。
+- 回避オプションは運転が必要です。Google は移動方法・時刻・地域の追加制限も適用します。
+- 利用可能な経路がなければ明示的なエラーです。
+
+### 結果
+
+`routes`、`summary`、`total_distance`（メートル）、`total_duration`（秒）、任意の最適化インデックスを持つオブジェクト。経路は選択した区間、手順、ポリライン、警告を含みます。
+
+### 実行例
+
+MCP 引数:
+
+```json
+{
+  "origin": "48.8584,2.2945",
+  "destination": "48.8606,2.3376",
+  "mode": "walking"
+}
+```
+
+同等の CLI 呼び出し:
+
+```sh
+mcp-gmap-rs call maps_directions --args '{"origin":"48.8584,2.2945","destination":"48.8606,2.3376","mode":"walking"}'
+```
+
+
+## maps_distance_matrix {#maps_distance_matrix}
+
+各出発地・目的地間の距離と所要時間を比較し、セル単位の失敗を保持します。
+
+出発地・目的地の全組み合わせで距離と時間を比較します。応答成功を完全な結果とみなさず、各セルとエラーを確認してください。
+
+**CLI コマンド:** `distance-matrix`. **Google の認証:** 主 API は API キーまたは OAuth に対応します。
+
+### 引数
+
+| 引数 / CLI オプション | 型とスキーマの制約 | 必須 | 省略時の既定値 | 説明 |
+| --- | --- | --- | --- | --- |
+| `avoid_highways` / `--avoid-highways` | 真偽値 | いいえ | false | 高速道路を避けます。true は運転時のみ対応します。 |
+| `avoid_tolls` / `--avoid-tolls` | 真偽値 | いいえ | false | 有料道路を避けます。true は運転時のみ対応します。 |
+| `departure_time` / `--departure-time` | 文字列; 最低 1 文字 | いいえ | 未指定 | 出発時刻。Z または明示的な UTC オフセットを持つ RFC 3339 形式です。 |
+| `destinations` / `--destinations` | 文字列の配列; 1–50 項目; 各項目は最低 1 文字 | はい | — | 目的地の文字列。住所または正確な latitude,longitude の組。 |
+| `mode` / `--mode` | 文字列; 値： `driving`, `walking`, `bicycling`, `transit` | いいえ | driving | 移動方法。運転では交通状況を考慮した経路を使います。 |
+| `origins` / `--origins` | 文字列の配列; 1–50 項目; 各項目は最低 1 文字 | はい | — | 出発地の文字列。住所または正確な latitude,longitude の組。 |
+
+### 動作と制約
+
+- 出発地 × 目的地は最大 625 組、公共交通では最大 100 組です。
+- 座標でない出発地・目的地文字列の合計は最大 50 件です。配列別のスキーマ上限は合算上限に優先しません。
+- 有料道路・高速道路の回避は運転のみです。このツールは arrival_time を公開しません。
+- 行列の HTTP リクエスト 1 回でも複数要素に課金される場合があります。
+
+### 結果
+
+`origin_addresses`、`destination_addresses`、行優先の `distances`・`durations`、`errors` 配列を持つオブジェクト。成功セルはメートル・秒で、失敗・欠損は null のままです。
+
+### 実行例
+
+MCP 引数:
+
+```json
+{
+  "origins": [
+    "48.8584,2.2945"
+  ],
+  "destinations": [
+    "48.8606,2.3376",
+    "48.8530,2.3499"
+  ],
+  "mode": "walking"
+}
+```
+
+同等の CLI 呼び出し:
+
+```sh
+mcp-gmap-rs call maps_distance_matrix --args '{"origins":["48.8584,2.2945"],"destinations":["48.8606,2.3376","48.8530,2.3499"],"mode":"walking"}'
+```
+
+
+## maps_elevation {#maps_elevation}
+
+正確な座標の標高を取得します。
+
+正確な座標点の地理的な高さを取得します。
+
+**CLI コマンド:** `elevation`. **Google の認証:** この実装では API キーが必要です。
+
+### 引数
+
+| 引数 / CLI オプション | 型とスキーマの制約 | 必須 | 省略時の既定値 | 説明 |
+| --- | --- | --- | --- | --- |
+| `locations` / `--locations` | オブジェクトの配列; 1–512 項目 | はい | — | 標高を要求する座標オブジェクト。 |
+| `locations[].latitude` | 数値; -90.0–90.0 | 親オブジェクトを指定した場合に必須 | — | WGS84 の緯度（十進度）。北が正です。 |
+| `locations[].longitude` | 数値; -180.0–180.0 | 親オブジェクトを指定した場合に必須 | — | WGS84 の経度（十進度）。東が正です。 |
+
+### 動作と制約
+
+- Google が返すデータを標高単位の変換なしで返します。
+
+### 結果
+
+ネイティブ Elevation の `results` 配列。メートル単位の `elevation`、`location`、`resolution` を含む場合があります。
+
+### 実行例
+
+MCP 引数:
+
+```json
+{
+  "locations": [
+    {
+      "latitude": 48.8584,
+      "longitude": 2.2945
+    }
+  ]
+}
+```
+
+同等の CLI 呼び出し:
+
+```sh
+mcp-gmap-rs call maps_elevation --args '{"locations":[{"latitude":48.8584,"longitude":2.2945}]}'
+```
+
+
+## maps_timezone {#maps_timezone}
+
+指定した場所と時刻のタイムゾーン、UTC オフセット、現地時刻を取得します。
+
+指定時点のタイムゾーン ID と UTC・夏時間オフセットを解決し、現地タイムスタンプを求めます。
+
+**CLI コマンド:** `timezone`. **Google の認証:** この実装では API キーが必要です。
+
+### 引数
+
+| 引数 / CLI オプション | 型とスキーマの制約 | 必須 | 省略時の既定値 | 説明 |
+| --- | --- | --- | --- | --- |
+| `latitude` / `--latitude` | 数値; -90.0–90.0 | はい | — | WGS84 の緯度（十進度）。北が正です。 |
+| `longitude` / `--longitude` | 数値; -180.0–180.0 | はい | — | WGS84 の経度（十進度）。東が正です。 |
+| `timestamp` / `--timestamp` | 整数; 0–253402300799999 | いいえ | 現在の UTC 時刻（ミリ秒） | Unix エポックのミリ秒で、秒ではありません。 |
+
+### 動作と制約
+
+- 要求時にミリ秒を整数秒へ変換し、秒未満の精度は保持しません。
+- 現地時刻は要求時点に返された標準・夏時間オフセットから求めます。
+
+### 結果
+
+`timeZoneId`、`timeZoneName`、秒単位の `rawOffset`・`dstOffset` と、RFC 3339 の算出済み `localTime` などを返します。
+
+### 実行例
+
+MCP 引数:
+
+```json
+{
+  "latitude": 48.8584,
+  "longitude": 2.2945,
+  "timestamp": 1793448000000
+}
+```
+
+同等の CLI 呼び出し:
+
+```sh
+mcp-gmap-rs call maps_timezone --args '{"latitude":48.8584,"longitude":2.2945,"timestamp":1793448000000}'
+```
+
+
+## maps_weather {#maps_weather}
+
+現在・日別・時間別の天気を取得し、Google の単位とページ情報を保持します。
+
+正確な座標の現在の気象または日別・時間別予報の 1 ページを要求します。
+
+**CLI コマンド:** `weather`. **Google の認証:** 主 API は API キーまたは OAuth に対応します。
+
+### 引数
+
+| 引数 / CLI オプション | 型とスキーマの制約 | 必須 | 省略時の既定値 | 説明 |
+| --- | --- | --- | --- | --- |
+| `forecastDays` / `--forecast-days` | 整数; 1–10 | いいえ | 5 | 要求する日別予報の長さ。forecast_daily のみで使用します。 |
+| `forecastHours` / `--forecast-hours` | 整数; 1–240 | いいえ | 24 | 要求する時間別予報の長さ。forecast_hourly のみで使用します。 |
+| `latitude` / `--latitude` | 数値; -90.0–90.0 | はい | — | WGS84 の緯度（十進度）。北が正です。 |
+| `longitude` / `--longitude` | 数値; -180.0–180.0 | はい | — | WGS84 の経度（十進度）。東が正です。 |
+| `type` / `--type` | 文字列; 値： `current`, `forecast_daily`, `forecast_hourly` | いいえ | current | 現在の気象、日別予報、時間別予報を選択します。 |
+
+### 動作と制約
+
+- forecastDays は日別以外で、forecastHours は forecast_hourly 以外で無視します。
+- ページトークンは自動追跡しません。要求した期間が 1 ページの件数を超える場合があります。
+- 対応地域と予報の利用可能性は Google によります。
+
+### 結果
+
+type に応じた現在の気象項目、`forecastDays`、`forecastHours` を持つネイティブ Weather 応答。単位、時刻、nextPageToken を保持してください。
+
+### 実行例
+
+MCP 引数:
+
+```json
+{
+  "latitude": 48.8584,
+  "longitude": 2.2945,
+  "type": "forecast_daily",
+  "forecastDays": 3
+}
+```
+
+同等の CLI 呼び出し:
+
+```sh
+mcp-gmap-rs call maps_weather --args '{"latitude":48.8584,"longitude":2.2945,"type":"forecast_daily","forecastDays":3}'
+```
+
+
+## maps_air_quality {#maps_air_quality}
+
+現在の大気質指数、汚染物質濃度、健康上の助言を取得します。
+
+現在の大気質指数と、任意の汚染物質濃度・提供者による健康上の助言を取得します。
+
+**CLI コマンド:** `air-quality`. **Google の認証:** 主 API は API キーまたは OAuth に対応します。
+
+### 引数
+
+| 引数 / CLI オプション | 型とスキーマの制約 | 必須 | 省略時の既定値 | 説明 |
+| --- | --- | --- | --- | --- |
+| `includeHealthRecommendations` / `--include-health-recommendations` | 真偽値 | いいえ | true | Google の健康上の助言の算出を要求します。 |
+| `includePollutants` / `--include-pollutants` | 真偽値 | いいえ | false | 汚染物質濃度を要求します。 |
+| `latitude` / `--latitude` | 数値; -90.0–90.0 | はい | — | WGS84 の緯度（十進度）。北が正です。 |
+| `longitude` / `--longitude` | 数値; -180.0–180.0 | はい | — | WGS84 の経度（十進度）。東が正です。 |
+
+### 動作と制約
+
+- 助言は提供者のデータであり、個別の医療評価ではありません。
+- 現在の状況のみを公開し、履歴・予報エンドポイントは提供しません。
+
+### 結果
+
+指数と、Google が提供する場合の任意の `healthRecommendations`・`pollutants` を含むネイティブ Air Quality 現況応答です。
+
+### 実行例
+
+MCP 引数:
+
+```json
+{
+  "latitude": 48.8584,
+  "longitude": 2.2945,
+  "includePollutants": true
+}
+```
+
+同等の CLI 呼び出し:
+
+```sh
+mcp-gmap-rs call maps_air_quality --args '{"latitude":48.8584,"longitude":2.2945,"includePollutants":true}'
+```
+
+
+## maps_static_map {#maps_static_map}
+
+中心点、マーカー、経路を PNG 地図に描画します。
+
+任意のマーカー・経路仕様で PNG 地図を描画します。
+
+**CLI コマンド:** `static-map`. **Google の認証:** この実装では API キーが必要です。
+
+### 引数
+
+| 引数 / CLI オプション | 型とスキーマの制約 | 必須 | 省略時の既定値 | 説明 |
+| --- | --- | --- | --- | --- |
+| `center` / `--center` | 文字列; 最低 1 文字 | いいえ | 未指定 | 中心の住所または latitude,longitude 文字列。 |
+| `maptype` / `--maptype` | 文字列; 値： `roadmap`, `satellite`, `terrain`, `hybrid` | いいえ | roadmap | ベースマップのスタイル。 |
+| `markers` / `--markers` | 文字列の配列; 1–100 項目; 各項目は最低 1 文字 | いいえ | マーカーなし | 繰り返し指定する Google Static Maps マーカー仕様。例：color:red\|48.8584,2.2945。 |
+| `path` / `--path` | 文字列の配列; 1–100 項目; 各項目は最低 1 文字 | いいえ | 経路なし | 繰り返し指定する Google Static Maps 経路仕様。例：color:blue\|48.8584,2.2945\|48.8606,2.3376。 |
+| `size` / `--size` | 文字列; パターン： `^[1-9][0-9]{0,2}x[1-9][0-9]{0,2}$` | いいえ | 600x400 | ピクセル寸法 WIDTHxHEIGHT。実行時は各辺 1–640 に制限します。 |
+| `zoom` / `--zoom` | 整数; 0–21 | いいえ | 省略。Google が選択または推測します | 明示的なズームレベル。 |
+
+### 動作と制約
+
+- center、markers、path のうち最低 1 つが必要です。
+- 要求 URL 全体は 16,384 文字以内です。スキーマの size パターンは実行時の 640 ピクセル制限より広い範囲を許容します。
+- マーカー・経路のスタイルは Google Static Maps の構文に従います。画像内の Google 帰属表示は保持されます。
+
+### 結果
+
+MCP はインライン image/png を返します。CLI は `{mimeType,base64}` JSON、--output 指定時は生の PNG バイト列です。
+
+### 実行例
+
+MCP 引数:
+
+```json
+{
+  "center": "48.8584,2.2945",
+  "zoom": 14,
+  "size": "320x240",
+  "markers": [
+    "color:red|48.8584,2.2945"
+  ]
+}
+```
+
+同等の CLI 呼び出し:
+
+```sh
+mcp-gmap-rs call maps_static_map --args '{"center":"48.8584,2.2945","zoom":14,"size":"320x240","markers":["color:red|48.8584,2.2945"]}'
+```
+
+
+## maps_batch_geocode {#maps_batch_geocode}
+
+最大 50 住所を一括解決し、入力順と住所別エラーを保持します。
+
+上限付き住所一覧をジオコーディングし、入力順と各項目の成否を保持します。
+
+**CLI コマンド:** `batch-geocode`. **Google の認証:** この実装では API キーが必要です。
+
+### 引数
+
+| 引数 / CLI オプション | 型とスキーマの制約 | 必須 | 省略時の既定値 | 説明 |
+| --- | --- | --- | --- | --- |
+| `addresses` / `--addresses` | 文字列の配列; 1–50 項目; 各項目は最低 1 文字 | はい | — | 解決する住所・ランドマークの文字列。 |
+
+### 動作と制約
+
+- プロセスあたり最大 5 件の Google リクエストで並行数を制限します。
+- 項目の失敗は CLI の非ゼロ終了を強制しません。各行の success・error を確認してください。
+
+### 結果
+
+入力順の配列。各行に `address`、`success` と、`data`（ジオコードオブジェクト）または `error` があります。
+
+### 実行例
+
+MCP 引数:
+
+```json
+{
+  "addresses": [
+    "Paris, France",
+    "London, UK"
+  ]
+}
+```
+
+同等の CLI 呼び出し:
+
+```sh
+mcp-gmap-rs call maps_batch_geocode --args '{"addresses":["Paris, France","London, UK"]}'
+```
+
+
+## maps_explore_area {#maps_explore_area}
+
+場所を解決し、カテゴリごとに周辺を検索して上位結果の詳細を取得します。
+
+1 か所を解決し、その周辺の指定カテゴリを検索して、カテゴリごとの上位結果だけを展開します。
+
+**CLI コマンド:** `explore-area`. **Google の認証:** Places は API キーまたは OAuth に対応します。場所名には Geocoding の API キーも必要です。
+
+### 引数
+
+| 引数 / CLI オプション | 型とスキーマの制約 | 必須 | 省略時の既定値 | 説明 |
+| --- | --- | --- | --- | --- |
+| `location` / `--location` | 文字列; 最低 1 文字 | はい | — | 住所・ランドマークまたは正確な latitude,longitude 文字列。 |
+| `radius` / `--radius` | 数値; 0.1–50000.0 | いいえ | 1000 | カテゴリ検索の半径（メートル）。 |
+| `topN` / `--top-n` | 整数; 1–20 | いいえ | 3 | カテゴリごとに詳細を取得する場所の最大数。 |
+| `types` / `--types` | 文字列の配列; 1–10 項目; 各項目は最低 1 文字 | いいえ | restaurant, cafe, tourist_attraction | 検索する Google 場所カテゴリ。 |
+
+### 動作と制約
+
+- カテゴリごとに最大 20 件を検索します。count は返されたページの件数で、集計総数ではありません。
+- カテゴリ・詳細取得の失敗はトップレベルの成功出力内に残ります。
+- 複数の Google リクエストを行うため、カテゴリと topN を必要範囲に絞ってください。
+
+### 結果
+
+解決済み `location`、`radius`、`categories` を持つオブジェクト。各カテゴリに type/count/top またはエラーがあり、展開した場所には details_error が入る場合があります。
+
+### 実行例
+
+MCP 引数:
+
+```json
+{
+  "location": "48.8584,2.2945",
+  "types": [
+    "cafe"
+  ],
+  "radius": 500,
+  "topN": 1
+}
+```
+
+同等の CLI 呼び出し:
+
+```sh
+mcp-gmap-rs call maps_explore_area --args '{"location":"48.8584,2.2945","types":["cafe"],"radius":500,"topN":1}'
+```
+
+
+## maps_plan_route {#maps_plan_route}
+
+2–27 立ち寄り点の経路を計画します。公共交通以外は 2–25 中間点を最適化でき、正確な座標を保持します。
+
+順序付き立ち寄り点から 1 経路を計画します。始終点を固定し、中間点を Google に並べ替えさせることもできます。
+
+**CLI コマンド:** `plan-route`. **Google の認証:** Routes・Places は API キーまたは OAuth に対応します。場所名の解決には Geocoding の API キーも必要ですが、正確な座標文字列で回避できます。
+
+### 引数
+
+| 引数 / CLI オプション | 型とスキーマの制約 | 必須 | 省略時の既定値 | 説明 |
+| --- | --- | --- | --- | --- |
+| `avoid_highways` / `--avoid-highways` | 真偽値 | いいえ | false | 高速道路を避けます。true は運転時のみ対応します。 |
+| `avoid_tolls` / `--avoid-tolls` | 真偽値 | いいえ | false | 有料道路を避けます。true は運転時のみ対応します。 |
+| `departure_time` / `--departure-time` | 文字列; 最低 1 文字 | いいえ | 未指定 | 出発時刻。Z または明示的な UTC オフセットを持つ RFC 3339 形式です。 |
+| `mode` / `--mode` | 文字列; 値： `driving`, `walking`, `bicycling`, `transit` | いいえ | driving | 移動方法。運転では交通状況を考慮した経路を使います。 |
+| `optimize` / `--optimize` | 真偽値 | いいえ | true。ただし上記条件に従います | 合計立ち寄り点が 3 点を超え、モードが transit 以外の場合に中間点の最適化を要求します。 |
+| `stops` / `--stops` | 文字列の配列; 2–27 項目; 各項目は最低 1 文字 | はい | — | 順序付き住所・ランドマークまたは正確な latitude,longitude 文字列。最初と最後は端点のままです。 |
+
+### 動作と制約
+
+- 公共交通は 2 端点だけに対応し、中間点は使えません。
+- 最適化が有効なのは合計 4 点以上（中間点 2 つ以上）の場合だけです。
+- 1 経路の順序最適化であり、車両群への車両・タスク割り当てではありません。
+
+### 結果
+
+`mode`、実際に適用した `optimized`、順序付き解決済み `stops`、表示用 `legs`、total_distance、total_duration、polyline、警告を持つオブジェクト。区間の durationSeconds は秒の数値です。
+
+### 実行例
+
+MCP 引数:
+
+```json
+{
+  "stops": [
+    "48.8584,2.2945",
+    "48.8606,2.3376",
+    "48.8530,2.3499"
+  ],
+  "mode": "walking",
+  "optimize": false
+}
+```
+
+同等の CLI 呼び出し:
+
+```sh
+mcp-gmap-rs call maps_plan_route --args '{"stops":["48.8584,2.2945","48.8606,2.3376","48.8530,2.3499"],"mode":"walking","optimize":false}'
+```
+
+
+## maps_compare_places {#maps_compare_places}
+
+場所を検索し詳細を比較します。userLocation からの運転距離も任意で取得します。
+
+少数の場所を検索・詳細化し、正確なユーザー座標からの運転距離を任意で比較します。
+
+**CLI コマンド:** `compare-places`. **Google の認証:** Places と任意の Routes は API キーまたは OAuth に対応します。
+
+### 引数
+
+| 引数 / CLI オプション | 型とスキーマの制約 | 必須 | 省略時の既定値 | 説明 |
+| --- | --- | --- | --- | --- |
+| `limit` / `--limit` | 整数; 1–20 | いいえ | 5 | 詳細化する一致場所の最大数。 |
+| `query` / `--query` | 文字列; 最低 1 文字 | はい | — | Places のテキスト検索クエリ。 |
+| `userLocation` / `--user-location` | オブジェクト | いいえ | 距離・時間の比較なし | 任意の距離比較に使う正確なユーザー座標。 |
+| `userLocation.latitude` | 数値; -90.0–90.0 | 親オブジェクトを指定した場合に必須 | — | WGS84 の緯度（十進度）。北が正です。 |
+| `userLocation.longitude` | 数値; -180.0–180.0 | 親オブジェクトを指定した場合に必須 | — | WGS84 の経度（十進度）。東が正です。 |
+
+### 動作と制約
+
+- 移動の比較は運転固定で、移動方法を変更する引数はありません。
+- 詳細・距離の失敗は残し、それ以外が使える場所を除外しません。
+- 要求された候補だけを詳細化します。
+
+### 結果
+
+`places` と任意の `distance_error` を持つオブジェクト。場所は details/details_error、distance、drive_time、場所別 distance_errors を含む場合があります。
+
+### 実行例
+
+MCP 引数:
+
+```json
+{
+  "query": "cafes near Eiffel Tower, Paris",
+  "userLocation": {
+    "latitude": 48.8584,
+    "longitude": 2.2945
+  },
+  "limit": 3
+}
+```
+
+同等の CLI 呼び出し:
+
+```sh
+mcp-gmap-rs call maps_compare_places --args '{"query":"cafes near Eiffel Tower, Paris","userLocation":{"latitude":48.8584,"longitude":2.2945},"limit":3}'
+```
+
+
+## maps_search_along_route {#maps_search_along_route}
+
+経路のエンコード済みポリラインで沿道の場所を検索します。
+
+経路を計算し、そのエンコード済みポリラインを使って Places を検索します。1 回の円形検索で行程を近似しません。
+
+**CLI コマンド:** `search-along-route`. **Google の認証:** Routes・Places は API キーまたは OAuth に対応します。場所名の解決には Geocoding の API キーも必要ですが、正確な座標文字列で回避できます。
+
+### 引数
+
+| 引数 / CLI オプション | 型とスキーマの制約 | 必須 | 省略時の既定値 | 説明 |
+| --- | --- | --- | --- | --- |
+| `destination` / `--destination` | 文字列; 最低 1 文字 | はい | — | 経路の目的地住所・ランドマークまたは正確な latitude,longitude 文字列。 |
+| `maxResults` / `--max-results` | 整数; 1–20 | いいえ | 5 | 応答ページに要求する Places 結果の最大数。 |
+| `mode` / `--mode` | 文字列; 値： `driving`, `walking`, `bicycling`, `transit` | いいえ | walking | 検索に用いる経路の移動方法。 |
+| `origin` / `--origin` | 文字列; 最低 1 文字 | はい | — | 経路の出発地住所・ランドマークまたは正確な latitude,longitude 文字列。 |
+| `textQuery` / `--text-query` | 文字列; 最低 1 文字 | はい | — | カフェや充電所など経路途中の場所の Places クエリ。 |
+
+### 動作と制約
+
+- 既定は walking で、driving が既定の directions、matrix、plan-route とは異なります。
+- 自動ページ取得や Place Details の展開は行いません。
+- directions の出発・到着時刻や回避引数は公開しません。
+
+### 結果
+
+`places`、任意の `routingSummaries`、選択した Google 経路データと正規化合計を含む算出済み `route` を持つオブジェクト。
+
+### 実行例
+
+MCP 引数:
+
+```json
+{
+  "textQuery": "cafes",
+  "origin": "48.8584,2.2945",
+  "destination": "48.8606,2.3376",
+  "mode": "walking",
+  "maxResults": 3
+}
+```
+
+同等の CLI 呼び出し:
+
+```sh
+mcp-gmap-rs call maps_search_along_route --args '{"textQuery":"cafes","origin":"48.8584,2.2945","destination":"48.8606,2.3376","mode":"walking","maxResults":3}'
+```
+
+
+## maps_local_rank_tracker {#maps_local_rank_tracker}
+
+1–3 キーワードの検索順位を地理グリッドで測り、ARP・ATRP・SoLV と点別エラーを返します。
+
+地理グリッドの各点で、対象場所が Text Search の上位 20 件に現れるかと順位を測定します。
+
+**CLI コマンド:** `local-rank-tracker`. **Google の認証:** 主 API は API キーまたは OAuth に対応します。
+
+### 引数
+
+| 引数 / CLI オプション | 型とスキーマの制約 | 必須 | 省略時の既定値 | 説明 |
+| --- | --- | --- | --- | --- |
+| `center` / `--center` | オブジェクト | はい | — | スキャングリッドの正確な中心。 |
+| `center.latitude` | 数値; -90.0–90.0 | 親オブジェクトを指定した場合に必須 | — | WGS84 の緯度（十進度）。北が正です。 |
+| `center.longitude` | 数値; -180.0–180.0 | 親オブジェクトを指定した場合に必須 | — | WGS84 の経度（十進度）。東が正です。 |
+| `gridSize` / `--grid-size` | 整数; 3–7 | いいえ | 3 | 行数・列数。3–7 のすべての整数を受け入れます。 |
+| `gridSpacing` / `--grid-spacing` | 数値; 100.0–10000.0 | いいえ | 1000 | 隣接グリッド点の間隔（メートル）。 |
+| `keyword` / `--keyword` | 文字列; 最低 1 文字 | いいえ | 未指定 | 単一検索キーワード。keyword または keywords を使います。 |
+| `keywords` / `--keywords` | 文字列の配列; 1–3 項目; 各項目は最低 1 文字 | いいえ | 未指定 | 1–3 の検索キーワード。両形式が指定された場合はこちらを優先します。 |
+| `placeId` / `--place-id` | 文字列; 最低 1 文字 | はい | — | 対象の場所 ID。places/ 接頭辞は任意です。 |
+
+### 動作と制約
+
+- keyword または keywords の最低 1 つが必要です。各スキーマ行だけではこの選択条件は表せません。
+- 検索要求数はキーワード数 × gridSize² で、再試行前に最大 147 件です。
+- 失敗点は有効な未発見でなく、順位指標から除外します。有効な観測がなければ指標は null の場合があります。
+- 検索順位はユーザーレビューの評価ではありません。結果はバイアス付きテキスト検索の標本であり、ユーザーの Google Maps 順位を保証しません。
+
+### 結果
+
+target、grid_size、grid_spacing_m、キーワード別メトリクス・グリッドを含むオブジェクト。ARP は発見順位の平均、ATRP は成功した未発見クエリを 21 位として扱い、SoLV は成功点のうち上位 3 位以内に入った点の百分率です。failed_points と found_in は観測範囲を示します。
+
+### 実行例
+
+MCP 引数:
+
+```json
+{
+  "keyword": "cafe",
+  "placeId": "ChIJLU7jZClu5kcR4PcOOO6p3I0",
+  "center": {
+    "latitude": 48.8584,
+    "longitude": 2.2945
+  },
+  "gridSize": 3,
+  "gridSpacing": 500
+}
+```
+
+同等の CLI 呼び出し:
+
+```sh
+mcp-gmap-rs call maps_local_rank_tracker --args '{"keyword":"cafe","placeId":"ChIJLU7jZClu5kcR4PcOOO6p3I0","center":{"latitude":48.8584,"longitude":2.2945},"gridSize":3,"gridSpacing":500}'
+```

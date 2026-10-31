@@ -1,0 +1,941 @@
+{
+  "maps_geocode": {
+    "purpose": "Adresse oder Sehenswürdigkeit zum ersten Geocoding-Treffer auflösen. Liefert wiederverwendbare Koordinaten und eine Orts-ID, prüft aber keine postalische Zustellbarkeit.",
+    "parameters": {
+      "address": {
+        "description": "Aufzulösende Adresse, Stadt oder Sehenswürdigkeit.",
+        "default": "—"
+      }
+    },
+    "result": "Objekt mit `location.lat`, `location.lng`, `formatted_address` und `place_id`. Nur der erste Treffer wird zurückgegeben.",
+    "example": {
+      "address": "Eiffel Tower, Paris, France"
+    },
+    "notes": [
+      "Kein Treffer ist ein Werkzeugfehler, kein erfolgreicher leerer Ort.",
+      "Dieses direkte Werkzeug verwendet Geocoding v3. Places-Fallback wird von ortsauflösenden Kompositen verwendet, nicht von diesem Aufruf."
+    ],
+    "authentication": "Diese Implementierung benötigt einen API-Schlüssel.",
+    "summary": "Adresse oder Sehenswürdigkeit in Koordinaten umwandeln."
+  },
+  "maps_validate_address": {
+    "purpose": "Postbestandteile prüfen und Korrekturen, standardisierte Adresse und Googles Urteil zurückgeben. Urteil und ungeklärte Bestandteile müssen für den Aufrufer sichtbar bleiben.",
+    "parameters": {
+      "addressLines": {
+        "description": "Eine oder mehrere Postadresszeilen in ihrer Reihenfolge.",
+        "default": "—"
+      },
+      "regionCode": {
+        "description": "Zweistelliger Länder-/Regionscode in Großbuchstaben; zur eindeutigen Adresszuordnung empfohlen.",
+        "default": "Nicht angegeben; Google kann den Wert ableiten"
+      },
+      "locality": {
+        "description": "Stadt oder Ort.",
+        "default": "Nicht angegeben"
+      },
+      "administrativeArea": {
+        "description": "Bundesland, Provinz oder entsprechender Verwaltungsbereich.",
+        "default": "Nicht angegeben"
+      },
+      "postalCode": {
+        "description": "Postleitzahl beziehungsweise ZIP-Code.",
+        "default": "Nicht angegeben"
+      },
+      "enableUspsCass": {
+        "description": "USPS-CASS-Verarbeitung anfordern; bei true verlangt diese Implementierung regionCode US oder PR.",
+        "default": "false"
+      }
+    },
+    "result": "Vollständige Validierungsantwort, gewöhnlich mit `result.verdict`, `result.address`, `result.geocode` und `responseId`; Google kann nicht verfügbare Felder auslassen.",
+    "example": {
+      "addressLines": [
+        "5 Avenue Anatole France"
+      ],
+      "regionCode": "FR",
+      "locality": "Paris",
+      "postalCode": "75007"
+    },
+    "notes": [
+      "Ein Validierungsurteil ist keine Zustellgarantie.",
+      "Regions-/API-Abdeckung variiert. Das Werkzeug sendet keine Validierungsrückmeldung und übernimmt Korrekturen nicht automatisch."
+    ],
+    "authentication": "API-Schlüssel oder OAuth für die Haupt-API.",
+    "summary": "Postadresse validieren und standardisieren; liefert Googles Urteil, Korrekturen, Bestandteile und Geocoding. Ein Urteil ist ein Hinweis, keine Zustellgarantie."
+  },
+  "maps_pollen": {
+    "purpose": "Kurze tägliche Pollenprognose für exakte Koordinaten abrufen. Pollenarten, Indizes, Pflanzeninformationen und Anbieterempfehlungen bleiben erhalten.",
+    "parameters": {
+      "latitude": {
+        "description": "WGS84-Breitengrad in Dezimalgrad; Norden ist positiv.",
+        "default": "—"
+      },
+      "longitude": {
+        "description": "WGS84-Längengrad in Dezimalgrad; Osten ist positiv.",
+        "default": "—"
+      },
+      "days": {
+        "description": "Anzahl anzufordernder täglicher Prognoseeinträge.",
+        "default": "1"
+      },
+      "plantsDescription": {
+        "description": "Ausführliche Pflanzenbeschreibungen und zugehörige Informationen einschließen, soweit verfügbar.",
+        "default": "false"
+      }
+    },
+    "result": "Originale Pollen-Antwort mit `regionCode`, `dailyInfo` und gegebenenfalls `nextPageToken`. Jeder Tag kann Pollen- und Pflanzeninformationen enthalten.",
+    "example": {
+      "latitude": 48.8584,
+      "longitude": 2.2945,
+      "days": 3,
+      "plantsDescription": false
+    },
+    "notes": [
+      "Die Seitengröße beträgt 5 und deckt die maximal fünf angefragten Tage ab; weitere Seiten werden nicht automatisch geladen.",
+      "Verfügbarkeit hängt von Ort, Saison und Google-Abdeckung ab."
+    ],
+    "authentication": "Diese Implementierung benötigt einen API-Schlüssel.",
+    "summary": "Pollenprognosen, Indizes und Gesundheitsempfehlungen für 1–5 Tage an exakten Koordinaten abrufen. Abdeckung hängt von Ort und Saison ab."
+  },
+  "maps_area_insights": {
+    "purpose": "Passende Orte in Kreis, Region oder Polygon mit Places Aggregate zählen. Dies ist eine Aggregatabfrage, keine Zählung einer begrenzten Places-Ergebnisseite.",
+    "parameters": {
+      "area": {
+        "description": "Genau eine Form aus circle, region oder customArea.",
+        "default": "—"
+      },
+      "area.circle": {
+        "description": "Kreisgebiet; schließt region/customArea aus.",
+        "default": "Nicht angegeben"
+      },
+      "area.circle.latLng": {
+        "description": "Kreismittelpunkt als exakte Koordinaten.",
+        "default": "—"
+      },
+      "area.circle.latLng.latitude": {
+        "description": "WGS84-Breitengrad in Dezimalgrad; Norden ist positiv.",
+        "default": "—"
+      },
+      "area.circle.latLng.longitude": {
+        "description": "WGS84-Längengrad in Dezimalgrad; Osten ist positiv.",
+        "default": "—"
+      },
+      "area.circle.radius": {
+        "description": "Kreisradius in Metern.",
+        "default": "—"
+      },
+      "area.region": {
+        "description": "Verwaltungs-/Geografieregion als Google-Ortsressource.",
+        "default": "Nicht angegeben"
+      },
+      "area.region.place": {
+        "description": "Regionsressource im Format places/PLACE_ID, kein frei formulierter Regionsname.",
+        "default": "—"
+      },
+      "area.customArea": {
+        "description": "Benutzerdefiniertes Polygongebiet; schließt circle/region aus.",
+        "default": "Nicht angegeben"
+      },
+      "area.customArea.polygon": {
+        "description": "Polygongrenze.",
+        "default": "—"
+      },
+      "area.customArea.polygon.coordinates": {
+        "description": "Geordneter Ring aus Koordinatenobjekten; erste und letzte Koordinate müssen übereinstimmen.",
+        "default": "—"
+      },
+      "area.customArea.polygon.coordinates[].latitude": {
+        "description": "WGS84-Breitengrad in Dezimalgrad; Norden ist positiv.",
+        "default": "—"
+      },
+      "area.customArea.polygon.coordinates[].longitude": {
+        "description": "WGS84-Längengrad in Dezimalgrad; Osten ist positiv.",
+        "default": "—"
+      },
+      "includedTypes": {
+        "description": "Einzuschließende Google-Ortstypen, etwa restaurant oder cafe.",
+        "default": "—"
+      },
+      "excludedTypes": {
+        "description": "Auszuschließende Google-Ortstypen.",
+        "default": "Kein Filter für ausgeschlossene Typen"
+      },
+      "includePlaces": {
+        "description": "Zusätzlich zum Zählwert passende Ortsressourcen-IDs anfordern.",
+        "default": "false"
+      },
+      "minRating": {
+        "description": "Inklusive untere Bewertungsgrenze; darf maxRating nicht übersteigen.",
+        "default": "Keine untere Bewertungsgrenze"
+      },
+      "maxRating": {
+        "description": "Inklusive obere Bewertungsgrenze.",
+        "default": "Keine obere Bewertungsgrenze"
+      },
+      "operatingStatus": {
+        "description": "Zulässige Betriebszustände.",
+        "default": "Google berücksichtigt standardmäßig aktive Betriebe"
+      },
+      "priceLevels": {
+        "description": "Zulässige Preisstufen.",
+        "default": "Alle Preisstufen"
+      }
+    },
+    "result": "Google-Antwort mit `count` (gewöhnlich eine int64-Zeichenkette) und optionalen Ressourcen `placeInsights[].place`, wenn IDs angefordert und verfügbar sind.",
+    "example": {
+      "area": {
+        "circle": {
+          "latLng": {
+            "latitude": 48.8584,
+            "longitude": 2.2945
+          },
+          "radius": 500
+        }
+      },
+      "includedTypes": [
+        "restaurant"
+      ],
+      "minRating": 4
+    },
+    "notes": [
+      "Genau eine Gebietsform angeben. Verschachtelte Objekte werden in der CLI als JSON übergeben; untergeordnete Parameter haben keine eigenen Optionen.",
+      "Polygonringe müssen geschlossen sein. Google prüft zusätzlich Geometrie, unterstützte Typen, Fläche und Abdeckung.",
+      "Orts-IDs sind nur bei Zählwerten bis 100 verfügbar. Place Details wird nicht automatisch angefordert."
+    ],
+    "authentication": "API-Schlüssel oder OAuth für die Haupt-API.",
+    "summary": "Orte in Kreis, Region oder Polygon mit Places Aggregate zählen. Optionale Orts-IDs nur bei höchstens 100 Treffern; Details werden nicht automatisch abgefragt."
+  },
+  "maps_snap_to_roads": {
+    "purpose": "Geordnete GPS-Spur der wahrscheinlichsten Straßengeometrie zuordnen. Für unabhängige Punkte statt einer Fahrtspur Nearest Roads verwenden.",
+    "parameters": {
+      "path": {
+        "description": "GPS-Koordinatenobjekte in Fahrtreihenfolge.",
+        "default": "—"
+      },
+      "path[].latitude": {
+        "description": "WGS84-Breitengrad in Dezimalgrad; Norden ist positiv.",
+        "default": "—"
+      },
+      "path[].longitude": {
+        "description": "WGS84-Längengrad in Dezimalgrad; Osten ist positiv.",
+        "default": "—"
+      },
+      "interpolate": {
+        "description": "Zwischen eingegebenen Punkten zusätzliche Straßengeometrie ergänzen.",
+        "default": "false"
+      }
+    },
+    "result": "Originale Roads-Antwort mit `snappedPoints` und gegebenenfalls `warningMessage`. Punkte behalten `placeId`, `location` und `originalIndex`, soweit geliefert.",
+    "example": {
+      "path": [
+        {
+          "latitude": -35.27801,
+          "longitude": 149.12958
+        },
+        {
+          "latitude": -35.28032,
+          "longitude": 149.12907
+        }
+      ],
+      "interpolate": true
+    },
+    "notes": [
+      "Aufeinanderfolgende Eingabepunkte sollten für gute Zuordnung etwa höchstens 300 Meter auseinanderliegen.",
+      "Interpolierte Punkte haben möglicherweise keinen originalIndex. Das Werkzeug fragt keine Geschwindigkeitslimits ab."
+    ],
+    "authentication": "Diese Implementierung benötigt einen API-Schlüssel.",
+    "summary": "Geordnete GPS-Spur mit 2–100 Punkten Straßen zuordnen. Für gute Ergebnisse höchstens etwa 300 Meter zwischen Folgepunkten. Optionale Interpolation ergänzt Geometrie."
+  },
+  "maps_nearest_roads": {
+    "purpose": "Nahe Straßenabschnitte für unabhängige GPS-Punkte finden, ohne die Punkte als durchgehende Spur zu interpretieren.",
+    "parameters": {
+      "points": {
+        "description": "Unabhängige Koordinatenobjekte für die Zuordnung.",
+        "default": "—"
+      },
+      "points[].latitude": {
+        "description": "WGS84-Breitengrad in Dezimalgrad; Norden ist positiv.",
+        "default": "—"
+      },
+      "points[].longitude": {
+        "description": "WGS84-Längengrad in Dezimalgrad; Osten ist positiv.",
+        "default": "—"
+      }
+    },
+    "result": "Originale Roads-Antwort mit `snappedPoints`, Straßen-`placeId`, `location` und `originalIndex` zur Zuordnung zu Eingabepunkten.",
+    "example": {
+      "points": [
+        {
+          "latitude": -35.27801,
+          "longitude": 149.12958
+        },
+        {
+          "latitude": -35.28032,
+          "longitude": 149.12907
+        }
+      ]
+    },
+    "notes": [
+      "Ein Punkt kann mehreren Straßenabschnitten entsprechen; originalIndex erhalten und nicht genau ein Ergebnis pro Eingabe voraussetzen.",
+      "Geschwindigkeitslimits werden nicht angefordert."
+    ],
+    "authentication": "Diese Implementierung benötigt einen API-Schlüssel.",
+    "summary": "Nächste Straßenabschnitte für 1–100 unabhängige GPS-Punkte finden; Googles originalIndex und Straßen-Orts-IDs bleiben erhalten."
+  },
+  "maps_reverse_geocode": {
+    "purpose": "Exakte Koordinaten zum ersten Reverse-Geocoding-Ergebnis auflösen. Bestandteile verwenden, wenn eine formatierte Adresse nicht ausreicht.",
+    "parameters": {
+      "latitude": {
+        "description": "WGS84-Breitengrad in Dezimalgrad; Norden ist positiv.",
+        "default": "—"
+      },
+      "longitude": {
+        "description": "WGS84-Längengrad in Dezimalgrad; Osten ist positiv.",
+        "default": "—"
+      }
+    },
+    "result": "Erstes natives Geocoding-Ergebnis mit `formatted_address`, `address_components`, `geometry` und `place_id`, soweit verfügbar.",
+    "example": {
+      "latitude": 48.8584,
+      "longitude": 2.2945
+    },
+    "notes": [
+      "Nur der erste Treffer wird zurückgegeben. Kein Treffer ist ein Werkzeugfehler."
+    ],
+    "authentication": "Diese Implementierung benötigt einen API-Schlüssel.",
+    "summary": "Koordinaten in eine Straßenadresse umwandeln."
+  },
+  "maps_search_places": {
+    "purpose": "Places (New) per Text mit optionalen Orts-, Bewertungs- und Typfiltern durchsuchen. Zurückgegebene IDs für gezielte Detailabfragen verwenden.",
+    "parameters": {
+      "query": {
+        "description": "Natürlichsprachliche Ortssuche.",
+        "default": "—"
+      },
+      "locationBias": {
+        "description": "Optionale kreisförmige Suchbevorzugung, keine harte geografische Grenze.",
+        "default": "Keine Ortsbevorzugung"
+      },
+      "locationBias.latitude": {
+        "description": "WGS84-Breitengrad in Dezimalgrad; Norden ist positiv.",
+        "default": "—"
+      },
+      "locationBias.longitude": {
+        "description": "WGS84-Längengrad in Dezimalgrad; Osten ist positiv.",
+        "default": "—"
+      },
+      "locationBias.radius": {
+        "description": "Bevorzugungsradius in Metern.",
+        "default": "5000"
+      },
+      "openNow": {
+        "description": "Bei true auf aktuell geöffnete Orte begrenzen.",
+        "default": "Keine Einschränkung nach Öffnungsstatus"
+      },
+      "minRating": {
+        "description": "Von Google angeforderte Mindestbenutzerbewertung.",
+        "default": "Kein Bewertungsfilter"
+      },
+      "includedType": {
+        "description": "Google-Ortstyp, etwa cafe.",
+        "default": "Kein Typfilter"
+      }
+    },
+    "result": "Array mit bis zu 20 Google-Place-Objekten mit ausgewählten Suchfeldern, Maps-/Quelllinks und Quellenmetadaten.",
+    "example": {
+      "query": "coffee near Gare de Lyon, Paris",
+      "openNow": true,
+      "minRating": 4
+    },
+    "notes": [
+      "Das Werkzeug fordert eine Seite mit 20 Ergebnissen an und gibt kein Seitentoken zurück oder folgt ihm automatisch.",
+      "Fehlende Öffnungs- und Bewertungsdaten hängen von Google-Abdeckung ab; diese Suche ist kein vollständiges Verzeichnis."
+    ],
+    "authentication": "API-Schlüssel oder OAuth für die Haupt-API.",
+    "summary": "Places (New) per Text mit optionalen Orts- und Bewertungsfiltern durchsuchen."
+  },
+  "maps_search_nearby": {
+    "purpose": "Orte innerhalb eines begrenzten Radius um einen aufgelösten Mittelpunkt finden. Anders als Text Search gilt eine feste Kreisgrenze.",
+    "parameters": {
+      "center": {
+        "description": "Mittelpunktangabe und Kennzeichen ihrer Interpretation.",
+        "default": "—"
+      },
+      "center.value": {
+        "description": "Adresse/Sehenswürdigkeit oder latitude,longitude-Zeichenkette bei isCoordinates true.",
+        "default": "—"
+      },
+      "center.isCoordinates": {
+        "description": "value als exakte Koordinaten ohne Geocoding behandeln.",
+        "default": "false"
+      },
+      "keyword": {
+        "description": "Google-Ortstyp als includedTypes, etwa cafe; kein beliebiges Textschlüsselwort.",
+        "default": "Kein Typfilter"
+      },
+      "radius": {
+        "description": "Suchradius in Metern.",
+        "default": "1000"
+      },
+      "openNow": {
+        "description": "Nur Treffer mit currentOpeningHours.openNow true behalten.",
+        "default": "false"
+      },
+      "minRating": {
+        "description": "Lokal auf zurückgegebene Orte angewendete Mindestbewertung.",
+        "default": "Kein Bewertungsfilter"
+      }
+    },
+    "result": "Array mit höchstens 20 ausgewählten Place-Objekten. Lokale Öffnungs-/Bewertungsfilter können die Liste weiter verkleinern.",
+    "example": {
+      "center": {
+        "value": "48.8584,2.2945",
+        "isCoordinates": true
+      },
+      "keyword": "cafe",
+      "radius": 500
+    },
+    "notes": [
+      "Beim Filtern gilt fehlender Öffnungsstatus nicht als geöffnet; fehlende Bewertung wird als 0 behandelt.",
+      "Adressmittelpunkte benötigen Ortsauflösung; Koordinaten vermeiden diesen Zusatzaufruf."
+    ],
+    "authentication": "Places akzeptiert API-Schlüssel oder OAuth. Mittelpunkte als Adresse/Sehenswürdigkeit benötigen zusätzlich einen API-Schlüssel zur Geocoding-Auflösung.",
+    "summary": "Orte um eine Adresse oder exakte Koordinaten finden und nach Typ, Bewertung und Öffnungsstatus filtern."
+  },
+  "maps_place_details": {
+    "purpose": "Bekannte Orts-ID zu ausgewählten Details, Bewertungen und optionalen Foto-URLs erweitern. Autoren-/Quellinformationen und KI-Hinweise erhalten.",
+    "parameters": {
+      "placeId": {
+        "description": "Google-Orts-ID, optional mit dem Präfix places/.",
+        "default": "—"
+      },
+      "maxPhotos": {
+        "description": "Maximale Anzahl von Foto-Medien-URL-Abfragen.",
+        "default": "0"
+      }
+    },
+    "result": "Natives Google-Place-Objekt für die angeforderte Feldmaske. Bei Fotos enthält `photoUrls` Medien-URLs mit Fotoautoren und Quelllinks.",
+    "example": {
+      "placeId": "ChIJLU7jZClu5kcR4PcOOO6p3I0",
+      "maxPhotos": 1
+    },
+    "notes": [
+      "Jedes ausgewählte Foto kann einen weiteren Aufruf verursachen; null Fotos vermeidet diese Anfragen.",
+      "Das Werkzeug verwendet eine feste Detailfeldmaske, nicht sämtliche möglichen Google-Place-Felder. Nicht verfügbare Felder können fehlen."
+    ],
+    "authentication": "API-Schlüssel oder OAuth für die Haupt-API.",
+    "summary": "Ortsdetails, Bewertungen und Quellen abrufen. Optionale Foto-URLs behalten Autorenangaben; Quellen und Hinweise zusammen mit Inhalten anzeigen."
+  },
+  "maps_directions": {
+    "purpose": "Route zwischen zwei Endpunkten berechnen und ausgewählte Google-Routendaten sowie normalisierte Gesamtwerte liefern.",
+    "parameters": {
+      "origin": {
+        "description": "Startadresse/Sehenswürdigkeit oder exakte latitude,longitude-Zeichenkette.",
+        "default": "—"
+      },
+      "destination": {
+        "description": "Zieladresse/Sehenswürdigkeit oder exakte latitude,longitude-Zeichenkette.",
+        "default": "—"
+      },
+      "mode": {
+        "description": "Verkehrsmodus. Autofahrten berücksichtigen die Verkehrslage.",
+        "default": "driving"
+      },
+      "departure_time": {
+        "description": "Abfahrtszeitpunkt nach RFC 3339 einschließlich Z oder ausdrücklichem UTC-Offset.",
+        "default": "Nicht angegeben"
+      },
+      "avoid_tolls": {
+        "description": "Mautstraßen vermeiden; true ist nur bei Autofahrten zulässig.",
+        "default": "false"
+      },
+      "avoid_highways": {
+        "description": "Autobahnen vermeiden; true ist nur bei Autofahrten zulässig.",
+        "default": "false"
+      },
+      "arrival_time": {
+        "description": "Gewünschte Ankunft nach RFC 3339 mit Zeitzone; nur im Modus transit.",
+        "default": "Nicht angegeben"
+      }
+    },
+    "result": "Objekt mit `routes`, `summary`, `total_distance` (Meter), `total_duration` (Sekunden) und optionalen Optimierungsindizes. Routeneinträge enthalten ausgewählte Etappen, Schritte, Polylinie und Warnungen.",
+    "example": {
+      "origin": "48.8584,2.2945",
+      "destination": "48.8606,2.3376",
+      "mode": "walking"
+    },
+    "notes": [
+      "departure_time und arrival_time dürfen nicht gemeinsam gesetzt werden. arrival_time wird nur bei transit akzeptiert.",
+      "Vermeidungsoptionen erfordern driving. Google setzt zusätzliche Verkehrsmodus-, Zeit- und Regionsgrenzen.",
+      "Eine nicht verfügbare Route wird ausdrücklich als Fehler gemeldet."
+    ],
+    "authentication": "Routes/Places akzeptieren API-Schlüssel oder OAuth. Die Auflösung benannter Orte benötigt zusätzlich einen API-Schlüssel für Geocoding; exakte Koordinatenzeichenketten vermeiden diese Abfrage.",
+    "summary": "Route zwischen Orten mit Verkehrsmodus, Zeit und Vermeidungsoptionen berechnen."
+  },
+  "maps_distance_matrix": {
+    "purpose": "Entfernung und Dauer für jedes Start-/Zielpaar vergleichen. Einzelne Zellen und Fehler prüfen, statt eine erfolgreiche Antwort als vollständig anzusehen.",
+    "parameters": {
+      "origins": {
+        "description": "Startzeichenketten: Adressen oder exakte latitude,longitude-Paare.",
+        "default": "—"
+      },
+      "destinations": {
+        "description": "Zielzeichenketten: Adressen oder exakte latitude,longitude-Paare.",
+        "default": "—"
+      },
+      "mode": {
+        "description": "Verkehrsmodus. Autofahrten berücksichtigen die Verkehrslage.",
+        "default": "driving"
+      },
+      "departure_time": {
+        "description": "Abfahrtszeitpunkt nach RFC 3339 einschließlich Z oder ausdrücklichem UTC-Offset.",
+        "default": "Nicht angegeben"
+      },
+      "avoid_tolls": {
+        "description": "Mautstraßen vermeiden; true ist nur bei Autofahrten zulässig.",
+        "default": "false"
+      },
+      "avoid_highways": {
+        "description": "Autobahnen vermeiden; true ist nur bei Autofahrten zulässig.",
+        "default": "false"
+      }
+    },
+    "result": "Objekt mit `origin_addresses`, `destination_addresses`, zeilenweise angeordneten `distances` und `durations` sowie einem `errors`-Array. Erfolgreiche Werte sind Meter/Sekunden; fehlende oder fehlerhafte Zellen bleiben null.",
+    "example": {
+      "origins": [
+        "48.8584,2.2945"
+      ],
+      "destinations": [
+        "48.8606,2.3376",
+        "48.8530,2.3499"
+      ],
+      "mode": "walking"
+    },
+    "notes": [
+      "Höchstens 625 Start×Ziel-Paare; bei transit maximal 100.",
+      "Insgesamt höchstens 50 Start-/Zielzeichenketten ohne Koordinaten. Einzelne Arraygrenzen heben diese Gesamtgrenzen nicht auf.",
+      "Maut-/Autobahnvermeidung gilt nur für driving. arrival_time ist hier nicht verfügbar.",
+      "Eine einzelne Matrix-HTTP-Anfrage kann mehrere Elemente abrechnen."
+    ],
+    "authentication": "API-Schlüssel oder OAuth für die Haupt-API.",
+    "summary": "Fahrentfernungen und -zeiten für alle Start-/Zielpaare vergleichen."
+  },
+  "maps_elevation": {
+    "purpose": "Geografische Höhe an exakten Koordinatenpunkten abrufen.",
+    "parameters": {
+      "locations": {
+        "description": "Koordinatenobjekte, für die Höhen angefragt werden.",
+        "default": "—"
+      },
+      "locations[].latitude": {
+        "description": "WGS84-Breitengrad in Dezimalgrad; Norden ist positiv.",
+        "default": "—"
+      },
+      "locations[].longitude": {
+        "description": "WGS84-Längengrad in Dezimalgrad; Osten ist positiv.",
+        "default": "—"
+      }
+    },
+    "result": "Natives Elevation-Array `results`. Einträge können `elevation` in Metern, `location` und `resolution` enthalten.",
+    "example": {
+      "locations": [
+        {
+          "latitude": 48.8584,
+          "longitude": 2.2945
+        }
+      ]
+    },
+    "notes": [
+      "Das Werkzeug liefert Googles Daten ohne Umrechnung der Höheneinheiten."
+    ],
+    "authentication": "Diese Implementierung benötigt einen API-Schlüssel.",
+    "summary": "Geografische Höhen für Koordinaten abrufen."
+  },
+  "maps_timezone": {
+    "purpose": "Zeitzonenidentität sowie UTC-/Sommerzeitversatz zu einem Zeitpunkt bestimmen und daraus einen lokalen Zeitstempel ableiten.",
+    "parameters": {
+      "latitude": {
+        "description": "WGS84-Breitengrad in Dezimalgrad; Norden ist positiv.",
+        "default": "—"
+      },
+      "longitude": {
+        "description": "WGS84-Längengrad in Dezimalgrad; Osten ist positiv.",
+        "default": "—"
+      },
+      "timestamp": {
+        "description": "Millisekunden seit der Unix-Epoche, nicht Sekunden.",
+        "default": "Aktuelle UTC-Zeit in Millisekunden"
+      }
+    },
+    "result": "Zeitzonenfelder wie `timeZoneId`, `timeZoneName`, `rawOffset` und `dstOffset` in Sekunden sowie abgeleitete `localTime` im RFC-3339-Format.",
+    "example": {
+      "latitude": 48.8584,
+      "longitude": 2.2945,
+      "timestamp": 1793448000000
+    },
+    "notes": [
+      "Die Anfrage wandelt Millisekunden in ganze Sekunden um; Genauigkeit unter einer Sekunde bleibt nicht erhalten.",
+      "Die lokale Zeit verwendet den zurückgegebenen Grund- und Sommerzeitversatz für den angefragten Zeitpunkt."
+    ],
+    "authentication": "Diese Implementierung benötigt einen API-Schlüssel.",
+    "summary": "Zeitzone, UTC-/Sommerzeitversatz und lokale Zeit abrufen."
+  },
+  "maps_weather": {
+    "purpose": "Aktuelle Bedingungen oder eine Seite täglicher/stündlicher Vorhersagedaten für exakte Koordinaten anfordern.",
+    "parameters": {
+      "latitude": {
+        "description": "WGS84-Breitengrad in Dezimalgrad; Norden ist positiv.",
+        "default": "—"
+      },
+      "longitude": {
+        "description": "WGS84-Längengrad in Dezimalgrad; Osten ist positiv.",
+        "default": "—"
+      },
+      "type": {
+        "description": "Aktuelle Bedingungen, Tages- oder Stundenprognose auswählen.",
+        "default": "current"
+      },
+      "forecastDays": {
+        "description": "Gewünschte Länge der Tagesvorhersage; nur für forecast_daily.",
+        "default": "5"
+      },
+      "forecastHours": {
+        "description": "Gewünschte Länge der Stundenvorhersage; nur für forecast_hourly.",
+        "default": "24"
+      }
+    },
+    "result": "Native Weather-Antwort: je nach type aktuelle Wetterfelder, `forecastDays` oder `forecastHours`. Einheiten, Zeitstempel und gegebenenfalls nextPageToken erhalten.",
+    "example": {
+      "latitude": 48.8584,
+      "longitude": 2.2945,
+      "type": "forecast_daily",
+      "forecastDays": 3
+    },
+    "notes": [
+      "forecastDays wird bei anderen Typen ignoriert; forecastHours gilt nur bei forecast_hourly.",
+      "Seitentokens werden nicht automatisch verfolgt. Der angeforderte Horizont kann mehr Einträge umfassen als eine Antwortseite.",
+      "Abdeckung und verfügbare Vorhersagen hängen von Google ab."
+    ],
+    "authentication": "API-Schlüssel oder OAuth für die Haupt-API.",
+    "summary": "Aktuelles Wetter sowie tägliche oder stündliche Vorhersagen für Koordinaten abrufen."
+  },
+  "maps_air_quality": {
+    "purpose": "Aktuelle Luftqualitätsindizes mit optionalen Schadstoffkonzentrationen und Gesundheitsempfehlungen des Anbieters abrufen.",
+    "parameters": {
+      "latitude": {
+        "description": "WGS84-Breitengrad in Dezimalgrad; Norden ist positiv.",
+        "default": "—"
+      },
+      "longitude": {
+        "description": "WGS84-Längengrad in Dezimalgrad; Osten ist positiv.",
+        "default": "—"
+      },
+      "includeHealthRecommendations": {
+        "description": "Berechnung von Googles Gesundheitsempfehlungen anfordern.",
+        "default": "true"
+      },
+      "includePollutants": {
+        "description": "Schadstoffkonzentrationen anfordern.",
+        "default": "false"
+      }
+    },
+    "result": "Native Air-Quality-Antwort zu aktuellen Bedingungen mit Indizes und optional `healthRecommendations`/`pollutants`, soweit von Google geliefert.",
+    "example": {
+      "latitude": 48.8584,
+      "longitude": 2.2945,
+      "includePollutants": true
+    },
+    "notes": [
+      "Empfehlungen sind Anbieterdaten, keine persönliche medizinische Beurteilung.",
+      "Dieses Werkzeug bietet aktuelle Bedingungen, keine historischen oder Prognoseendpunkte."
+    ],
+    "authentication": "API-Schlüssel oder OAuth für die Haupt-API.",
+    "summary": "Aktuelle Luftqualitätsindizes mit optionalen Schadstoffen und Gesundheitsempfehlungen abrufen."
+  },
+  "maps_static_map": {
+    "purpose": "PNG-Karte mit optionalen Marker- und Pfadspezifikationen rendern.",
+    "parameters": {
+      "center": {
+        "description": "Mittelpunkt als Adresse oder latitude,longitude-Zeichenkette.",
+        "default": "Nicht angegeben"
+      },
+      "zoom": {
+        "description": "Ausdrückliche Zoomstufe.",
+        "default": "Ausgelassen; Google wählt oder ermittelt den Wert"
+      },
+      "size": {
+        "description": "Pixelmaße WIDTHxHEIGHT; die Laufzeit begrenzt jede Dimension auf 1–640.",
+        "default": "600x400"
+      },
+      "maptype": {
+        "description": "Grundkartenstil.",
+        "default": "roadmap"
+      },
+      "markers": {
+        "description": "Wiederholte Google-Static-Maps-Markerspezifikationen, etwa color:red|48.8584,2.2945.",
+        "default": "Keine Marker"
+      },
+      "path": {
+        "description": "Wiederholte Google-Static-Maps-Pfadspezifikationen, etwa color:blue|48.8584,2.2945|48.8606,2.3376.",
+        "default": "Keine Pfade"
+      }
+    },
+    "result": "MCP liefert eingebetteten image/png-Inhalt. Die CLI liefert JSON `{mimeType,base64}` oder mit --output rohe PNG-Bytes.",
+    "example": {
+      "center": "48.8584,2.2945",
+      "zoom": 14,
+      "size": "320x240",
+      "markers": [
+        "color:red|48.8584,2.2945"
+      ]
+    },
+    "notes": [
+      "Mindestens eines von center, markers oder path ist erforderlich.",
+      "Die vollständige Anfrage-URL darf höchstens 16.384 Zeichen haben. Das Schema-Größenmuster erlaubt mehr als die Laufzeitgrenze von 640 Pixeln.",
+      "Marker-/Pfadgestaltung folgt der Google-Static-Maps-Syntax. Google-Quellenangaben bleiben im gerenderten Bild."
+    ],
+    "authentication": "Diese Implementierung benötigt einen API-Schlüssel.",
+    "summary": "PNG-Karte mit optionalen Markern und Pfaden erzeugen."
+  },
+  "maps_batch_geocode": {
+    "purpose": "Begrenzte Adressliste geocodieren und dabei Eingabereihenfolge und Erfolg oder Fehler jedes Elements erhalten.",
+    "parameters": {
+      "addresses": {
+        "description": "Aufzulösende Adress-/Sehenswürdigkeitszeichenketten.",
+        "default": "—"
+      }
+    },
+    "result": "Array in Eingabereihenfolge. Jede Zeile enthält `address`, `success` und entweder `data` (Geocode-Objekt) oder `error`.",
+    "example": {
+      "addresses": [
+        "Paris, France",
+        "London, UK"
+      ]
+    },
+    "notes": [
+      "Begrenzte Parallelität mit höchstens fünf aktiven Google-Anfragen pro Prozess.",
+      "Elementfehler erzwingen keinen CLI-Exitstatus ungleich null; success/error jeder Zeile prüfen."
+    ],
+    "authentication": "Diese Implementierung benötigt einen API-Schlüssel.",
+    "summary": "Bis zu 50 Adressen auflösen und Erfolg oder Fehler je Adresse erhalten."
+  },
+  "maps_explore_area": {
+    "purpose": "Einen Ort auflösen, ausgewählte Kategorien in seiner Umgebung suchen und nur die führenden Ergebnisse je Kategorie um Details erweitern.",
+    "parameters": {
+      "location": {
+        "description": "Adresse/Sehenswürdigkeit oder exakte latitude,longitude-Zeichenkette.",
+        "default": "—"
+      },
+      "types": {
+        "description": "Zu suchende Google-Ortskategorien.",
+        "default": "restaurant, cafe, tourist_attraction"
+      },
+      "radius": {
+        "description": "Suchradius je Kategorie in Metern.",
+        "default": "1000"
+      },
+      "topN": {
+        "description": "Maximale Anzahl je Kategorie mit Details zu erweiternder Orte.",
+        "default": "3"
+      }
+    },
+    "result": "Objekt mit aufgelöster `location`, `radius` und `categories`. Jede Kategorie enthält type/count/top oder einen Fehler; erweiterte Orte können details_error enthalten.",
+    "example": {
+      "location": "48.8584,2.2945",
+      "types": [
+        "cafe"
+      ],
+      "radius": 500,
+      "topN": 1
+    },
+    "notes": [
+      "Jede Kategorie sucht höchstens 20 Orte; count ist die Trefferzahl der Seite, kein aggregiertes Gesamtverzeichnis.",
+      "Kategorie- und Detailfehler bleiben in einer erfolgreichen Gesamtausgabe sichtbar.",
+      "Dieses zusammengesetzte Werkzeug stellt mehrere Google-Anfragen; Kategorien und topN auf die Aufgabe begrenzen."
+    ],
+    "authentication": "Places akzeptiert API-Schlüssel oder OAuth. Benannte Orte benötigen zusätzlich einen API-Schlüssel für Geocoding.",
+    "summary": "Ort auflösen und Kategorien mit Details zu führenden Treffern erkunden. Präzise Orte zur Routenplanung verwenden."
+  },
+  "maps_plan_route": {
+    "purpose": "Einzelne Route durch geordnete Stopps planen; optional Google um Neuordnung der Zwischenstopps bei festen Endpunkten bitten.",
+    "parameters": {
+      "stops": {
+        "description": "Geordnete Adressen/Sehenswürdigkeiten oder exakte latitude,longitude-Zeichenketten; erster/letzter bleiben Endpunkte.",
+        "default": "—"
+      },
+      "mode": {
+        "description": "Verkehrsmodus. Autofahrten berücksichtigen die Verkehrslage.",
+        "default": "driving"
+      },
+      "departure_time": {
+        "description": "Abfahrtszeitpunkt nach RFC 3339 einschließlich Z oder ausdrücklichem UTC-Offset.",
+        "default": "Nicht angegeben"
+      },
+      "avoid_tolls": {
+        "description": "Mautstraßen vermeiden; true ist nur bei Autofahrten zulässig.",
+        "default": "false"
+      },
+      "avoid_highways": {
+        "description": "Autobahnen vermeiden; true ist nur bei Autofahrten zulässig.",
+        "default": "false"
+      },
+      "optimize": {
+        "description": "Zwischenstoppoptimierung anfordern, wenn mehr als drei Gesamtstopps vorliegen und der Modus nicht transit ist.",
+        "default": "true, unter diesen Bedingungen"
+      }
+    },
+    "result": "Objekt mit `mode`, wirksamem `optimized`, geordneten aufgelösten `stops`, Anzeige-`legs`, total_distance, total_duration, Polylinie und Warnungen. durationSeconds einer Etappe sind numerische Sekunden.",
+    "example": {
+      "stops": [
+        "48.8584,2.2945",
+        "48.8606,2.3376",
+        "48.8530,2.3499"
+      ],
+      "mode": "walking",
+      "optimize": false
+    },
+    "notes": [
+      "Transit unterstützt nur zwei Endpunkte ohne Zwischenstopps.",
+      "Optimierung wirkt erst ab vier Gesamtstopps, also mindestens zwei Zwischenstopps.",
+      "Optimiert wird die Stoppreihenfolge einer Route, nicht die Fahrzeug-/Aufgabenverteilung einer Flotte."
+    ],
+    "authentication": "Routes/Places akzeptieren API-Schlüssel oder OAuth. Die Auflösung benannter Orte benötigt zusätzlich einen API-Schlüssel für Geocoding; exakte Koordinatenzeichenketten vermeiden diese Abfrage.",
+    "summary": "Route durch 2–27 Stopps planen. 2–25 Zwischenstopps außer bei transit optimieren; exakte Koordinaten bleiben erhalten."
+  },
+  "maps_compare_places": {
+    "purpose": "Kurze Ortsauswahlliste suchen und anreichern; optional Fahrentfernungen ab exakten Benutzerkoordinaten vergleichen.",
+    "parameters": {
+      "query": {
+        "description": "Places-Textsuchanfrage.",
+        "default": "—"
+      },
+      "userLocation": {
+        "description": "Exakte Benutzerkoordinaten für einen optionalen Entfernungsvergleich.",
+        "default": "Kein Entfernungs-/Zeitvergleich"
+      },
+      "userLocation.latitude": {
+        "description": "WGS84-Breitengrad in Dezimalgrad; Norden ist positiv.",
+        "default": "—"
+      },
+      "userLocation.longitude": {
+        "description": "WGS84-Längengrad in Dezimalgrad; Osten ist positiv.",
+        "default": "—"
+      },
+      "limit": {
+        "description": "Maximale Anzahl anzureichernder passender Orte.",
+        "default": "5"
+      }
+    },
+    "result": "Objekt mit `places` und optionalem `distance_error`. Orte können details/details_error, distance, drive_time und distance_errors je Ort enthalten.",
+    "example": {
+      "query": "cafes near Eiffel Tower, Paris",
+      "userLocation": {
+        "latitude": 48.8584,
+        "longitude": 2.2945
+      },
+      "limit": 3
+    },
+    "notes": [
+      "Vergleichswege werden mit driving berechnet; dieses Werkzeug besitzt keinen konfigurierbaren Verkehrsmodus.",
+      "Detail- und Entfernungsfehler bleiben erhalten, statt ansonsten verwendbare Orte zu entfernen.",
+      "Nur die angeforderte Auswahlliste wird angereichert."
+    ],
+    "authentication": "Places und optional Routes akzeptieren API-Schlüssel oder OAuth.",
+    "summary": "Orte mit Detailinformationen und optionaler Fahrentfernung ab userLocation suchen und vergleichen."
+  },
+  "maps_search_along_route": {
+    "purpose": "Route berechnen und Places mit ihrer kodierten Polylinie durchsuchen, statt die Fahrt mit einer einzelnen Kreissuche anzunähern.",
+    "parameters": {
+      "textQuery": {
+        "description": "Places-Suche nach Stopps entlang der Route, etwa Cafés oder Ladestationen.",
+        "default": "—"
+      },
+      "origin": {
+        "description": "Routenstart als Adresse/Sehenswürdigkeit oder exakte latitude,longitude-Zeichenkette.",
+        "default": "—"
+      },
+      "destination": {
+        "description": "Routenziel als Adresse/Sehenswürdigkeit oder exakte latitude,longitude-Zeichenkette.",
+        "default": "—"
+      },
+      "mode": {
+        "description": "Verkehrsmodus der für die Suche verwendeten Route.",
+        "default": "walking"
+      },
+      "maxResults": {
+        "description": "Maximale Anzahl angeforderter Places-Treffer auf der Antwortseite.",
+        "default": "5"
+      }
+    },
+    "result": "Objekt mit `places`, optionalen `routingSummaries` und berechneter `route` einschließlich ausgewählter Google-Routendaten und normalisierter Gesamtwerte.",
+    "example": {
+      "textQuery": "cafes",
+      "origin": "48.8584,2.2945",
+      "destination": "48.8606,2.3376",
+      "mode": "walking",
+      "maxResults": 3
+    },
+    "notes": [
+      "Standardmodus ist walking; directions, matrix und plan-route verwenden dagegen driving.",
+      "Keine automatische Seitennavigation und keine Erweiterung um Place Details.",
+      "Die Abfahrts-/Ankunfts- und Vermeidungsparameter von directions sind hier nicht verfügbar."
+    ],
+    "authentication": "Routes/Places akzeptieren API-Schlüssel oder OAuth. Die Auflösung benannter Orte benötigt zusätzlich einen API-Schlüssel für Geocoding; exakte Koordinatenzeichenketten vermeiden diese Abfrage.",
+    "summary": "Orte entlang einer Route anhand ihrer kodierten Polylinie finden."
+  },
+  "maps_local_rank_tracker": {
+    "purpose": "Auftreten eines Zielorts unter den ersten 20 Text-Search-Ergebnissen an jedem Punkt eines geografischen Rasters messen.",
+    "parameters": {
+      "keyword": {
+        "description": "Einzelnes Suchschlüsselwort; keyword oder keywords verwenden.",
+        "default": "Nicht angegeben"
+      },
+      "keywords": {
+        "description": "Ein bis drei Suchschlüsselwörter; hat Vorrang, wenn beide Formen gesetzt sind.",
+        "default": "Nicht angegeben"
+      },
+      "placeId": {
+        "description": "ID des Zielorts, optional mit dem Präfix places/.",
+        "default": "—"
+      },
+      "center": {
+        "description": "Exakter Mittelpunkt des Abfragerasters.",
+        "default": "—"
+      },
+      "center.latitude": {
+        "description": "WGS84-Breitengrad in Dezimalgrad; Norden ist positiv.",
+        "default": "—"
+      },
+      "center.longitude": {
+        "description": "WGS84-Längengrad in Dezimalgrad; Osten ist positiv.",
+        "default": "—"
+      },
+      "gridSize": {
+        "description": "Anzahl Zeilen und Spalten; alle ganzzahligen Werte 3–7 sind zulässig.",
+        "default": "3"
+      },
+      "gridSpacing": {
+        "description": "Abstand in Metern zwischen benachbarten Rasterpunkten.",
+        "default": "1000"
+      }
+    },
+    "result": "Objekt mit target, grid_size, grid_spacing_m und Metriken/Raster je Schlüsselwort. ARP mittelt gefundene Ränge; ATRP verwendet Rang 21 für erfolgreiche Abfragen ohne Zieltreffer; SoLV ist der Anteil erfolgreicher Punkte mit Rang unter den ersten 3. failed_points und found_in zeigen die Abdeckung.",
+    "example": {
+      "keyword": "cafe",
+      "placeId": "ChIJLU7jZClu5kcR4PcOOO6p3I0",
+      "center": {
+        "latitude": 48.8584,
+        "longitude": 2.2945
+      },
+      "gridSize": 3,
+      "gridSpacing": 500
+    },
+    "notes": [
+      "Mindestens eines von keyword oder keywords ist erforderlich; einzelne Schemazeilen bilden diese Alternative nicht ab.",
+      "Die Anfragezahl ist Schlüsselwortanzahl × gridSize², bis zu 147 vor Wiederholungen.",
+      "Fehlgeschlagene Punkte werden aus Rangmetriken ausgeschlossen, nicht als gültige Nichttreffer gewertet. Ohne brauchbare Beobachtungen können Metriken null sein.",
+      "Ein Suchrang ist keine Benutzerbewertung des Zielorts. Ergebnisse sind Stichproben ortsbevorzugter Textsuchen und keine Garantie des Google-Maps-Rangs eines Benutzers."
+    ],
+    "authentication": "API-Schlüssel oder OAuth für die Haupt-API.",
+    "summary": "Suchrang für 1–3 Schlüsselwörter über ein geografisches Raster messen; liefert ARP, ATRP, SoLV und Fehler je Punkt."
+  }
+}

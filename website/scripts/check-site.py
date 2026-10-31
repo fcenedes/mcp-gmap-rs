@@ -13,7 +13,9 @@ WEBSITE = Path(__file__).resolve().parents[1]
 REPOSITORY = WEBSITE.parent
 BASE = "/mcp-gmap-rs/"
 ORIGIN = "https://fcenedes.github.io"
-LOCALES = {"en": "", "fr": "fr/", "it": "it/"}
+LANGUAGES = json.loads((WEBSITE / "i18n/locales.json").read_text(encoding="utf-8"))
+METADATA = {key: json.loads((WEBSITE / f"i18n/{key}.json").read_text(encoding="utf-8")) for key in LANGUAGES}
+LOCALES = {key: "" if key == "en" else key + "/" for key in LANGUAGES}
 GUIDES = (
     "getting-started", "google-cloud", "authentication", "configuration", "cli",
     "mcp", "deployment", "production", "recipes", "troubleshooting",
@@ -27,6 +29,7 @@ class Page(HTMLParser):
     def __init__(self, source):
         super().__init__(convert_charrefs=True)
         self.lang = ""
+        self.direction = ""
         self.ids = set()
         self.links = []
         self.canonical = []
@@ -45,6 +48,7 @@ class Page(HTMLParser):
         attrs = dict(attributes)
         if tag == "html":
             self.lang = attrs.get("lang", "")
+            self.direction = attrs.get("dir", "")
         if attrs.get("id"):
             self.ids.add(attrs["id"])
         if tag == "title":
@@ -144,10 +148,14 @@ def main():
                 continue
             page = pages[file]
             label = file.relative_to(dist).as_posix()
-            if page.lang != lang:
-                errors.append(f"{label}: html lang must be {lang}, found {page.lang!r}")
+            if page.lang != METADATA[lang]["lang"]:
+                errors.append(f"{label}: html lang must be {METADATA[lang]['lang']}, found {page.lang!r}")
+            if page.direction != METADATA[lang]["dir"]:
+                errors.append(f"{label}: html dir must be {METADATA[lang]['dir']}, found {page.direction!r}")
             if not "".join(page.title).strip():
                 errors.append(f"{label}: page title is empty")
+            if "{#" in "".join(page.title):
+                errors.append(f"{label}: page title exposes a Markdown anchor")
             if not "".join(page.h1).strip():
                 errors.append(f"{label}: visible h1 is missing")
             canonical = ORIGIN + BASE + localized
@@ -155,7 +163,7 @@ def main():
                 errors.append(f"{label}: canonical must be {canonical}")
             for alternate, alternate_prefix in LOCALES.items():
                 expected = ORIGIN + BASE + alternate_prefix + route
-                if page.alternates[alternate] != [expected]:
+                if page.alternates[METADATA[alternate]["lang"]] != [expected]:
                     errors.append(f"{label}: {alternate} alternate must be {expected}")
             if route == "reference/tools":
                 for tool_name, tool in notes.items():
@@ -209,7 +217,7 @@ def main():
         for error in unique:
             print(f"- {error}", file=sys.stderr)
         raise SystemExit(1)
-    print(f"Verified 45 localized pages, {len(LOCALES)} languages, {len(notes)} tools/{parameter_count} parameter paths per language, and {checked_links} internal links/assets")
+    print(f"Verified {len(DOCUMENTS) * len(LOCALES)} localized pages, {len(LOCALES)} languages, {len(notes)} tools/{parameter_count} parameter paths per language, and {checked_links} internal links/assets")
 
 
 if __name__ == "__main__":

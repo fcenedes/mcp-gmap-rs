@@ -1,0 +1,2056 @@
+# mcp-gmap-rs / zh
+
+https://fcenedes.github.io/mcp-gmap-rs/zh/
+
+
+<!-- https://fcenedes.github.io/mcp-gmap-rs/zh/guide/agent-skill -->
+
+# 智能体技能 {#agent-skill}
+
+可移植的 `mcp-gmap` 技能指导智能体选择工具、安全调用 MCP 或 CLI、检查部分失败，并保留 Google 归属信息。它补充的是单独配置的可执行文件或 MCP 连接。
+
+## 从源代码或发布包安装 {#install-from-source-or-a-release}
+
+源代码包和每个发布压缩包都包含[技能目录](https://github.com/fcenedes/mcp-gmap-rs/tree/main/skills/mcp-gmap)。在检出目录或解压目录中，可为 Codex 安装：
+
+```sh
+mkdir -p "${CODEX_HOME:-$HOME/.codex}/skills"
+cp -R skills/mcp-gmap "${CODEX_HOME:-$HOME/.codex}/skills/"
+```
+
+使用 `$mcp-gmap` 调用，例如：
+
+> 使用 $mcp-gmap 查找 Gare de Lyon 附近的咖啡馆，比较步行路线，并保留来源链接。
+
+其他智能体可将同一目录放到支持的技能路径，或加载 `SKILL.md` 及其引用文档。指令主体与智能体无关；`agents/openai.yaml` 提供可选的 Codex UI 元数据。请在智能体的 PATH 安装可用可执行文件，或配置其 [MCP 连接](./mcp)。
+
+## 技能提供的能力 {#what-the-skill-adds}
+
+技能从工具发现开始，不假定旧版已安装版本支持最新工具目录。它优先使用精确坐标与已返回的地点 ID，保持搜索范围较小，并为地址验证、聚合统计或沿途搜索选择专用工具，而不是从无关结果中近似推断。
+
+它将凭据视为进程/部署配置，不作为工具参数。它区分入站 MCP 授权与出站 Google 访问，优先采用离线诊断。在线诊断探测可能计费。即使顶层调用成功，也必须检查复合输出中的嵌套错误。
+
+[工具选择参考](https://github.com/fcenedes/mcp-gmap-rs/blob/main/skills/mcp-gmap/references/tool-selection.md)解释决策规则，[CLI 参考](https://github.com/fcenedes/mcp-gmap-rs/blob/main/skills/mcp-gmap/references/cli.md)介绍结构化调用与访问诊断。完整工作流见本手册[实用示例](./recipes)，所有参数见[工具参考](../reference/tools)。
+
+
+<!-- https://fcenedes.github.io/mcp-gmap-rs/zh/guide/authentication -->
+
+# 身份验证 {#authentication}
+
+Google 出站凭据与 MCP HTTP 客户端使用的凭据需分别配置。默认采用 API 密钥模式；仅设置服务账号路径不会启用 OAuth。
+
+## API 密钥与 OAuth 的适用范围 {#api-key-and-oauth-coverage}
+
+| 端点类别 | API 密钥 | 本程序中的 OAuth |
+| --- | --- | --- |
+| Places (New)、Routes、Weather、Air Quality、Address Validation、Places Aggregate | 是 | 是 |
+| Geocoding v3、Elevation、Time Zone、Maps Static、Pollen、Roads | 是 | 否 |
+
+即使主操作支持 OAuth，命名地点解析和复合调用仍可能需要密钥。使用精确坐标可避免不必要的地理编码。OAuth 失败绝不会静默回退到 API 密钥。请参阅 [Google Cloud 配置](./google-cloud)，启用准确的服务并限制密钥。
+
+## 服务账号 OAuth {#service-account-oauth}
+
+OAuth 模式下，Places (New)、Routes、Weather、Air Quality、Address Validation 和 Places Aggregate 请求会携带 OAuth **访问令牌**及 `X-Goog-User-Project` 头。本项目申请这些 API 文档指定的 `https://www.googleapis.com/auth/cloud-platform` 范围。Google 的 Rust 认证库负责获取、缓存与刷新令牌。`GOOGLE_MAPS_TIMEOUT` 也限制凭据初始化和令牌获取的时间。服务账号流程无需手动粘贴访问令牌，也不需要应用 OAuth 同意屏幕。参阅 [Maps 服务器端 OAuth 指南](https://developers.google.com/maps/api-security-best-practices#use-oauth-for-server-side-apps)。
+
+创建专用服务账号，并授予它在 Maps 结算/配额项目中使用服务的权限：
+
+```sh
+export PROJECT_ID='your-project-id'
+export SA_EMAIL="mcp-gmap@${PROJECT_ID}.iam.gserviceaccount.com"
+gcloud iam service-accounts create mcp-gmap --project="$PROJECT_ID" \
+  --display-name='MCP Google Maps'
+gcloud projects add-iam-policy-binding "$PROJECT_ID" \
+  --member="serviceAccount:${SA_EMAIL}" \
+  --role='roles/serviceusage.serviceUsageConsumer'
+```
+
+Service Usage Consumer 角色包含配额和结算所需的 `serviceusage.services.use` 权限，但不授予启用服务或创建密钥的能力；这些配置步骤需由另行授权的管理员执行。按照 [Google Cloud 配置指南](./google-cloud)在配额项目中启用 Maps API。参阅 [Service Usage 权限](https://docs.cloud.google.com/service-usage/docs/access-control)。
+
+从以下凭据来源中选择一种。CLI、stdio 和 HTTP 使用相同设置，并遵循通常的文件 → 环境变量 → 选项优先级。
+
+### A. 挂载服务账号 JSON 密钥 {#a-mounted-service-account-json-key}
+
+组织允许 JSON 密钥时，打开 **IAM & Admin → Service Accounts**，选择账号，再选择 **Keys → Add key → Create new key → JSON**。将文件保存在源代码检出目录之外。也可使用以下命令：
+
+```sh
+mkdir -p "$HOME/.config/mcp-gmap-rs"
+gcloud iam service-accounts keys create \
+  "$HOME/.config/mcp-gmap-rs/service-account.json" \
+  --iam-account="$SA_EMAIL" --project="$PROJECT_ID"
+chmod 600 "$HOME/.config/mcp-gmap-rs/service-account.json"
+export GOOGLE_APPLICATION_CREDENTIALS="$HOME/.config/mcp-gmap-rs/service-account.json"
+export GOOGLE_CLOUD_QUOTA_PROJECT="$PROJECT_ID"
+export GOOGLE_MAPS_AUTH_MODE=oauth
+```
+
+对于挂载文件，等效 `.env` 如下：
+
+```dotenv
+GOOGLE_MAPS_AUTH_MODE=oauth
+GOOGLE_APPLICATION_CREDENTIALS=/credentials/service-account.json
+GOOGLE_CLOUD_QUOTA_PROJECT=your-project-id
+# Optional, for Geocoding v3 / Elevation / Time Zone / Static Maps / Pollen / Roads:
+# GOOGLE_MAPS_API_KEY=your-restricted-api-key
+```
+
+仅在使用可读取的 JSON 文件时设置凭据路径；不要设为空字符串，也不要将 JSON 内容作为路径。相对路径按工作目录解析。文件值直接使用，不会修改进程环境。加载器也接受 ADC 的 `external_account`、`impersonated_service_account` 和 `authorized_user` JSON 配置。修改凭据文件后须重启进程。
+
+服务账号密钥是长期凭据。条件允许时优先使用以下无密钥方案；不要将 JSON 密钥放入 Git 或镜像层，并定期轮换或删除未使用的密钥。Google 的[密钥创建与组织政策文档](https://docs.cloud.google.com/iam/docs/keys-create-delete)说明了相关要求。
+
+### B. 无 JSON 密钥的 Application Default Credentials {#b-application-default-credentials-without-a-json-key}
+
+进程环境和所选 dotenv 文件或 Kubernetes Secret/ConfigMap 中都应不设置 `GOOGLE_APPLICATION_CREDENTIALS`。单独执行 Shell `unset` 不会删除文件层的值；应移除该项，而不是设置空路径。然后配置：
+
+```dotenv
+GOOGLE_MAPS_AUTH_MODE=oauth
+GOOGLE_CLOUD_QUOTA_PROJECT=your-project-id
+```
+
+官方认证库使用 [Application Default Credentials (ADC)](https://docs.cloud.google.com/docs/authentication/application-default-credentials)：存在本地 ADC 凭据时使用本地凭据，否则通过元数据服务器使用附加的工作负载/服务账号。凭据发现采用延迟加载：`tools`、`schema` 和帮助命令无需获取令牌。OAuth API 调用则需要配额项目和有效凭据。
+
+本地开发使用服务账号模拟时，先启用 IAM Credentials API，并授予开发者账号对服务账号的 Token Creator 权限，再创建本地 ADC 凭据：
+
+```sh
+gcloud services enable iamcredentials.googleapis.com --project="$PROJECT_ID"
+gcloud iam service-accounts add-iam-policy-binding "$SA_EMAIL" \
+  --project="$PROJECT_ID" --member='user:you@example.com' \
+  --role='roles/iam.serviceAccountTokenCreator'
+unset GOOGLE_APPLICATION_CREDENTIALS
+gcloud auth application-default login --impersonate-service-account="$SA_EMAIL"
+export GOOGLE_MAPS_AUTH_MODE=oauth
+export GOOGLE_CLOUD_QUOTA_PROJECT="$PROJECT_ID"
+```
+
+此方式使用短期服务账号令牌调用 Maps，无需下载私钥。参阅[服务账号模拟](https://docs.cloud.google.com/iam/docs/service-account-impersonation)。
+
+### C. Kubernetes 与 GKE 工作负载身份 {#c-kubernetes-and-gke-workload-identity}
+
+通用 Kubernetes 环境中，将凭据 JSON 作为 Secret 文件挂载，并配置方案 A 的三个 OAuth 变量。文件必须可由容器使用的 UID 10001 读取。以只读方式挂载，将 `MCP_HTTP_TOKEN` 保存在单独的运行时 Secret 中。[容器指南](./deployment)介绍基础 Deployment。
+
+GKE 上优先使用 [Workload Identity Federation for GKE](https://docs.cloud.google.com/kubernetes-engine/docs/how-to/workload-identity)，将 Kubernetes ServiceAccount 关联到 IAM 服务账号。先在集群/节点池中启用该功能（Autopilot 已启用），然后执行：
+
+```sh
+gcloud services enable iamcredentials.googleapis.com --project="$PROJECT_ID"
+kubectl create serviceaccount mcp-gmap-rs --namespace default
+gcloud iam service-accounts add-iam-policy-binding "$SA_EMAIL" \
+  --project="$PROJECT_ID" --role='roles/iam.workloadIdentityUser' \
+  --member="serviceAccount:${PROJECT_ID}.svc.id.goog[default/mcp-gmap-rs]"
+kubectl annotate serviceaccount mcp-gmap-rs --namespace default \
+  "iam.gke.io/gcp-service-account=${SA_EMAIL}"
+kubectl patch deployment mcp-gmap-rs --namespace default --type=merge \
+  -p '{"spec":{"template":{"spec":{"serviceAccountName":"mcp-gmap-rs"}}}}'
+kubectl set env deployment/mcp-gmap-rs --namespace default \
+  GOOGLE_MAPS_AUTH_MODE=oauth GOOGLE_CLOUD_QUOTA_PROJECT="$PROJECT_ID"
+```
+
+上述命令假定集群和 IAM 服务账号都位于 `PROJECT_ID`，且基础 Deployment 位于 `default`。根据安装调整项目/命名空间。此元数据流程不要设置 `GOOGLE_APPLICATION_CREDENTIALS`。Pod 通过 GKE 元数据服务器获取访问令牌。GKE 以外，可结合 `external_account` 凭据配置与提供方投射的身份令牌，使用 Google Workload Identity Federation。
+
+仅使用 OAuth 时，从运行时 Secret 删除 Google API 密钥，并只启用调用始终落在 OAuth 支持 API 内的工具/输入。使用表中的仅密钥端点或依赖它们的复合流程时保留密钥。支持的 API 上 OAuth 失败会显式报错，绝不静默降级到密钥。
+
+## 验证与故障排查 {#verify-and-troubleshoot}
+
+```sh
+mcp-gmap-rs --auth-mode oauth search-places --query 'coffee in Paris'
+mcp-gmap-rs --auth-mode oauth weather --latitude 48.8584 --longitude 2.2945
+```
+
+这些是可能计费的真实调用。测试时检查有效模式和配额项目；OAuth 使用 `GOOGLE_CLOUD_QUOTA_PROJECT` 结算，而密钥认证调用使用密钥所属项目。两个项目可能不同。
+
+使用 `mcp-gmap-rs doctor` 做离线配置检查，或使用 `doctor --live` 显式执行可能计费的 API 探测。[生产指南](./production)说明报告与工具过滤。
+
+导出 OAuth 变量后，可执行六项显式启用的在线验收测试：
+
+```sh
+cargo test --locked --test live live_oauth_ -- --ignored --test-threads=1
+```
+
+这些测试会从每个子进程中显式移除 API 密钥，因此通过即表示实际使用了 OAuth。它们覆盖 Places、Routes、Weather、Air Quality、Address Validation 和 Places Aggregate，需启用相应 API。测试不会加载 `.env`；请导出 OAuth 设置或在已配置的工作负载中运行。普通测试/CI 使用本地令牌/API 测试夹具，不需要服务账号，也不会连接 Google。
+
+| 现象 | 检查项 |
+| --- | --- |
+| `GOOGLE_MAPS_API_KEY is required` | 所选操作调用了仅支持密钥的端点，或选择了 API 密钥模式。 |
+| OAuth 认证失败 | 检查凭据路径/类型、密钥有效性、工作负载身份/模拟绑定、所用 IAM Credentials API、令牌端点连接与系统时间。应用错误不会包含凭据内容或令牌。 |
+| `GOOGLE_CLOUD_QUOTA_PROJECT is required` | 为 OAuth 调用设置 Maps 消费项目 ID/编号。 |
+| Google `403` / API 未启用 | 在消费项目中启用准确服务，并确认结算与 Service Usage 权限。 |
+| API 密钥 IP 被拒绝 | 限制应匹配服务器或集群的公网出口 IP。 |
+| 令牌超时 | 允许访问 Google 令牌/STS/IAM 端点或工作负载元数据服务器，并检查 `GOOGLE_MAPS_TIMEOUT`。 |
+| 此 MCP 服务器返回 HTTP `401` | 发送其 `MCP_HTTP_TOKEN`；Google 服务账号令牌验证的是独立的出站连接。 |
+
+
+<!-- https://fcenedes.github.io/mcp-gmap-rs/zh/guide/cli -->
+
+# 命令行接口 {#command-line-interface}
+
+CLI 适合单次查询、Shell 自动化和结构化子进程调用。每个工具的输入模式和实现与 MCP 完全共享。
+
+## 查看已安装版本的接口 {#discover-the-installed-interface}
+
+```sh
+mcp-gmap-rs --version
+mcp-gmap-rs --help
+mcp-gmap-rs tools
+mcp-gmap-rs schema search-nearby
+mcp-gmap-rs search-nearby --help
+```
+
+`tools` 返回已启用工具及其模式。应核对已安装版本，不要假定最新版手册的所有功能都可用。不带子命令运行会启动 stdio 服务器，因此单次自动化调用必须指定命令。
+
+## 选项或共享 JSON {#flags-or-shared-json}
+
+工具命令使用 kebab-case 选项；对象和数组值使用 JSON。布尔选项接受 `true` 或 `false`，不带值的布尔选项表示 `true`。
+
+```sh
+mcp-gmap-rs search-nearby \
+  --center '{"value":"48.8584,2.2945","isCoordinates":true}' \
+  --keyword cafe --radius 500 --open-now
+```
+
+通用 `call` 接口接受逻辑 MCP 工具名称或 CLI 命令名称，并使用与 MCP 完全相同的参数对象：
+
+```sh
+mcp-gmap-rs call maps_geocode --args '{"address":"Paris, France"}'
+printf '%s' '{"address":"Paris, France"}' | mcp-gmap-rs call geocode --args -
+```
+
+以程序方式启动子进程时，应将序列化 JSON 作为独立参数传递。避免把不可信文本插入 Shell 命令字符串。顶层参数对应选项；嵌套字段保留在 JSON 对象中。
+
+## 输出与失败处理 {#output-and-failure-handling}
+
+普通工具结果以 JSON 输出到 stdout。错误输出到 stderr，并产生非零退出状态。`doctor` 检查失败时也会把 JSON 报告写入 stdout。批量、矩阵和复合结果即使进程成功退出也可能有逐项错误：将操作视为完整成功前，请检查这些字段。
+
+```sh
+mcp-gmap-rs place-details --place-id ChIJLU7jZClu5kcR4PcOOO6p3I0 --output place.json
+mcp-gmap-rs static-map --center Paris --zoom 12 --output paris.png
+```
+
+`--output` 对普通工具保存 JSON，对静态地图保存原始 PNG。不指定时，CLI 静态地图输出包含 base64 数据。时间通常采用显式时区的 RFC 3339；Time Zone 工具的可选 `timestamp` 使用 Unix **毫秒**。参阅[全部工具和示例](../reference/tools)。
+
+
+<!-- https://fcenedes.github.io/mcp-gmap-rs/zh/guide/configuration -->
+
+# 配置 {#configuration}
+
+CLI 与两种 MCP 传输共享同一套启动配置。本地开发可选择文件，容器可注入环境变量，需要明确覆盖单个进程时使用选项。
+
+## 优先级 {#precedence}
+
+各层按以下顺序应用，后面的层优先：
+
+**内置默认值 → 可选 dotenv 文件 → 进程环境变量 → CLI 选项**
+
+默认文件为当前工作目录下的 `.env`，不会搜索父目录。允许默认文件不存在；但文件不可读或格式错误时，启动会失败且不会打印文件内容。
+
+```sh
+mcp-gmap-rs --env-file /etc/mcp-gmap/runtime.env serve http
+mcp-gmap-rs --no-env-file tools
+```
+
+`MCP_ENV_FILE` 也可选择文件，但 `--env-file` 优先。显式选择的文件必须存在。`--no-env-file` 会禁用所有文件加载，包括 `MCP_ENV_FILE`，且不能与 `--env-file` 同时使用。解析 dotenv 不会修改进程环境。
+
+## 覆盖挂载的配置 {#override-a-mounted-configuration}
+
+```dotenv
+GOOGLE_MAPS_LANGUAGE=en
+GOOGLE_MAPS_TIMEOUT=30
+GOOGLE_MAPS_ENABLED_TOOLS=maps_search_places,maps_place_details
+```
+
+挂载上述文件后，可用环境变量更改语言，并用选项更改超时：
+
+```sh
+GOOGLE_MAPS_LANGUAGE=fr mcp-gmap-rs \
+  --env-file /etc/mcp-gmap/runtime.env --timeout 15 tools
+```
+
+重复的 `--allowed-host` 和 `--allowed-origin` 选项会整体替换相应的文件/环境变量列表。显式空环境值也会覆盖文件：可清空可选令牌或列表，但空超时值无效。
+
+## 控制可用工具 {#control-the-tool-surface}
+
+`GOOGLE_MAPS_ENABLED_TOOLS` 或 `--enabled-tools` 接受逗号分隔的逻辑名称，例如 `maps_weather,maps_air_quality`，也可用 `*` 启用全部工具。未知名称导致启动失败。被禁用的工具不会出现在发现结果中，也不能调用。工具发现和模式查看无需凭据，但实际 API 操作需要相应的 Google 凭据。
+
+应用设置在启动时读取。修改环境变量、凭据 JSON 或 Kubernetes Secret/ConfigMap 配置后需重启。原生 TLS 证书、私钥和客户端 CA 文件除外：它们支持 [SIGHUP 重新加载](./production#native-tls-and-mutual-tls)。
+
+所有 21 个设置、默认值、选项和范围见[完整配置参考](../reference/configuration)。网站语言选择不会改变控制 Google 响应文本的 `GOOGLE_MAPS_LANGUAGE`。
+
+
+<!-- https://fcenedes.github.io/mcp-gmap-rs/zh/guide/deployment -->
+
+# 部署 {#deployment}
+
+Google API 密钥创建、API 启用和服务账号 OAuth 请参阅 [Google Cloud 配置指南](./google-cloud)。同样的分层配置适用于容器。OAuth 可使用挂载的 JSON 凭据文件或工作负载的 ADC 身份；凭据在运行时提供。
+
+下载或克隆[源代码仓库](https://github.com/fcenedes/mcp-gmap-rs)，从仓库根目录构建：
+
+```sh
+docker build -t mcp-gmap-rs:local .
+```
+
+多阶段 Dockerfile 使用 Rust 1.94.1 和锁文件编译。运行时包含可执行文件、Debian CA 证书和许可证，以 UID/GID 10001 运行，并支持只读根文件系统。允许列表限定的构建上下文排除本地 `.env`、Git 数据与构建输出。构建不需要凭据。BuildKit 会缓存 Cargo 下载和构建输出，以便后续复用。
+
+同一 Dockerfile 可在 Linux amd64 和 arm64 上原生构建。配置好 Buildx 构建器后，可同时构建两种架构并推送到自己的仓库：
+
+```sh
+docker buildx build --platform linux/amd64,linux/arm64 \
+  -t registry.example.com/your-team/mcp-gmap-rs:YOUR_VERSION --push .
+```
+
+项目没有自动配置容器仓库发布。将镜像名称和版本替换为自己构建或发布的镜像。
+
+## 运行 HTTP、CLI 或 stdio {#run-http-cli-or-stdio}
+
+镜像默认在 `0.0.0.0:3000` 上执行 `serve http`。运行时提供 bearer 令牌，例如使用 `.env.example` 所示格式的 `.env`：
+
+```sh
+docker run --rm --read-only --cap-drop ALL --security-opt no-new-privileges \
+  --env-file .env -p 127.0.0.1:3000:3000 mcp-gmap-rs:local
+```
+
+由于容器监听非回环地址，`.env` 中必须有 `MCP_HTTP_TOKEN`。Google 调用根据启用的工具使用 `GOOGLE_MAPS_API_KEY`，或配置指南中的 OAuth 设置与凭据挂载。客户端访问 `http://127.0.0.1:3000/mcp`，并发送 `Authorization: Bearer <token>`。`GET /health` 无需令牌，也不会连接 Google。
+
+Docker 的 `--env-file` 会注入环境变量。如需测试应用自身的文件加载器，可挂载可读文件并选择它：
+
+```sh
+docker run --rm --read-only \
+  --mount type=bind,src="$(pwd)/.env",dst=/etc/mcp-gmap/runtime.env,readonly \
+  -e GOOGLE_MAPS_LANGUAGE=fr -p 127.0.0.1:3000:3000 \
+  mcp-gmap-rs:local --env-file /etc/mcp-gmap/runtime.env serve http
+```
+
+环境变量覆盖挂载文件，CLI 选项再覆盖两者。镜像的 `MCP_HTTP_LISTEN=0.0.0.0:3000` 也是环境变量；需要时使用 `-e MCP_HTTP_LISTEN=...` 或 `--listen` 修改。仅使用环境变量时，传入 `--no-env-file serve http`。
+
+需要 CLI 或 stdio 时覆盖镜像命令：
+
+```sh
+docker run --rm mcp-gmap-rs:local tools
+docker run --rm --env-file .env mcp-gmap-rs:local geocode --address Paris
+docker run --rm -i --env-file .env mcp-gmap-rs:local serve stdio
+```
+
+stdio 使用 `-i`，不要分配 TTY。CLI 写输出文件时，挂载 UID 10001 可写的目录，并在其中指定 `--output`。
+
+## Kubernetes {#kubernetes}
+
+[基础 Kubernetes 清单](https://github.com/fcenedes/mcp-gmap-rs/blob/main/deploy/kubernetes.yaml)通过 ConfigMap 提供非敏感设置，通过预先存在的 `mcp-gmap-rs` Secret 提供凭据。从包含 `GOOGLE_MAPS_API_KEY` 和 `MCP_HTTP_TOKEN` 的本地文件创建 Secret（该文件不提交到 Git）：
+
+```sh
+kubectl create secret generic mcp-gmap-rs --from-env-file=/secure/credentials.env
+```
+
+将 Deployment 中的 `mcp-gmap-rs:local` 替换为自己的仓库镜像，或将本地镜像载入开发集群，然后应用示例：
+
+```sh
+kubectl apply -f deploy/kubernetes.yaml
+kubectl rollout status deployment/mcp-gmap-rs
+kubectl port-forward service/mcp-gmap-rs 3000:3000
+```
+
+示例使用 `default` 命名空间。使用其他命名空间或入口时，调整服务 DNS 主机名。ClusterIP Service 仅在集群内可见；远程客户端应使用 TLS ingress/代理，转发 `MCP_HTTP_ALLOWED_HOSTS` 中允许的 Host、授权头及 MCP/SSE 头。需要时显式配置浏览器来源，包括端口。
+
+Deployment 通过 `envFrom` 注入全部配置，因此使用 `--no-env-file`。另一种方式是挂载包含 dotenv 文件的 Secret，移除此选项，并设置 `args: ["--env-file", "/etc/mcp-gmap/runtime.env", "serve", "http"]`。投射文件必须可由 UID 10001 读取；Secret 或 ConfigMap 注入的环境变量仍会覆盖它。参阅 Kubernetes 的[环境变量注入](https://kubernetes.io/docs/tasks/inject-data-application/define-environment-variable-container/)和 [Secret 卷](https://kubernetes.io/docs/concepts/configuration/secret/)指南。
+
+应用在启动时读取配置。修改 Secret/ConfigMap 值后重启 Pod；原生 TLS 文件也可通过 SIGHUP 重新加载。探针使用 `/health` 检查 HTTP 可用性；Pod 健康不代表 Google API 已启用或凭据已获授权。Google 调用需要出站 HTTPS 与可用 DNS。API 密钥限制必须允许集群的公网出口地址；OAuth 需要连接令牌/身份端点。
+
+默认 MCP 会话存储在内存中，因此保持单副本。多副本需要会话亲和性，确保每个会话到达其所属 Pod；滚动重启会丢弃会话，客户端须重新连接。示例中的资源请求/限制只是起始值，应按工作负载调整。
+
+SIGTERM 会触发 MCP/HTTP 的优雅关闭；示例中 Kubernetes 留出 30 秒。镜像同时移除全部 capabilities，并禁止提权。
+
+## 生产 HTTPS、指标与限制 {#production-https-metrics-and-limits}
+
+[生产指南](./production)涵盖原生 TLS/mTLS、证书重载、可选的 `deploy/gateway.yaml` HTTPS Gateway、指标、请求预算、HTTP 限流、JSON 日志及离线/在线 `doctor` 检查。可在镜像名称后传入相同 TLS 选项，或通过只读 PEM 挂载注入 `MCP_TLS_CERT`、`MCP_TLS_KEY` 和可选 `MCP_TLS_CLIENT_CA`。所有真实密钥都应保留在镜像之外。默认 ConfigMap 配置请求限制与 JSON 日志；指标只有显式启用才开启。默认明文 Service 面向私有的网关到 Pod 链路。
+
+## 容器中的 OAuth 凭据 {#oauth-credentials-in-a-container}
+
+服务账号 JSON 文件需只读挂载，并设置容器内的路径，而不是宿主机路径：
+
+```sh
+docker run --rm --read-only --env-file /secure/oauth.env \
+  --mount type=bind,src=/secure/service-account.json,dst=/credentials/service-account.json,readonly \
+  -p 127.0.0.1:3000:3000 mcp-gmap-rs:local
+```
+
+OAuth 环境文件设置 `GOOGLE_MAPS_AUTH_MODE=oauth`、`GOOGLE_APPLICATION_CREDENTIALS=/credentials/service-account.json`、`GOOGLE_CLOUD_QUOTA_PROJECT=your-project-id` 和 `MCP_HTTP_TOKEN`。UID 10001 必须可读取挂载文件。仅在使用只支持密钥端点的工具时保留 API 密钥。GKE 上使用[工作负载身份步骤](./authentication#c-kubernetes-and-gke-workload-identity)，避免挂载长期密钥。
+
+
+<!-- https://fcenedes.github.io/mcp-gmap-rs/zh/guide/development -->
+
+# 开发与发布 {#development-and-releases}
+
+运行时是独立 Rust 项目。CLI、MCP stdio 和 Streamable HTTP 共享同一套工具实现。文档网站属于独立的编写/构建工具；最终用户只需要编译后的可执行文件。
+
+## 构建与检查 {#build-and-check}
+
+克隆[仓库](https://github.com/fcenedes/mcp-gmap-rs)，使用仓库锁文件：
+
+```sh
+cargo fmt --check
+cargo clippy --all-targets --all-features --locked -- -D warnings
+cargo test --all-targets --all-features --locked
+cargo test --doc --all-features --locked
+cargo build --release --locked
+```
+
+声明的最低版本为 Rust 1.88；发布二进制使用 Rust 1.94.1。默认测试使用本地 Google/令牌测试夹具，不需凭据，也不连接 Google。CI 还检查 Linux/macOS、最低 Rust、stable/nightly rustdoc、源代码打包、Docker/MCP/TLS 冒烟场景和 Kubernetes 清单。
+
+本地验证后，`cargo clean` 可回收生成的构建输出；后续构建会重新编译。
+
+## 保持参考完整 {#keep-the-reference-complete}
+
+规范工具指南结合实际可执行文件模式，以及审阅过的默认值、结果和行为说明：
+
+```sh
+python3 .github/scripts/tool-reference.py --binary /path/to/mcp-gmap-rs
+python3 .github/scripts/tool-reference.py --binary /path/to/mcp-gmap-rs --check --verify-examples
+```
+
+检查器会移除凭据、禁用 dotenv 加载，在缺少密钥的边界验证所有示例，不连接 Google。参数或行为变更后应更新审阅的 JSON 说明。
+
+在线测试需显式启用且可能计费。明确配置测试密钥后运行 `cargo test --locked --test live live_maps_ -- --ignored --test-threads=1`。六项 OAuth 测试使用 `live_oauth_` 过滤器，并从子进程移除密钥。切勿提交凭据，也不要在普通 CI 启用在线测试。
+
+## 发布版本 {#publish-a-version}
+
+同时更新 Cargo 版本、锁文件、变更日志、安装示例和发布说明。推送并等待 CI，然后创建匹配的带注释 `vX.Y.Z` 标签。Release 工作流检查准确标签，构建三种原生目标，验证压缩包/校验和，再发布暂存草稿。
+
+独立的 **Publish crate** 工作流要求对应 GitHub Release 已发布，并对同一标签手动触发。将限定范围的 `CARGO_REGISTRY_TOKEN` 存入 `crates-io` GitHub 环境，绝不要存到仓库。crates.io 发布后 docs.rs 自动构建；仅发布 GitHub Release 不会更新托管 Rust 文档。上传后应验证实际托管构建。
+
+参阅[发布流程](https://github.com/fcenedes/mcp-gmap-rs/blob/main/docs/releases.md)、[验证记录](https://github.com/fcenedes/mcp-gmap-rs/blob/main/docs/validation.md)和[公开 Rust 入口](https://docs.rs/mcp-gmap-rs/latest/mcp_gmap_rs/fn.run.html)。
+
+
+<!-- https://fcenedes.github.io/mcp-gmap-rs/zh/guide/getting-started -->
+
+# 快速开始 {#getting-started}
+
+安装一个可执行文件，配置 Google 访问凭据，即可在终端或 MCP 客户端中使用同一套 23 个工具。本手册适用于 v0.3.1。
+
+## 安装 {#install}
+
+可从 [GitHub Releases](https://github.com/fcenedes/mcp-gmap-rs/releases) 下载 Linux x86_64、macOS Apple Silicon 和 macOS Intel 的预编译文件。选择适合机器的压缩包，对照 `SHA256SUMS` 验证校验和，解压后将 `mcp-gmap-rs` 放到 `PATH` 中。Linux 文件要求 glibc 2.35 或更新版本。macOS 文件未签名，也未经公证。
+
+使用 Rust 1.88 或更新版本时，可从 crates.io 安装：
+
+```sh
+cargo install mcp-gmap-rs --version 0.3.1 --locked
+mcp-gmap-rs --version
+```
+
+可执行文件构建完成后，无需 Rust、Python 或 JavaScript 运行时。宿主机需要 CA 证书、DNS 以及到 Google 的出站 HTTPS 连接。
+
+## 配置访问 {#configure-access}
+
+[创建受限制的密钥并启用服务](./google-cloud)，或配置[服务账号 OAuth](./authentication)。将凭据保存在工作目录下、已被 Git 忽略的 `.env` 文件中：
+
+```dotenv
+GOOGLE_MAPS_AUTH_MODE=api-key
+GOOGLE_MAPS_API_KEY=your-restricted-api-key
+```
+
+环境变量会覆盖文件中的值。不要将凭据放入版本控制或镜像层。注意工作目录：程序不会向父目录查找 `.env`。
+
+## 发现、检查与调用 {#discover-check-call}
+
+工具发现和离线诊断不会向 Google 发送请求：
+
+```sh
+mcp-gmap-rs tools
+mcp-gmap-rs schema search-places
+mcp-gmap-rs doctor
+```
+
+然后执行首次可能产生费用的调用：
+
+```sh
+mcp-gmap-rs search-places --query 'coffee near Gare de Lyon, Paris'
+```
+
+结果为 JSON。保存返回的地点 ID 以便后续查询详情，避免重复解析相同名称。自动化场景请阅读 [CLI 用法](./cli)，连接智能体请阅读 [MCP 集成](./mcp)。[实用示例](./recipes)展示工具组合，[完整参考](../reference/tools)说明每个参数、默认值与结果。
+
+
+<!-- https://fcenedes.github.io/mcp-gmap-rs/zh/guide/google-cloud -->
+
+# Google Cloud 配置 {#google-cloud-setup}
+
+本程序使用 API 密钥或 OAuth 2.0 凭据验证**发送到 Google 的出站调用**。`MCP_HTTP_TOKEN` 独立验证连接 MCP HTTP 服务器的客户端；选择 Google OAuth 不会替代它。
+
+## 启用服务与结算 {#enable-services-and-billing}
+
+在 [Google Cloud 控制台](https://console.cloud.google.com/)选择或创建项目，然后在 **Billing** 下关联有效的结算账号。在 **APIs & Services → Library** 中启用所需 API。启用 API 与在 API 密钥限制中允许该 API 是两个独立步骤。调用可能产生费用。
+
+下表列出本版本使用的端点：
+
+| Google API | 需要启用的服务 | 本项目使用的认证方式 |
+| --- | --- | --- |
+| [Places API (New)](https://developers.google.com/maps/documentation/places/web-service/get-api-key) | `places.googleapis.com` | API 密钥或 OAuth |
+| [Routes API](https://developers.google.com/maps/documentation/routes/get-api-key) | `routes.googleapis.com` | API 密钥或 OAuth |
+| [Weather API](https://developers.google.com/maps/documentation/weather/get-api-key) | `weather.googleapis.com` | API 密钥或 OAuth |
+| [Air Quality API](https://developers.google.com/maps/documentation/air-quality/get-api-key) | `airquality.googleapis.com` | API 密钥或 OAuth |
+| [Address Validation API](https://developers.google.com/maps/documentation/address-validation/get-api-key) | `addressvalidation.googleapis.com` | API 密钥或 OAuth |
+| [Places Aggregate API](https://developers.google.com/maps/documentation/places-aggregate/get-api-key) | `areainsights.googleapis.com` | API 密钥或 OAuth |
+| [Pollen API](https://developers.google.com/maps/documentation/pollen/get-api-key) | `pollen.googleapis.com` | API 密钥 |
+| [Roads API](https://developers.google.com/maps/documentation/roads/get-api-key) | `roads.googleapis.com` | API 密钥 |
+| [Geocoding API v3](https://developers.google.com/maps/documentation/geocoding/guides-v3/get-api-key) | `geocoding-backend.googleapis.com` | API 密钥 |
+| [Elevation API](https://developers.google.com/maps/documentation/elevation/get-api-key) | `elevation-backend.googleapis.com` | API 密钥 |
+| [Time Zone API](https://developers.google.com/maps/documentation/timezone/get-api-key) | `timezone-backend.googleapis.com` | API 密钥 |
+| [Maps Static API](https://developers.google.com/maps/documentation/maps-static/get-api-key) | `static-maps-backend.googleapis.com` | API 密钥 |
+
+用管理员的 `gcloud` 登录一次启用全部 12 项服务：
+
+```sh
+export PROJECT_ID='your-project-id'
+gcloud services enable --project="$PROJECT_ID" \
+  places.googleapis.com routes.googleapis.com \
+  weather.googleapis.com airquality.googleapis.com \
+  geocoding-backend.googleapis.com elevation-backend.googleapis.com \
+  timezone-backend.googleapis.com static-maps-backend.googleapis.com \
+  addressvalidation.googleapis.com areainsights.googleapis.com \
+  pollen.googleapis.com roads.googleapis.com
+```
+
+CLI 的 `directions` 和 `distance-matrix` 工具使用 **Routes API**，因此无需旧版 Directions 和 Distance Matrix API。本项目的 Geocoding 仍使用 v3；[Google Geocoding v4 的 OAuth 支持](https://developers.google.com/maps/documentation/geocoding/geocoding-v4-overview)不会改变这些 v3 调用的认证方式。复合工具可能调用多个 API。即使主操作使用 Places 或 Routes，按名称解析地点或回退查询仍可能需要 Geocoding。需要避免此依赖时请使用坐标，或为仅支持密钥的端点保留受限制的密钥。
+
+## 创建受限制的 API 密钥 {#create-a-restricted-api-key}
+
+1. 在所选项目中打开 [Google Maps Platform → Keys & Credentials](https://console.cloud.google.com/google/maps-apis/credentials)，选择 **Create credentials → API key**。
+2. 仅选择此实例会使用的表中 API。对于已有密钥，编辑其 API 限制并保存。
+3. 此应用在服务器端运行，请将应用限制设为 **IP addresses**，允许 Google 实际看到的公网出口 IP。Kubernetes Pod 或私有 IP 通常不是公共来源地址；固定 Cloud NAT 或其他出口地址可让限制更可预测。
+4. 将密钥存入被忽略的 `.env`、注入环境变量或 Kubernetes Secret。参阅 [Google 密钥限制指南](https://developers.google.com/maps/api-security-best-practices#restrict-your-api-keys)。
+
+`.env` 示例：
+
+```dotenv
+GOOGLE_MAPS_AUTH_MODE=api-key
+GOOGLE_MAPS_API_KEY=your-restricted-api-key
+```
+
+默认模式为 `api-key`。仅提供服务账号路径不会更改认证模式。工具发现不会连接 Google；请用实际调用验证项目结算、API 启用情况与限制：
+
+```sh
+mcp-gmap-rs geocode --address 'Paris, France'
+```
+
+## 后续步骤 {#next-steps}
+
+服务账号 JSON、ADC、本地模拟和 GKE 身份请参阅[身份验证](./authentication)，然后选择 [CLI](./cli) 或 [MCP](./mcp)。[工具参考](../reference/tools)列出了各工具的凭据要求。
+
+
+<!-- https://fcenedes.github.io/mcp-gmap-rs/zh/guide/mcp -->
+
+# MCP 集成 {#mcp-integration}
+
+本地子进程使用 stdio 连接 MCP 宿主，长期运行的服务使用 Streamable HTTP。两者公开相同的已启用工具目录和模式。
+
+## 本地 stdio {#local-stdio}
+
+通用 MCP 客户端配置如下：
+
+```json
+{
+  "mcpServers": {
+    "google-maps": {
+      "command": "/absolute/path/to/mcp-gmap-rs",
+      "args": ["--env-file", "/secure/mcp-gmap/runtime.env", "serve", "stdio"]
+    }
+  }
+}
+```
+
+使用宿主要求的配置格式，并指定可执行文件的绝对路径。所选 dotenv 文件必须存在。也可通过宿主注入环境变量。这是独立 MCP 服务器的配置，不需要特定助手的运行时插件。
+
+```sh
+mcp-gmap-rs serve stdio
+```
+
+标准输入和标准输出仅承载换行分隔的 MCP JSON-RPC。诊断信息写入 stderr。不带参数运行可执行文件会启动同一传输。容器形式的 stdio 宿主必须连接 stdin，且不能分配 TTY。
+
+## Streamable HTTP {#streamable-http}
+
+```sh
+mcp-gmap-rs serve http --listen 127.0.0.1:3000
+```
+
+将 MCP 客户端的 Streamable HTTP URL 设置为 **`http://127.0.0.1:3000/mcp`**。如果宿主支持远程 MCP 条目，请配置端点与授权头：
+
+```json
+{
+  "url": "https://maps.example.com/mcp",
+  "headers": {
+    "Authorization": "Bearer your-mcp-http-token"
+  }
+}
+```
+
+此条目外层的具体结构由 MCP 宿主决定。服务器通过 Rust MCP SDK 支持协议协商，以及适用的 POST、GET/SSE 和 DELETE 会话操作。应使用 MCP 客户端，不要将一次孤立的 JSON-RPC POST 当作完整会话。
+
+## 监听地址与访问 {#bind-addresses-and-access}
+
+非回环监听需要 `MCP_HTTP_TOKEN`。客户端以 bearer 凭据发送该令牌，与 Google OAuth 或 API 密钥相互独立。请显式添加端点 Host 值和实际浏览器来源：
+
+```sh
+mcp-gmap-rs serve http --listen 0.0.0.0:3000 \
+  --allowed-host maps.example.com \
+  --allowed-origin https://app.example.com:443
+```
+
+默认情况下，存在但不在允许列表中的 Origin 头会被拒绝。请求体限制为 1 MiB。`/health` 只检查进程存活，不会调用 Google。公开访问应配置[原生 TLS/mTLS 或网关](./production)。代理必须保留授权和 MCP 协议/会话头，并支持不缓冲的流式传输。会话与 Google 身份属于单个进程；添加副本前请阅读[部署](./deployment)。
+
+
+<!-- https://fcenedes.github.io/mcp-gmap-rs/zh/guide/production -->
+
+# 生产环境运维 {#production-operations}
+
+本指南适用于 v0.3.x。CLI、MCP stdio 与 Streamable HTTP 中的所有 Google 工具共享同一实现。
+
+## 原生 TLS 与双向 TLS {#native-tls-and-mutual-tls}
+
+HTTP 监听器可使用 rustls 和 TLS 1.2/1.3 直接提供 HTTPS：
+
+```sh
+mcp-gmap-rs serve http --listen 0.0.0.0:3443 \
+  --tls-cert /etc/mcp-gmap/tls/tls.crt \
+  --tls-key /etc/mcp-gmap/tls/tls.key \
+  --allowed-host maps.example.com:3443
+```
+
+通过环境变量或 Secret 单独提供 `MCP_HTTP_TOKEN`。客户端连接 `https://maps.example.com:3443/mcp`，验证服务器证书并发送 `Authorization: Bearer <token>`。证书文件包含 PEM 叶证书，后接中间证书链；私钥必须匹配。可执行文件不签发证书，也不实现 ACME。签发与续期请使用自己的 PKI、cert-manager 或 TLS 网关。
+
+添加 `--tls-client-ca /etc/mcp-gmap/tls/client-ca.pem`，要求客户端证书由该 CA 签署。原生 mTLS 适用于所有路径，包括 `/health` 和 `/metrics`，且不能替代 HTTP bearer 令牌。TLS 层接受配置的信任根下的任何有效客户端身份；没有按证书分配工具权限或检查撤销列表的功能。
+
+Linux/macOS 上原子替换文件后，发送 `SIGHUP`，一起重新加载证书、私钥与可选客户端 CA。已有连接保持其 TLS 状态，新握手使用替换后的配置。如果加载失败，保留旧配置，并在日志中报错而不打印密钥材料。挂载的 Kubernetes Secret 文件在投射更新后也可如此重载。其他设置仍需重启进程。
+
+容器以 UID/GID 10001 运行，应只读挂载密钥，并赋予该身份读取权限；投射 Secret 可使用合适的组与 `fsGroup`。原生 TLS 下，Kubernetes HTTP 探针需设置 `scheme: HTTPS`。Kubelet HTTP 探针无法提供 mTLS 客户端证书，因此这类部署需改用 TCP 探针；其仅检查监听器，不验证 TLS 或 Google。
+
+## Kubernetes TLS 网关 {#kubernetes-tls-gateway}
+
+[Gateway 清单](https://github.com/fcenedes/mcp-gmap-rs/blob/main/deploy/gateway.yaml)为[基础 Kubernetes 清单](https://github.com/fcenedes/mcp-gmap-rs/blob/main/deploy/kubernetes.yaml)中的 Deployment 提供 HTTPS Gateway 与 HTTPRoute。先安装 Gateway API CRD 与合规控制器。替换 `your-gateway-class` 和 `maps.example.com`，并在同一命名空间创建名为 `mcp-gmap-tls`、类型为 `kubernetes.io/tls` 的 Secret。示例使用稳定的 Gateway/HTTPRoute v1 字段，以及从 Gateway API v1.2 起支持的 HTTPRoute 超时设置。请确认控制器的超时支持情况。
+
+```sh
+kubectl create secret tls mcp-gmap-tls --cert=/secure/fullchain.pem --key=/secure/key.pem
+kubectl set env deployment/mcp-gmap-rs \
+  MCP_HTTP_ALLOWED_HOSTS='maps.example.com,mcp-gmap-rs:3000,localhost:3000,127.0.0.1:3000'
+kubectl apply -f deploy/gateway.yaml
+kubectl get gateway,httproute
+```
+
+同时将相应的 allowed-host 设置写入 ConfigMap 或部署源文件。需要时通过 `MCP_HTTP_ALLOWED_ORIGINS` 添加实际浏览器来源。路由只公开 `/mcp`，健康与指标保留在私有 Service 中。授权与 MCP 会话/协议头必须原样传递。为选用控制器禁用响应缓冲/缓存，配置流式传输与空闲超时。该路由禁用请求/后端请求期限；应按客户端需求在网关配置连接/空闲限制。
+
+此配置在网关终止 TLS，并通过 HTTP 连接 ClusterIP 后端。如果网关到 Pod 的连接也需加密，请使用原生 TLS，配合控制器支持的 BackendTLSPolicy 或服务网格。通过集群网络策略限制直接访问 Pod/Service。TLS 不会提供 MCP OAuth 登录：程序每个进程使用共享 bearer 令牌和一个 Google 身份。
+
+参阅上游 [Gateway TLS 指南](https://gateway-api.sigs.k8s.io/guides/user-guides/tls/)与 [HTTPRoute 超时指南](https://gateway-api.sigs.k8s.io/guides/http-timeouts/)。
+
+## 限制、重试与期限 {#limits-retries-and-deadlines}
+
+| 变量 | 默认值 | 选项 | 含义 |
+| --- | --- | --- | --- |
+| `GOOGLE_MAPS_MAX_REQUESTS` | `200` | `--max-requests` | 每次工具调用的 Google HTTP 尝试次数，1–10000，包含重试 |
+| `GOOGLE_MAPS_MAX_RETRIES` | `2` | `--max-retries` | 每个 Google 请求的额外尝试，0–5 |
+| `GOOGLE_MAPS_TOOL_TIMEOUT` | `120` | `--tool-timeout` | 整个工具的期限，单位秒，1–3600 |
+| `MCP_HTTP_RATE_LIMIT` | `120` | HTTP `--rate-limit` | 每进程每分钟已认证 `/mcp` HTTP 请求数；0 为禁用 |
+| `MCP_METRICS_ENABLED` | `false` | HTTP `--metrics [true\|false]` | 启用受保护的 Prometheus `/metrics` |
+| `MCP_LOG_FORMAT` | `text` | `--log-format text\|json` | stderr 诊断事件格式 |
+| `MCP_TLS_CERT` | 未设置 | HTTP `--tls-cert` | PEM 服务器证书链文件 |
+| `MCP_TLS_KEY` | 未设置 | HTTP `--tls-key` | 匹配的 PEM 服务器私钥文件 |
+| `MCP_TLS_CLIENT_CA` | 未设置 | HTTP `--tls-client-ca` | PEM CA 包；要求客户端证书 |
+
+这些设置遵循默认值 → 可选 dotenv → 环境变量 → 选项。TLS 证书与私钥必须一起提供。空的环境 TLS 路径会清空文件中的值。`GOOGLE_MAPS_TIMEOUT` 限制每个 Google HTTP 请求，包括信号量排队、重试、退避和读取响应；OAuth 获取使用同一超时值，但单独计时。整个工具期限包含两者。
+
+每次调用有独立的新请求预算，所有并发分支共享。每个进程可同时执行五个 Google API 请求。预算耗尽后，后续尝试会在本地失败。复合工具可能返回顶层成功、逐项包含预算/其他错误的结果，请检查这些字段。此限制针对请求次数而不是费用：不同请求/字段价格不同，一次矩阵请求可能按多个元素计费。
+
+只读 Google 请求会重试 HTTP 429、500、502、503、504 以及网络失败。重试遵守以秒或 HTTP 日期表示的 `Retry-After`，否则使用带抖动的指数退避，且始终受请求期限与调用预算限制。其他 HTTP 错误，包括 400/401/403，不重试。认证失败不会静默切换到 API 密钥模式。将重试设为零可只尝试一次。Google 旧版 JSON 内部错误状态会直接报告而不重试。
+
+HTTP 限流器采用令牌桶，突发容量等于每分钟限额，并持续补充。覆盖全部会话 `/mcp` 的初始化、POST、GET 和 DELETE。未认证请求不消耗令牌。拒绝时返回 HTTP 429 和 `Retry-After`。健康检查与指标抓取不受限流。限流按进程全局生效，而非按用户/IP，且不信任转发的 IP 头。共享部署应在网关增加认证和逐客户端限制。
+
+## 指标与诊断事件 {#metrics-and-diagnostic-events}
+
+```sh
+mcp-gmap-rs --log-format json serve http --metrics --rate-limit 120
+```
+
+配置了 bearer 令牌时，`GET /metrics` 与 `/mcp` 使用同一令牌。无认证的回环监听器上它也无需认证。指标默认关闭；启用原生 mTLS 时也受其保护。只应向受信任的抓取端开放。Prometheus 文本端点导出：
+
+- `mcp_gmap_tool_calls_total{tool,outcome}`：已完成的工具调用；
+- `mcp_gmap_tool_duration_seconds{tool,outcome}`：耗时直方图；
+- `mcp_gmap_google_requests_total{api,status}`：Google HTTP 尝试，包含重试；
+- `mcp_gmap_http_rate_limited_total`：被拒绝的 HTTP 请求。
+
+标签只包含内置工具名称、API 主机名、HTTP 状态码和固定结果值，绝不包含地址、坐标、凭据、令牌或会话 ID。含逐项错误的复合结果仍可能记为顶层调用成功；需检查结果及上游状态指标。重启后指标清零。
+
+设置 `RUST_LOG=info` 可查看带名称、成功状态和耗时的工具完成事件，不包括参数和 Google 响应正文。监听器启动地址单独打印到 stderr。stdout 始终保留给 CLI JSON 或 MCP 流量。
+
+## Doctor 诊断 {#doctor}
+
+```sh
+mcp-gmap-rs doctor
+# Explicit opt-in: makes potentially billable requests.
+mcp-gmap-rs doctor --live
+# Check only the API dependencies of selected tools:
+mcp-gmap-rs --enabled-tools maps_pollen,maps_area_insights doctor --live
+```
+
+不带 `--live` 时，doctor 检查本地凭据配置、HTTP 设置及 TLS 文件/密钥匹配，不发送网络请求。它不能证明密钥有效、IAM/API 已配置、证书信任/主机名/有效期或 ADC 可用。ADC 发现会在实际请求前报告为 `not_tested`。doctor 从不打印凭据值或 JSON。报告以 JSON 写入 stdout；检查失败时退出状态为 1。解析 `checks[].status`：`pass`、`fail` 或 `not_tested`。
+
+在线模式按已启用工具使用的每个不同 Google API 执行一次代表性工具调用，遵循常规重试/期限/预算设置，避免昂贵的复合操作。Routes 使用精确坐标，Roads 使用最近道路查询。探测使用巴黎的公开地标，而非用户地址。成功只表示 Google 接受该次探测，不保证全部操作或地区可用。
+
+## 关闭与配置变更 {#shutdown-and-configuration-changes}
+
+Ctrl-C 和 SIGTERM 会关闭 HTTP 服务器与活动 MCP 会话。Kubernetes 示例给予进程 30 秒。其他应用配置，包括环境注入的 Secret 变更，均需重启；仅原生 TLS 证书/私钥/客户端 CA 文件支持 SIGHUP 重载。会话和指标存储在内存，重启即丢失。运行单副本或配置会话亲和性；所属进程退出后客户端必须重新连接。
+
+容器权限、探针和运行时凭据挂载见[部署](./deployment)，所有设置与选项见[配置参考](../reference/configuration)。
+
+
+<!-- https://fcenedes.github.io/mcp-gmap-rs/zh/guide/recipes -->
+
+# 实用示例 {#recipes}
+
+围绕一个位置或已返回的地点 ID 候选列表，组合小而明确的调用。这些示例会向 Google 发送可能计费的请求。先阅读[身份验证](./authentication)；复合工具可能使用多个 API，并返回部分错误。
+
+## 查找咖啡馆并比较行程 {#find-a-cafe-and-compare-the-trip}
+
+在真实半径范围内搜索，仅扩展入选 ID 的详情，再比较出行。Nearby 的 `keyword` 是 Google 地点类型，不是自由文本。
+
+```sh
+mcp-gmap-rs search-nearby \
+  --center '{"value":"48.8584,2.2945","isCoordinates":true}' \
+  --keyword cafe --radius 500 --open-now --min-rating 4
+mcp-gmap-rs place-details --place-id ChIJLU7jZClu5kcR4PcOOO6p3I0 --max-photos 0
+mcp-gmap-rs distance-matrix --origins '["48.8584,2.2945"]' \
+  --destinations '["48.8606,2.3376","48.8530,2.3499"]' --mode walking
+```
+
+自然语言意图用 [`search-places`](../reference/tools#maps_search_places)，需要详情及可选驾车距离时用 [`compare-places`](../reference/tools#maps_compare_places)，按类别探索用 [`explore-area`](../reference/tools#maps_explore_area)。单页搜索不是穷尽清单。保留 Google 来源链接、评论作者与 AI 披露。
+
+## 规划停靠点并寻找沿途地点 {#plan-stops-and-find-a-detour}
+
+```sh
+mcp-gmap-rs plan-route \
+  --stops '["48.8584,2.2945","48.8606,2.3376","48.8530,2.3499"]' \
+  --mode walking --optimize false
+mcp-gmap-rs search-along-route --text-query cafes \
+  --origin '48.8584,2.2945' --destination '48.8606,2.3376' \
+  --mode walking --max-results 3
+```
+
+[`directions`](../reference/tools#maps_directions)处理单次行程及时间/避让选项；[`plan-route`](../reference/tools#maps_plan_route)优化中间点时保留起终点。公共交通只接受总共两个停靠点。沿途搜索使用折线，不是以中点圆形搜索代替。其默认方式为步行，因此应始终明确选择期望的出行方式。
+
+## 一次解析，查询当地环境 {#resolve-once-inspect-local-conditions}
+
+```sh
+mcp-gmap-rs geocode --address 'Eiffel Tower, Paris, France'
+mcp-gmap-rs weather --latitude 48.8584 --longitude 2.2945 \
+  --type forecast_daily --forecast-days 3
+mcp-gmap-rs air-quality --latitude 48.8584 --longitude 2.2945
+mcp-gmap-rs pollen --latitude 48.8584 --longitude 2.2945 --days 3
+mcp-gmap-rs timezone --latitude 48.8584 --longitude 2.2945
+mcp-gmap-rs elevation --locations '[{"latitude":48.8584,"longitude":2.2945}]'
+```
+
+复用坐标，避免重复解析。区分观测、预测和提供方建议，覆盖情况可能变化。[`reverse-geocode`](../reference/tools#maps_reverse_geocode)将坐标解析回地址；[`batch-geocode`](../reference/tools#maps_batch_geocode)一次解析最多 50 个地址，并保留逐地址错误。Time Zone 的可选时间戳使用 Unix 毫秒，海拔单位为米。
+
+## 验证邮政地址 {#validate-a-postal-address}
+
+```sh
+mcp-gmap-rs validate-address --address-lines '["5 Avenue Anatole France"]' \
+  --locality Paris --postal-code 75007 --region-code FR
+```
+
+检查判定结果、修正和未解决的组成部分。地址验证不同于地理编码，不保证投递成功。本实现中的 USPS CASS 需显式开启，并要求 `regionCode` 为 US 或 PR。
+
+## 统计地点，而不是统计搜索结果 {#count-places-without-counting-search-hits}
+
+```sh
+mcp-gmap-rs area-insights \
+  --area '{"circle":{"latLng":{"latitude":48.8584,"longitude":2.2945},"radius":500}}' \
+  --included-types '["restaurant"]' --min-rating 4
+```
+
+聚合数量通常使用 Google 的字符串 int64 表示。仅当数量不超过 100 时可请求地点 ID；不会自动获取详情。需要显式分析可见度时，[`local-rank-tracker`](../reference/tools#maps_local_rank_tracker)测量网格上的关键词排名。先用一个关键词和 3×3 网格；排名不是评论评分，失败网格点必须保持可见。
+
+## 匹配 GPS 数据并保存地图 {#match-gps-data-and-save-a-map}
+
+有序轨迹使用 [`snap-to-roads`](../reference/tools#maps_snap_to_roads)，独立点使用 [`nearest-roads`](../reference/tools#maps_nearest_roads)。保留 `originalIndex`；插值添加的点可能没有该字段。不返回限速。
+
+```sh
+mcp-gmap-rs nearest-roads --points '[{"latitude":48.8584,"longitude":2.2945}]'
+mcp-gmap-rs static-map --center '48.8584,2.2945' --zoom 14 --output area.png
+```
+
+[工具参考](../reference/tools)列出每个操作的精确边界、必填字段、默认值与结果格式。
+
+
+<!-- https://fcenedes.github.io/mcp-gmap-rs/zh/guide/troubleshooting -->
+
+# 故障排查 {#troubleshooting}
+
+先确定失败的是哪一层：本地配置、MCP 客户端到服务器的连接，还是到 Google 的出站请求。修正对应层后，重新执行受影响操作。
+
+## 从离线检查开始 {#start-offline}
+
+```sh
+mcp-gmap-rs --version
+mcp-gmap-rs tools
+mcp-gmap-rs doctor
+```
+
+`doctor` 即使检查失败也会输出 JSON。检查退出状态与 `checks[].status`：`pass`、`fail` 或 `not_tested`。离线检查不能证明 IAM、API 启用、结算、证书信任/有效期或 ADC 访问正常。`/health` 只证明进程存活。
+
+若格式错误的本地 dotenv 阻止工具发现，可用 `--no-env-file tools` 跳过文件。但这可能改变所选工具集，因此不能据此证明目标文件配置正确。
+
+## 解释常见故障 {#interpret-common-failures}
+
+| 现象 | 下一步检查 |
+| --- | --- |
+| `GOOGLE_MAPS_API_KEY is required` | 选择了 API 密钥模式，或操作涉及仅支持密钥的端点。 |
+| `GOOGLE_CLOUD_QUOTA_PROJECT is required` | 为 OAuth 设置消费项目 ID/编号。 |
+| Google 403 / API 未启用 | 在凭据的消费项目启用准确 API，并检查结算与密钥限制。 |
+| `serviceusage.services.use` 被拒绝 | 在配额项目向服务账号授予 `roles/serviceusage.serviceUsageConsumer`，等待 IAM 传播后重试。 |
+| API 密钥 IP 被拒绝 | 允许服务器或集群的公网出口 IP，而不是私有 Pod IP。 |
+| MCP HTTP 401 | 发送服务器的 bearer 令牌；Google 访问令牌验证另一条连接。 |
+| Host/Origin 被拒绝 | 精确匹配配置的 Host 和浏览器来源，包括相应端口。 |
+| MCP 返回 HTTP 429 | 进程级限流器已耗尽；遵守 `Retry-After` 并检查客户端并发。 |
+| OAuth 超时 | 检查令牌/STS/IAM 或元数据连接、系统时间与每请求超时。 |
+| TLS 连接失败 | 分别检查证书链、主机名、信任与可选 mTLS 客户端证书，不要与 HTTP 授权混淆。 |
+| 退出 0 但数据不完整 | 检查矩阵/复合结果的逐项错误，而不只是进程退出状态。 |
+
+## 主动验证在线访问 {#verify-live-access-deliberately}
+
+在线探测可能产生费用。将范围限定在所需的 API 依赖：
+
+```sh
+mcp-gmap-rs --enabled-tools maps_weather doctor --live
+```
+
+探测通过不保证每个地区或操作都可用。Google Cloud 设置更改后，应重新执行原来失败的调用，而不是从控制台设置推断成功。IAM 与凭据来源见[身份验证](./authentication)，优先级见[配置](./configuration)，预算、期限与指标见[生产运维](./production)。切勿在问题报告中打印凭据 JSON 或完整环境变量。
+
+
+<!-- https://fcenedes.github.io/mcp-gmap-rs/zh/reference/configuration -->
+
+# 配置参考 {#configuration-reference}
+
+以下 21 项应用设置按适用范围用于 CLI、MCP stdio 和 Streamable HTTP。值遵循**默认值 → 可选 dotenv → 环境变量 → 选项**的顺序。文件选择与覆盖语义见[配置](../guide/configuration)。
+
+全局选项位于工具或 `serve` 之前；HTTP 专用选项位于 `serve http` 之后。选项列的破折号表示无对应 CLI 选项，应通过环境变量或所选 dotenv 文件注入。
+
+## Google 访问与工具执行 {#google-access-and-tool-execution}
+
+| 环境变量 | 默认值 | CLI 选项 | 含义与允许值 |
+| --- | --- | --- | --- |
+| `GOOGLE_MAPS_API_KEY` | 未设置 | — | 受限制的 Google API 密钥。`api-key` 模式和本实现中仅支持密钥的端点必须提供，即使选择 OAuth 也一样。绝不是工具参数。 |
+| `GOOGLE_MAPS_AUTH_MODE` | `api-key` | `--auth-mode` | `api-key` 或 `oauth`。OAuth 支持 Places (New)、Routes、Weather、Air Quality、Address Validation 与 Places Aggregate。 |
+| `GOOGLE_APPLICATION_CREDENTIALS` | ADC 发现 | — | 可读的服务账号或受支持 ADC JSON 文件路径。相对路径基于工作目录。本地 ADC 或元数据发现时不设置。 |
+| `GOOGLE_CLOUD_QUOTA_PROJECT` | 未设置 | — | OAuth 必需的消费方结算/配额项目 ID 或编号。服务账号在该项目中需要 `serviceusage.services.use`。 |
+| `GOOGLE_MAPS_LANGUAGE` | `en` | `--language` | Google 支持语言响应的语言代码，与本手册的语言选择独立。 |
+| `GOOGLE_MAPS_TIMEOUT` | `30` | `--timeout` | 单次请求超时秒数，整数 1–600。包含排队、重试、退避及读取响应；OAuth 获取使用同一值单独限时。 |
+| `GOOGLE_MAPS_ENABLED_TOOLS` | 全部（`*`） | `--enabled-tools` | 逗号分隔的 `maps_*` 名称或 `*`。未知名称导致启动失败；禁用工具不会出现在发现中，也不可调用。 |
+| `GOOGLE_MAPS_MAX_REQUESTS` | `200` | `--max-requests` | 每次工具调用的 Google HTTP 尝试预算，整数 1–10000。复合分支共享，重试消耗次数。 |
+| `GOOGLE_MAPS_MAX_RETRIES` | `2` | `--max-retries` | 每个 Google 请求的额外临时故障尝试次数，整数 0–5。零表示仅首次尝试。重试受超时和预算限制。 |
+| `GOOGLE_MAPS_TOOL_TIMEOUT` | `120` | `--tool-timeout` | 整个工具期限秒数，整数 1–3600。包含凭据获取、排队、API 调用和重试。 |
+
+每个进程可同时执行五个 Google HTTP 请求。预算限制请求次数，而不是金额；一次矩阵请求可能对多个元素计费。当分支耗尽预算或超过期限时，一些复合工具会返回逐项错误。见[生产限制](../guide/production#limits-retries-and-deadlines)。
+
+## HTTP 监听与访问 {#http-listener-and-access}
+
+| 环境变量 | 默认值 | HTTP 选项 | 含义与允许值 |
+| --- | --- | --- | --- |
+| `MCP_HTTP_TOKEN` | 未设置 | — | MCP 客户端共享的 bearer 令牌。非回环监听必需，与 Google 凭据独立，即使使用原生 mTLS 仍需提供。 |
+| `MCP_HTTP_LISTEN` | `127.0.0.1:3000` | `--listen` | 监听 IP 和端口。Docker 镜像将该环境值设为 `0.0.0.0:3000`。 |
+| `MCP_HTTP_ALLOWED_HOSTS` | 回环主机 | `--allowed-host` | 逗号分隔的允许 HTTP Host 值。多次选项替换整个文件/环境列表，需包含相应端口。 |
+| `MCP_HTTP_ALLOWED_ORIGINS` | 无 | `--allowed-origin` | 逗号分隔的允许浏览器来源。存在但未获允许的 Origin 头会被拒绝。显式写端口；重复选项替换整个列表。 |
+| `MCP_HTTP_RATE_LIMIT` | `120` | `--rate-limit` | 每进程每分钟已认证 `/mcp` 请求数，整数 0–1000000。零禁用；突发容量等于速率并持续补充。 |
+| `MCP_METRICS_ENABLED` | `false` | `--metrics [true\|false]` | 启用 Prometheus `/metrics`。单独 `--metrics` 表示 true。配置了 bearer 凭据时使用相同凭据；原生 mTLS 同样生效。 |
+| `MCP_TLS_CERT` | 未设置 | `--tls-cert` | PEM 服务器叶证书及中间证书链，必须与匹配私钥一起提供。 |
+| `MCP_TLS_KEY` | 未设置 | `--tls-key` | PEM 服务器私钥路径，需运行身份可读，且不放入源代码/镜像。 |
+| `MCP_TLS_CLIENT_CA` | 未设置 | `--tls-client-ca` | PEM 客户端 CA 包，使所有监听路径都要求客户端证书；不替代 bearer 令牌。 |
+
+HTTP 令牌桶按进程全局生效，不按用户/IP 区分。未授权请求不消耗令牌，健康检查与指标不受限。拒绝返回 429 和 `Retry-After`。请求体上限为 1 MiB。参阅 [MCP 访问](../guide/mcp#bind-addresses-and-access)与 [TLS 运维](../guide/production#native-tls-and-mutual-tls)。
+
+## 诊断事件 {#diagnostic-events}
+
+| 环境变量 | 默认值 | CLI 选项 | 含义与允许值 |
+| --- | --- | --- | --- |
+| `RUST_LOG` | `warn` | — | 诊断日志过滤器。`info` 启用工具完成事件，不记录参数或 Google 响应正文。 |
+| `MCP_LOG_FORMAT` | `text` | `--log-format` | `text` 或 `json`。诊断始终写入 stderr，使 stdout 保留给 CLI JSON 或 MCP 流量。 |
+
+## 文件选择与输出控制 {#file-selection-and-output-controls}
+
+文件选择在上述应用配置层之前进行。`MCP_ENV_FILE` 选择 dotenv 路径，全局 `--env-file PATH` 优先。显式选择的文件必须存在。`--no-env-file` 禁用全部 dotenv 加载，且不能与 `--env-file` 同用。没有指定时，只读取工作目录下可选的 `.env`。
+
+显式空环境值仍覆盖文件值，可清空可选令牌、TLS 路径或允许列表，但不能让空数值设置变得有效。加载文件不会修改进程环境。
+
+`doctor --live` 显式启用可能计费的探测；普通 `doctor` 为离线。工具 `--output PATH` 保存 JSON，对 `static-map` 则保存原始 PNG。这些是命令控制，不是额外环境设置。
+
+应用设置和凭据文件变更需重启。在 Linux/macOS 上，SIGHUP 可共同重新加载原生 TLS 证书/私钥/客户端 CA 文件；重载失败会保留此前 TLS 配置。参阅[配置](../guide/configuration)与[生产运维](../guide/production)。
+
+
+<!-- https://fcenedes.github.io/mcp-gmap-rs/zh/reference/tools -->
+
+
+<!-- Generated by scripts/generate-reference.py. Edit the source notes, then regenerate. -->
+
+# 工具参考
+
+全部 23 个工具的参数、默认值、限制与示例。MCP 和 CLI 使用相同的接口。
+
+## 调用约定
+
+示例展示 MCP 参数对象。直接使用 MCP `tools/call` 时，将工具名称放入 `name`，将对象放入 `arguments`。宿主可能为工具名称添加前缀。下方等效 CLI 调用使用 `mcp-gmap-rs call TOOL --args JSON`。
+
+仅顶层参数具有 CLI 选项。嵌套对象和数组使用 JSON。单独的布尔选项表示 `true`；`--flag false` 设置为 `false`。未知属性会被拒绝。使用 `tools` 或 `schema TOOL` 查看已安装版本的接口。
+
+Google 身份验证和语言属于进程配置，而不是工具参数。路线使用精确坐标可避免地址解析；命名地点可能还需要 Geocoding 的 API 密钥。参阅[身份验证](../guide/authentication)和[配置](../guide/configuration)。
+
+调用可能产生 Google 费用。即使工具调用成功，复合结果和矩阵结果仍可能包含逐项错误。请保留 Google 来源链接、评论/照片作者和 AI 摘要披露。示例仅说明输入，不保证当前覆盖范围或结果。
+
+类型、必填字段和模式边界来自根据可执行文件模式生成的参考。默认值、结果说明及跨字段限制均对照实现审阅。Google 可能设置额外的覆盖范围和配额限制。
+
+## 工具
+
+- [`maps_geocode`](#maps_geocode)
+- [`maps_validate_address`](#maps_validate_address)
+- [`maps_pollen`](#maps_pollen)
+- [`maps_area_insights`](#maps_area_insights)
+- [`maps_snap_to_roads`](#maps_snap_to_roads)
+- [`maps_nearest_roads`](#maps_nearest_roads)
+- [`maps_reverse_geocode`](#maps_reverse_geocode)
+- [`maps_search_places`](#maps_search_places)
+- [`maps_search_nearby`](#maps_search_nearby)
+- [`maps_place_details`](#maps_place_details)
+- [`maps_directions`](#maps_directions)
+- [`maps_distance_matrix`](#maps_distance_matrix)
+- [`maps_elevation`](#maps_elevation)
+- [`maps_timezone`](#maps_timezone)
+- [`maps_weather`](#maps_weather)
+- [`maps_air_quality`](#maps_air_quality)
+- [`maps_static_map`](#maps_static_map)
+- [`maps_batch_geocode`](#maps_batch_geocode)
+- [`maps_explore_area`](#maps_explore_area)
+- [`maps_plan_route`](#maps_plan_route)
+- [`maps_compare_places`](#maps_compare_places)
+- [`maps_search_along_route`](#maps_search_along_route)
+- [`maps_local_rank_tracker`](#maps_local_rank_tracker)
+
+## maps_geocode {#maps_geocode}
+
+将地址或地标转换为坐标。
+
+将地址或地标解析为第一个 Geocoding 匹配项，获取可复用坐标与地点 ID；此操作不验证邮政投递能力。
+
+**CLI 命令:** `geocode`. **Google 访问凭据:** 本实现要求 API 密钥。
+
+### 参数
+
+| 参数 / CLI 选项 | 类型与模式限制 | 必填 | 省略时的默认值 | 说明 |
+| --- | --- | --- | --- | --- |
+| `address` / `--address` | 字符串; 至少 1 个字符 | 是 | — | 需要地理编码的地址、城市或地标。 |
+
+### 行为与限制
+
+- 无匹配时是工具错误，而不是空的成功位置。
+- 此直接工具使用 Geocoding v3；Places 回退用于解析位置的复合工具，而不是本调用。
+
+### 结果
+
+包含 `location.lat`、`location.lng`、`formatted_address` 和 `place_id` 的对象。仅返回第一个结果。
+
+### 示例
+
+MCP 参数:
+
+```json
+{
+  "address": "Eiffel Tower, Paris, France"
+}
+```
+
+等效 CLI 调用:
+
+```sh
+mcp-gmap-rs call maps_geocode --args '{"address":"Eiffel Tower, Paris, France"}'
+```
+
+
+## maps_validate_address {#maps_validate_address}
+
+验证和标准化邮政地址，返回 Google 判定、修正、组成部分与坐标；判定不保证投递。
+
+验证邮政组成部分并返回修正、标准化地址与 Google 判定。应向调用方保留判定及未解决组成部分。
+
+**CLI 命令:** `validate-address`. **Google 访问凭据:** 主 API 支持 API 密钥或 OAuth。
+
+### 参数
+
+| 参数 / CLI 选项 | 类型与模式限制 | 必填 | 省略时的默认值 | 说明 |
+| --- | --- | --- | --- | --- |
+| `addressLines` / `--address-lines` | 字符串数组; 1–10 项; 每项至少 1 个字符 | 是 | — | 一个或多个有序邮政地址行。 |
+| `administrativeArea` / `--administrative-area` | 字符串; 至少 1 个字符 | 否 | 不提供 | 州、省或相应行政区。 |
+| `enableUspsCass` / `--enable-usps-cass` | 布尔值 | 否 | false | 请求 USPS CASS 处理；本实现中为 true 时要求 regionCode 为 US 或 PR。 |
+| `locality` / `--locality` | 字符串; 至少 1 个字符 | 否 | 不提供 | 城市或地区。 |
+| `postalCode` / `--postal-code` | 字符串; 至少 1 个字符 | 否 | 不提供 | 邮政编码/ZIP 代码。 |
+| `regionCode` / `--region-code` | 字符串; 模式： `^[A-Z]{2}$` | 否 | 不提供；Google 可能推断该值 | 两个大写字母的国家/地区代码，建议提供以消除地址歧义。 |
+
+### 行为与限制
+
+- 验证判定不是投递保证。
+- 地区/API 覆盖情况不同。此工具不会提交验证反馈或自动接受修正。
+
+### 结果
+
+完整验证响应，通常包含 `result.verdict`、`result.address`、`result.geocode` 和 `responseId`；Google 可能省略不可用字段。
+
+### 示例
+
+MCP 参数:
+
+```json
+{
+  "addressLines": [
+    "5 Avenue Anatole France"
+  ],
+  "regionCode": "FR",
+  "locality": "Paris",
+  "postalCode": "75007"
+}
+```
+
+等效 CLI 调用:
+
+```sh
+mcp-gmap-rs call maps_validate_address --args '{"addressLines":["5 Avenue Anatole France"],"regionCode":"FR","locality":"Paris","postalCode":"75007"}'
+```
+
+
+## maps_pollen {#maps_pollen}
+
+获取精确坐标的 1–5 天花粉预报、指数与健康建议。覆盖取决于地点和季节。
+
+查询精确坐标的短期每日花粉预报，保留花粉类型、指数、植物信息及提供方建议。
+
+**CLI 命令:** `pollen`. **Google 访问凭据:** 本实现要求 API 密钥。
+
+### 参数
+
+| 参数 / CLI 选项 | 类型与模式限制 | 必填 | 省略时的默认值 | 说明 |
+| --- | --- | --- | --- | --- |
+| `days` / `--days` | 整数; 1–5 | 否 | 1 | 请求的每日预报记录数。 |
+| `latitude` / `--latitude` | 数值; -90.0–90.0 | 是 | — | WGS84 纬度，十进制度数，向北为正。 |
+| `longitude` / `--longitude` | 数值; -180.0–180.0 | 是 | — | WGS84 经度，十进制度数，向东为正。 |
+| `plantsDescription` / `--plants-description` | 布尔值 | 否 | false | 可用时包含详细植物描述及相关信息。 |
+
+### 行为与限制
+
+- 请求页大小为 5，足以覆盖工具最多五天的请求；不会自动获取额外页面。
+- 可用性取决于地点、季节与 Google 覆盖情况。
+
+### 结果
+
+原始 Pollen 响应，包含 `regionCode`、`dailyInfo` 和可能的 `nextPageToken`。每天可包含花粉类型与植物信息。
+
+### 示例
+
+MCP 参数:
+
+```json
+{
+  "latitude": 48.8584,
+  "longitude": 2.2945,
+  "days": 3,
+  "plantsDescription": false
+}
+```
+
+等效 CLI 调用:
+
+```sh
+mcp-gmap-rs call maps_pollen --args '{"latitude":48.8584,"longitude":2.2945,"days":3,"plantsDescription":false}'
+```
+
+
+## maps_area_insights {#maps_area_insights}
+
+使用 Places Aggregate 统计圆、区域或多边形内的地点；数量不超过 100 时可返回 ID，不自动查询详情。
+
+使用 Places Aggregate 统计圆、区域或多边形中的匹配地点。这是聚合查询，而不是统计受限 Places 搜索页面的结果。
+
+**CLI 命令:** `area-insights`. **Google 访问凭据:** 主 API 支持 API 密钥或 OAuth。
+
+### 参数
+
+| 参数 / CLI 选项 | 类型与模式限制 | 必填 | 省略时的默认值 | 说明 |
+| --- | --- | --- | --- | --- |
+| `area` / `--area` | 对象 | 是 | — | circle、region、customArea 中恰好一种。 |
+| `area.circle` | 对象 | 否 | 不提供 | 圆形区域，与 region/customArea 互斥。 |
+| `area.circle.latLng` | 对象 | 提供父对象时必填 | — | 圆心的精确坐标。 |
+| `area.circle.latLng.latitude` | 数值; -90.0–90.0 | 提供父对象时必填 | — | WGS84 纬度，十进制度数，向北为正。 |
+| `area.circle.latLng.longitude` | 数值; -180.0–180.0 | 提供父对象时必填 | — | WGS84 经度，十进制度数，向东为正。 |
+| `area.circle.radius` | 整数; 23–50000 | 提供父对象时必填 | — | 圆半径，单位米。 |
+| `area.customArea` | 对象 | 否 | 不提供 | 自定义多边形区域，与 circle/region 互斥。 |
+| `area.customArea.polygon` | 对象 | 提供父对象时必填 | — | 多边形边界。 |
+| `area.customArea.polygon.coordinates` | 对象数组; 4–1000 项 | 提供父对象时必填 | — | 有序坐标对象环；首尾坐标必须相同。 |
+| `area.customArea.polygon.coordinates[].latitude` | 数值; -90.0–90.0 | 提供父对象时必填 | — | WGS84 纬度，十进制度数，向北为正。 |
+| `area.customArea.polygon.coordinates[].longitude` | 数值; -180.0–180.0 | 提供父对象时必填 | — | WGS84 经度，十进制度数，向东为正。 |
+| `area.region` | 对象 | 否 | 不提供 | 由 Google 地点资源标识的行政/地理区域。 |
+| `area.region.place` | 字符串; 模式： `^places/[A-Za-z0-9_-]+$` | 提供父对象时必填 | — | places/PLACE_ID 格式的区域资源，不是自由文本区域名称。 |
+| `excludedTypes` / `--excluded-types` | 字符串数组; 1–50 项; 每项至少 1 个字符 | 否 | 不排除任何类型 | 排除的 Google 地点类型。 |
+| `includePlaces` / `--include-places` | 布尔值 | 否 | false | 除数量外，请求匹配地点资源 ID。 |
+| `includedTypes` / `--included-types` | 字符串数组; 1–50 项; 每项至少 1 个字符 | 是 | — | 包含的 Google 地点类型，例如 restaurant 或 cafe。 |
+| `maxRating` / `--max-rating` | 数值; 1.0–5.0 | 否 | 无评分上限过滤 | 包含边界的评分上限。 |
+| `minRating` / `--min-rating` | 数值; 1.0–5.0 | 否 | 无评分下限过滤 | 包含边界的评分下限，不可大于 maxRating。 |
+| `operatingStatus` / `--operating-status` | 字符串数组; 1–3 项; 可选值： `OPERATING_STATUS_OPERATIONAL`, `OPERATING_STATUS_PERMANENTLY_CLOSED`, `OPERATING_STATUS_TEMPORARILY_CLOSED` | 否 | Google 默认使用正常营业地点 | 允许的营业状态。 |
+| `priceLevels` / `--price-levels` | 字符串数组; 1–5 项; 可选值： `PRICE_LEVEL_FREE`, `PRICE_LEVEL_INEXPENSIVE`, `PRICE_LEVEL_MODERATE`, `PRICE_LEVEL_EXPENSIVE`, `PRICE_LEVEL_VERY_EXPENSIVE` | 否 | 全部价格等级 | 允许的价格等级。 |
+
+### 行为与限制
+
+- 必须且只能提供一种区域形式。CLI 中嵌套对象以 JSON 传入，子参数没有独立选项。
+- 多边形环必须闭合。Google 还会检查几何、支持的类型、面积和覆盖情况。
+- 仅数量不超过 100 时可取得地点 ID。工具不会自动请求 Place Details。
+
+### 结果
+
+Google 响应包含 `count`（通常为 int64 字符串），请求并可用时包含 `placeInsights[].place` 地点资源。
+
+### 示例
+
+MCP 参数:
+
+```json
+{
+  "area": {
+    "circle": {
+      "latLng": {
+        "latitude": 48.8584,
+        "longitude": 2.2945
+      },
+      "radius": 500
+    }
+  },
+  "includedTypes": [
+    "restaurant"
+  ],
+  "minRating": 4
+}
+```
+
+等效 CLI 调用:
+
+```sh
+mcp-gmap-rs call maps_area_insights --args '{"area":{"circle":{"latLng":{"latitude":48.8584,"longitude":2.2945},"radius":500}},"includedTypes":["restaurant"],"minRating":4}'
+```
+
+
+## maps_snap_to_roads {#maps_snap_to_roads}
+
+将 2–100 个有序 GPS 点匹配到道路；相邻点宜在约 300 米内，可选插值补充道路形状。
+
+将有序 GPS 轨迹匹配为最可能的道路形状。独立点应使用 Nearest Roads，而不是将其视为行驶路径。
+
+**CLI 命令:** `snap-to-roads`. **Google 访问凭据:** 本实现要求 API 密钥。
+
+### 参数
+
+| 参数 / CLI 选项 | 类型与模式限制 | 必填 | 省略时的默认值 | 说明 |
+| --- | --- | --- | --- | --- |
+| `interpolate` / `--interpolate` | 布尔值 | 否 | false | 在输入点之间增加道路中间形状。 |
+| `path` / `--path` | 对象数组; 2–100 项 | 是 | — | 按行驶顺序排列的 GPS 坐标对象。 |
+| `path[].latitude` | 数值; -90.0–90.0 | 提供父对象时必填 | — | WGS84 纬度，十进制度数，向北为正。 |
+| `path[].longitude` | 数值; -180.0–180.0 | 提供父对象时必填 | — | WGS84 经度，十进制度数，向东为正。 |
+
+### 行为与限制
+
+- 为获得良好匹配，相邻输入点宜在约 300 米以内。
+- 插值点可能没有 originalIndex。此工具不请求限速。
+
+### 结果
+
+原始 Roads 响应，包含 `snappedPoints` 与可能的 `warningMessage`。点在有值时保留道路 `placeId`、`location` 和 `originalIndex`。
+
+### 示例
+
+MCP 参数:
+
+```json
+{
+  "path": [
+    {
+      "latitude": -35.27801,
+      "longitude": 149.12958
+    },
+    {
+      "latitude": -35.28032,
+      "longitude": 149.12907
+    }
+  ],
+  "interpolate": true
+}
+```
+
+等效 CLI 调用:
+
+```sh
+mcp-gmap-rs call maps_snap_to_roads --args '{"path":[{"latitude":-35.27801,"longitude":149.12958},{"latitude":-35.28032,"longitude":149.12907}],"interpolate":true}'
+```
+
+
+## maps_nearest_roads {#maps_nearest_roads}
+
+为 1–100 个独立 GPS 点查找最近道路段，保留 Google 的 originalIndex 与道路地点 ID。
+
+为独立 GPS 点寻找附近道路段，不把它们解释为一条连续轨迹。
+
+**CLI 命令:** `nearest-roads`. **Google 访问凭据:** 本实现要求 API 密钥。
+
+### 参数
+
+| 参数 / CLI 选项 | 类型与模式限制 | 必填 | 省略时的默认值 | 说明 |
+| --- | --- | --- | --- | --- |
+| `points` / `--points` | 对象数组; 1–100 项 | 是 | — | 需要匹配的独立坐标对象。 |
+| `points[].latitude` | 数值; -90.0–90.0 | 提供父对象时必填 | — | WGS84 纬度，十进制度数，向北为正。 |
+| `points[].longitude` | 数值; -180.0–180.0 | 提供父对象时必填 | — | WGS84 经度，十进制度数，向东为正。 |
+
+### 行为与限制
+
+- 一个点可能匹配多个道路段，应保留 originalIndex，不要假定一个输入只对应一个输出。
+- 此工具不请求限速。
+
+### 结果
+
+原始 Roads 响应，包含 `snappedPoints`、道路 `placeId`、`location` 及映射回输入点的 `originalIndex`。
+
+### 示例
+
+MCP 参数:
+
+```json
+{
+  "points": [
+    {
+      "latitude": -35.27801,
+      "longitude": 149.12958
+    },
+    {
+      "latitude": -35.28032,
+      "longitude": 149.12907
+    }
+  ]
+}
+```
+
+等效 CLI 调用:
+
+```sh
+mcp-gmap-rs call maps_nearest_roads --args '{"points":[{"latitude":-35.27801,"longitude":149.12958},{"latitude":-35.28032,"longitude":149.12907}]}'
+```
+
+
+## maps_reverse_geocode {#maps_reverse_geocode}
+
+将坐标转换为街道地址。
+
+将精确坐标转换为第一个反向 Geocoding 结果。格式化地址不足以满足需求时，使用结果中的组成部分。
+
+**CLI 命令:** `reverse-geocode`. **Google 访问凭据:** 本实现要求 API 密钥。
+
+### 参数
+
+| 参数 / CLI 选项 | 类型与模式限制 | 必填 | 省略时的默认值 | 说明 |
+| --- | --- | --- | --- | --- |
+| `latitude` / `--latitude` | 数值; -90.0–90.0 | 是 | — | WGS84 纬度，十进制度数，向北为正。 |
+| `longitude` / `--longitude` | 数值; -180.0–180.0 | 是 | — | WGS84 经度，十进制度数，向东为正。 |
+
+### 行为与限制
+
+- 仅返回第一个结果。无匹配时返回工具错误。
+
+### 结果
+
+第一个原生 Geocoding 结果，提供时包含 `formatted_address`、`address_components`、`geometry` 和 `place_id`。
+
+### 示例
+
+MCP 参数:
+
+```json
+{
+  "latitude": 48.8584,
+  "longitude": 2.2945
+}
+```
+
+等效 CLI 调用:
+
+```sh
+mcp-gmap-rs call maps_reverse_geocode --args '{"latitude":48.8584,"longitude":2.2945}'
+```
+
+
+## maps_search_places {#maps_search_places}
+
+按文本搜索 Places (New)，可选位置与评分过滤。
+
+按文本及可选位置/评分/类型过滤搜索 Places (New)，使用返回的 ID 有选择地请求详情。
+
+**CLI 命令:** `search-places`. **Google 访问凭据:** 主 API 支持 API 密钥或 OAuth。
+
+### 参数
+
+| 参数 / CLI 选项 | 类型与模式限制 | 必填 | 省略时的默认值 | 说明 |
+| --- | --- | --- | --- | --- |
+| `includedType` / `--included-type` | 字符串; 至少 1 个字符 | 否 | 不按类型过滤 | Google 地点类型，例如 cafe。 |
+| `locationBias` / `--location-bias` | 对象 | 否 | 无位置偏向 | 可选圆形搜索偏向；偏向不是硬性地理限制。 |
+| `locationBias.latitude` | 数值; -90.0–90.0 | 提供父对象时必填 | — | WGS84 纬度，十进制度数，向北为正。 |
+| `locationBias.longitude` | 数值; -180.0–180.0 | 提供父对象时必填 | — | WGS84 经度，十进制度数，向东为正。 |
+| `locationBias.radius` | 数值; 0.1–50000.0 | 否 | 5000 | 偏向半径，单位米。 |
+| `minRating` / `--min-rating` | 数值; 0.0–5.0 | 否 | 不按评分过滤 | 向 Google 请求的最低用户评分。 |
+| `openNow` / `--open-now` | 布尔值 | 否 | 不限制营业状态 | 为 true 时仅搜索当前营业地点。 |
+| `query` / `--query` | 字符串; 至少 1 个字符 | 是 | — | 自然语言地点查询。 |
+
+### 行为与限制
+
+- 此工具请求一页 20 条结果，不返回也不自动跟进分页令牌。
+- 营业/评分数据是否缺失取决于 Google 覆盖情况；不要将此搜索视为穷尽清单。
+
+### 结果
+
+最多 20 个 Google Place 对象的数组，包含选定搜索字段、Maps/来源链接及归属元数据。
+
+### 示例
+
+MCP 参数:
+
+```json
+{
+  "query": "coffee near Gare de Lyon, Paris",
+  "openNow": true,
+  "minRating": 4
+}
+```
+
+等效 CLI 调用:
+
+```sh
+mcp-gmap-rs call maps_search_places --args '{"query":"coffee near Gare de Lyon, Paris","openNow":true,"minRating":4}'
+```
+
+
+## maps_search_nearby {#maps_search_nearby}
+
+查找地址或精确坐标附近的地点，可按类型、评分和营业状态过滤。
+
+在已解析中心的限定半径内查找地点。与文本搜索不同，此操作使用硬性的圆形位置限制。
+
+**CLI 命令:** `search-nearby`. **Google 访问凭据:** Places 支持 API 密钥或 OAuth。地址/地标中心还需要 API 密钥进行 Geocoding 解析。
+
+### 参数
+
+| 参数 / CLI 选项 | 类型与模式限制 | 必填 | 省略时的默认值 | 说明 |
+| --- | --- | --- | --- | --- |
+| `center` / `--center` | 对象 | 是 | — | 中心输入及其解释方式标志。 |
+| `center.isCoordinates` | 布尔值 | 否 | false | 将 value 视为精确坐标，不进行地理编码。 |
+| `center.value` | 字符串; 至少 1 个字符 | 提供父对象时必填 | — | 地址/地标；isCoordinates 为 true 时使用 latitude,longitude 字符串。 |
+| `keyword` / `--keyword` | 字符串; 至少 1 个字符 | 否 | 不按类型过滤 | 作为 includedTypes 传入的 Google 地点类型，例如 cafe；不是任意文本关键词。 |
+| `minRating` / `--min-rating` | 数值; 0.0–5.0 | 否 | 不按评分过滤 | 在本地对返回地点应用的最低评分。 |
+| `openNow` / `--open-now` | 布尔值 | 否 | false | 只保留 currentOpeningHours.openNow 为 true 的结果。 |
+| `radius` / `--radius` | 数值; 0.1–50000.0 | 否 | 1000 | 搜索半径，单位米。 |
+
+### 行为与限制
+
+- 过滤时，缺失营业状态不视为营业，缺失评分按 0 处理。
+- 地址中心需要位置解析；坐标可避免额外调用。
+
+### 结果
+
+最多 20 个选定 Place 对象的数组。本地营业/评分过滤可能进一步减少结果。
+
+### 示例
+
+MCP 参数:
+
+```json
+{
+  "center": {
+    "value": "48.8584,2.2945",
+    "isCoordinates": true
+  },
+  "keyword": "cafe",
+  "radius": 500
+}
+```
+
+等效 CLI 调用:
+
+```sh
+mcp-gmap-rs call maps_search_nearby --args '{"center":{"value":"48.8584,2.2945","isCoordinates":true},"keyword":"cafe","radius":500}'
+```
+
+
+## maps_place_details {#maps_place_details}
+
+获取地点详情、评论与归属信息，可选照片 URL 保留作者归属；显示内容时也应显示来源/披露。
+
+将已知地点 ID 扩展为选定详情、评论及可选照片 URL。保留作者/来源信息和所有 AI 披露文本。
+
+**CLI 命令:** `place-details`. **Google 访问凭据:** 主 API 支持 API 密钥或 OAuth。
+
+### 参数
+
+| 参数 / CLI 选项 | 类型与模式限制 | 必填 | 省略时的默认值 | 说明 |
+| --- | --- | --- | --- | --- |
+| `maxPhotos` / `--max-photos` | 整数; 0–10 | 否 | 0 | 最多执行的照片媒体 URL 查询次数。 |
+| `placeId` / `--place-id` | 字符串; 至少 1 个字符 | 是 | — | Google 地点 ID，可带 places/ 前缀。 |
+
+### 行为与限制
+
+- 每张选定照片可能增加一次请求；照片数为零可避免这些调用。
+- 工具采用固定详情字段掩码，并不请求全部 Google Place 字段。不可用字段可能不存在。
+
+### 结果
+
+请求字段掩码对应的原生 Google Place 对象。请求照片时，`photoUrls` 包含媒体 URL、照片作者归属和来源链接。
+
+### 示例
+
+MCP 参数:
+
+```json
+{
+  "placeId": "ChIJLU7jZClu5kcR4PcOOO6p3I0",
+  "maxPhotos": 1
+}
+```
+
+等效 CLI 调用:
+
+```sh
+mcp-gmap-rs call maps_place_details --args '{"placeId":"ChIJLU7jZClu5kcR4PcOOO6p3I0","maxPhotos":1}'
+```
+
+
+## maps_directions {#maps_directions}
+
+获取两个地点间的路线、导航步骤与距离/时间总计。
+
+计算两端点之间的路线，同时提供选定 Google 路线数据和标准化总计。
+
+**CLI 命令:** `directions`. **Google 访问凭据:** Routes/Places 支持 API 密钥或 OAuth。命名地点还需 API 密钥进行 Geocoding；精确坐标字符串可避免该查询。
+
+### 参数
+
+| 参数 / CLI 选项 | 类型与模式限制 | 必填 | 省略时的默认值 | 说明 |
+| --- | --- | --- | --- | --- |
+| `arrival_time` / `--arrival-time` | 字符串; 至少 1 个字符 | 否 | 不提供 | 期望到达时间，含时区的 RFC 3339；仅限公共交通。 |
+| `avoid_highways` / `--avoid-highways` | 布尔值 | 否 | false | 避开高速公路；仅驾车支持 true。 |
+| `avoid_tolls` / `--avoid-tolls` | 布尔值 | 否 | false | 避开收费道路；仅驾车支持 true。 |
+| `departure_time` / `--departure-time` | 字符串; 至少 1 个字符 | 否 | 不提供 | 出发时间，RFC 3339 格式，包含 Z 或显式 UTC 偏移。 |
+| `destination` / `--destination` | 字符串; 至少 1 个字符 | 是 | — | 终点地址/地标或精确 latitude,longitude 字符串。 |
+| `mode` / `--mode` | 字符串; 可选值： `driving`, `walking`, `bicycling`, `transit` | 否 | driving | 出行方式。驾车采用考虑交通状况的路线。 |
+| `origin` / `--origin` | 字符串; 至少 1 个字符 | 是 | — | 起点地址/地标或精确 latitude,longitude 字符串。 |
+
+### 行为与限制
+
+- departure_time 与 arrival_time 不可同时提供。arrival_time 仅限公共交通。
+- 避让选项要求驾车模式。Google 还有出行方式/时间/地区方面的附加限制。
+- 没有可用路线时显式报错。
+
+### 结果
+
+对象包含 `routes`、`summary`、`total_distance`（米）、`total_duration`（秒）及可选优化索引。路线条目包含选定路段、步骤、折线与警告。
+
+### 示例
+
+MCP 参数:
+
+```json
+{
+  "origin": "48.8584,2.2945",
+  "destination": "48.8606,2.3376",
+  "mode": "walking"
+}
+```
+
+等效 CLI 调用:
+
+```sh
+mcp-gmap-rs call maps_directions --args '{"origin":"48.8584,2.2945","destination":"48.8606,2.3376","mode":"walking"}'
+```
+
+
+## maps_distance_matrix {#maps_distance_matrix}
+
+比较各起点到各终点的距离与耗时，保留单元格级失败。
+
+比较每一对起点/终点的出行距离与耗时。应检查各单元格及错误，不要将成功响应等同于完整结果。
+
+**CLI 命令:** `distance-matrix`. **Google 访问凭据:** 主 API 支持 API 密钥或 OAuth。
+
+### 参数
+
+| 参数 / CLI 选项 | 类型与模式限制 | 必填 | 省略时的默认值 | 说明 |
+| --- | --- | --- | --- | --- |
+| `avoid_highways` / `--avoid-highways` | 布尔值 | 否 | false | 避开高速公路；仅驾车支持 true。 |
+| `avoid_tolls` / `--avoid-tolls` | 布尔值 | 否 | false | 避开收费道路；仅驾车支持 true。 |
+| `departure_time` / `--departure-time` | 字符串; 至少 1 个字符 | 否 | 不提供 | 出发时间，RFC 3339 格式，包含 Z 或显式 UTC 偏移。 |
+| `destinations` / `--destinations` | 字符串数组; 1–50 项; 每项至少 1 个字符 | 是 | — | 终点字符串：地址或精确 latitude,longitude 坐标对。 |
+| `mode` / `--mode` | 字符串; 可选值： `driving`, `walking`, `bicycling`, `transit` | 否 | driving | 出行方式。驾车采用考虑交通状况的路线。 |
+| `origins` / `--origins` | 字符串数组; 1–50 项; 每项至少 1 个字符 | 是 | — | 起点字符串：地址或精确 latitude,longitude 坐标对。 |
+
+### 行为与限制
+
+- 最多 625 对起点 × 终点；公共交通最多 100 对。
+- 非坐标起点/终点字符串合计最多 50 个。各数组的模式上限不能覆盖这些合并限制。
+- 收费道路/高速公路避让仅适用于驾车。此工具不公开 arrival_time。
+- 一次矩阵 HTTP 请求可能按多个元素计费。
+
+### 结果
+
+对象包含 `origin_addresses`、`destination_addresses`、按行优先排列的 `distances`、`durations` 和 `errors` 数组。成功单元格单位为米/秒；失败或缺失单元格保持 null。
+
+### 示例
+
+MCP 参数:
+
+```json
+{
+  "origins": [
+    "48.8584,2.2945"
+  ],
+  "destinations": [
+    "48.8606,2.3376",
+    "48.8530,2.3499"
+  ],
+  "mode": "walking"
+}
+```
+
+等效 CLI 调用:
+
+```sh
+mcp-gmap-rs call maps_distance_matrix --args '{"origins":["48.8584,2.2945"],"destinations":["48.8606,2.3376","48.8530,2.3499"],"mode":"walking"}'
+```
+
+
+## maps_elevation {#maps_elevation}
+
+获取精确坐标的海拔。
+
+获取精确坐标点的地理高度。
+
+**CLI 命令:** `elevation`. **Google 访问凭据:** 本实现要求 API 密钥。
+
+### 参数
+
+| 参数 / CLI 选项 | 类型与模式限制 | 必填 | 省略时的默认值 | 说明 |
+| --- | --- | --- | --- | --- |
+| `locations` / `--locations` | 对象数组; 1–512 项 | 是 | — | 需要查询海拔的坐标对象。 |
+| `locations[].latitude` | 数值; -90.0–90.0 | 提供父对象时必填 | — | WGS84 纬度，十进制度数，向北为正。 |
+| `locations[].longitude` | 数值; -180.0–180.0 | 提供父对象时必填 | — | WGS84 经度，十进制度数，向东为正。 |
+
+### 行为与限制
+
+- 工具原样返回 Google 报告的数据，不转换海拔单位。
+
+### 结果
+
+原生 Elevation `results` 数组。条目可能包含单位为米的 `elevation`、`location` 和 `resolution`。
+
+### 示例
+
+MCP 参数:
+
+```json
+{
+  "locations": [
+    {
+      "latitude": 48.8584,
+      "longitude": 2.2945
+    }
+  ]
+}
+```
+
+等效 CLI 调用:
+
+```sh
+mcp-gmap-rs call maps_elevation --args '{"locations":[{"latitude":48.8584,"longitude":2.2945}]}'
+```
+
+
+## maps_timezone {#maps_timezone}
+
+获取指定地点和时刻的时区、UTC 偏移与当地时间。
+
+解析某一时刻的时区标识、UTC/夏令时偏移，并推导当地时间戳。
+
+**CLI 命令:** `timezone`. **Google 访问凭据:** 本实现要求 API 密钥。
+
+### 参数
+
+| 参数 / CLI 选项 | 类型与模式限制 | 必填 | 省略时的默认值 | 说明 |
+| --- | --- | --- | --- | --- |
+| `latitude` / `--latitude` | 数值; -90.0–90.0 | 是 | — | WGS84 纬度，十进制度数，向北为正。 |
+| `longitude` / `--longitude` | 数值; -180.0–180.0 | 是 | — | WGS84 经度，十进制度数，向东为正。 |
+| `timestamp` / `--timestamp` | 整数; 0–253402300799999 | 否 | 当前 UTC 时间，单位毫秒 | Unix 纪元毫秒，不是秒。 |
+
+### 行为与限制
+
+- 请求会将毫秒转换为整秒，不保留亚秒精度。
+- 当地时间使用所请求时刻返回的标准偏移和夏令时偏移。
+
+### 结果
+
+时区字段，例如 `timeZoneId`、`timeZoneName`、以秒计的 `rawOffset` 和 `dstOffset`，加上 RFC 3339 格式的派生 `localTime`。
+
+### 示例
+
+MCP 参数:
+
+```json
+{
+  "latitude": 48.8584,
+  "longitude": 2.2945,
+  "timestamp": 1793448000000
+}
+```
+
+等效 CLI 调用:
+
+```sh
+mcp-gmap-rs call maps_timezone --args '{"latitude":48.8584,"longitude":2.2945,"timestamp":1793448000000}'
+```
+
+
+## maps_weather {#maps_weather}
+
+获取当前、每日或每小时天气；保留 Google 单位与分页信息。
+
+查询精确坐标的当前天气，或一页每日/每小时预报数据。
+
+**CLI 命令:** `weather`. **Google 访问凭据:** 主 API 支持 API 密钥或 OAuth。
+
+### 参数
+
+| 参数 / CLI 选项 | 类型与模式限制 | 必填 | 省略时的默认值 | 说明 |
+| --- | --- | --- | --- | --- |
+| `forecastDays` / `--forecast-days` | 整数; 1–10 | 否 | 5 | 请求的每日预报长度；仅 forecast_daily 使用。 |
+| `forecastHours` / `--forecast-hours` | 整数; 1–240 | 否 | 24 | 请求的每小时预报长度；仅 forecast_hourly 使用。 |
+| `latitude` / `--latitude` | 数值; -90.0–90.0 | 是 | — | WGS84 纬度，十进制度数，向北为正。 |
+| `longitude` / `--longitude` | 数值; -180.0–180.0 | 是 | — | WGS84 经度，十进制度数，向东为正。 |
+| `type` / `--type` | 字符串; 可选值： `current`, `forecast_daily`, `forecast_hourly` | 否 | current | 选择当前天气、每日预报或每小时预报。 |
+
+### 行为与限制
+
+- 其他类型会忽略 forecastDays；非 forecast_hourly 类型会忽略 forecastHours。
+- 不会自动跟进分页令牌。请求时段可能超过单页返回的记录数。
+- 覆盖范围与预报可用性由 Google 决定。
+
+### 结果
+
+原生 Weather 响应，依 type 返回当前天气字段、`forecastDays` 或 `forecastHours`。保留单位、时间戳和可能的 nextPageToken。
+
+### 示例
+
+MCP 参数:
+
+```json
+{
+  "latitude": 48.8584,
+  "longitude": 2.2945,
+  "type": "forecast_daily",
+  "forecastDays": 3
+}
+```
+
+等效 CLI 调用:
+
+```sh
+mcp-gmap-rs call maps_weather --args '{"latitude":48.8584,"longitude":2.2945,"type":"forecast_daily","forecastDays":3}'
+```
+
+
+## maps_air_quality {#maps_air_quality}
+
+获取当前空气质量指数、污染物浓度与健康建议。
+
+获取当前空气质量指数，可选污染物浓度及提供方健康建议。
+
+**CLI 命令:** `air-quality`. **Google 访问凭据:** 主 API 支持 API 密钥或 OAuth。
+
+### 参数
+
+| 参数 / CLI 选项 | 类型与模式限制 | 必填 | 省略时的默认值 | 说明 |
+| --- | --- | --- | --- | --- |
+| `includeHealthRecommendations` / `--include-health-recommendations` | 布尔值 | 否 | true | 请求 Google 计算健康建议。 |
+| `includePollutants` / `--include-pollutants` | 布尔值 | 否 | false | 请求污染物浓度。 |
+| `latitude` / `--latitude` | 数值; -90.0–90.0 | 是 | — | WGS84 纬度，十进制度数，向北为正。 |
+| `longitude` / `--longitude` | 数值; -180.0–180.0 | 是 | — | WGS84 经度，十进制度数，向东为正。 |
+
+### 行为与限制
+
+- 建议来自提供方数据，不是个性化医疗评估。
+- 此工具只公开当前情况，不提供历史或预报端点。
+
+### 结果
+
+原生 Air Quality 当前情况响应，包含指数，以及 Google 提供时可选的 `healthRecommendations`/`pollutants`。
+
+### 示例
+
+MCP 参数:
+
+```json
+{
+  "latitude": 48.8584,
+  "longitude": 2.2945,
+  "includePollutants": true
+}
+```
+
+等效 CLI 调用:
+
+```sh
+mcp-gmap-rs call maps_air_quality --args '{"latitude":48.8584,"longitude":2.2945,"includePollutants":true}'
+```
+
+
+## maps_static_map {#maps_static_map}
+
+将中心、标记和路径渲染为 PNG 地图。
+
+渲染 PNG 地图，可选标记与路径规格。
+
+**CLI 命令:** `static-map`. **Google 访问凭据:** 本实现要求 API 密钥。
+
+### 参数
+
+| 参数 / CLI 选项 | 类型与模式限制 | 必填 | 省略时的默认值 | 说明 |
+| --- | --- | --- | --- | --- |
+| `center` / `--center` | 字符串; 至少 1 个字符 | 否 | 不提供 | 中心，使用地址或 latitude,longitude 字符串。 |
+| `maptype` / `--maptype` | 字符串; 可选值： `roadmap`, `satellite`, `terrain`, `hybrid` | 否 | roadmap | 底图样式。 |
+| `markers` / `--markers` | 字符串数组; 1–100 项; 每项至少 1 个字符 | 否 | 无标记 | 可重复的 Google Static Maps 标记规格，例如 color:red\|48.8584,2.2945。 |
+| `path` / `--path` | 字符串数组; 1–100 项; 每项至少 1 个字符 | 否 | 无路径 | 可重复的 Google Static Maps 路径规格，例如 color:blue\|48.8584,2.2945\|48.8606,2.3376。 |
+| `size` / `--size` | 字符串; 模式： `^[1-9][0-9]{0,2}x[1-9][0-9]{0,2}$` | 否 | 600x400 | 像素尺寸 WIDTHxHEIGHT；运行时每一维限制为 1–640。 |
+| `zoom` / `--zoom` | 整数; 0–21 | 否 | 省略；由 Google 选择或推断 | 显式缩放级别。 |
+
+### 行为与限制
+
+- center、markers 或 path 至少提供一个。
+- 完整请求 URL 必须不超过 16,384 字符。模式的 size 格式范围比运行时 640 像素上限更宽。
+- 标记/路径样式遵循 Google Static Maps 语法。Google 归属保留在渲染图像中。
+
+### 结果
+
+MCP 返回内嵌 image/png 内容。CLI 返回 `{mimeType,base64}` JSON，指定 --output 时返回原始 PNG 字节。
+
+### 示例
+
+MCP 参数:
+
+```json
+{
+  "center": "48.8584,2.2945",
+  "zoom": 14,
+  "size": "320x240",
+  "markers": [
+    "color:red|48.8584,2.2945"
+  ]
+}
+```
+
+等效 CLI 调用:
+
+```sh
+mcp-gmap-rs call maps_static_map --args '{"center":"48.8584,2.2945","zoom":14,"size":"320x240","markers":["color:red|48.8584,2.2945"]}'
+```
+
+
+## maps_batch_geocode {#maps_batch_geocode}
+
+一次解析最多 50 个地址，保留输入顺序及逐地址错误。
+
+对受限数量的地址进行地理编码，同时保留输入顺序与各项成败。
+
+**CLI 命令:** `batch-geocode`. **Google 访问凭据:** 本实现要求 API 密钥。
+
+### 参数
+
+| 参数 / CLI 选项 | 类型与模式限制 | 必填 | 省略时的默认值 | 说明 |
+| --- | --- | --- | --- | --- |
+| `addresses` / `--addresses` | 字符串数组; 1–50 项; 每项至少 1 个字符 | 是 | — | 需要解析的地址/地标字符串。 |
+
+### 行为与限制
+
+- 使用受限并发，每进程最多五个活动 Google 请求。
+- 逐项失败不会强制 CLI 非零退出；检查每行的 success/error。
+
+### 结果
+
+按输入顺序返回数组。每行包含 `address`、`success`，以及 `data`（地理编码对象）或 `error`。
+
+### 示例
+
+MCP 参数:
+
+```json
+{
+  "addresses": [
+    "Paris, France",
+    "London, UK"
+  ]
+}
+```
+
+等效 CLI 调用:
+
+```sh
+mcp-gmap-rs call maps_batch_geocode --args '{"addresses":["Paris, France","London, UK"]}'
+```
+
+
+## maps_explore_area {#maps_explore_area}
+
+解析一个位置，按类别探索附近地点并扩展各类别的首批详情。
+
+解析一个位置，在周边查询选定类别，并仅扩展各类别的领先结果。
+
+**CLI 命令:** `explore-area`. **Google 访问凭据:** Places 支持 API 密钥或 OAuth。命名地点还需要 Geocoding 的 API 密钥。
+
+### 参数
+
+| 参数 / CLI 选项 | 类型与模式限制 | 必填 | 省略时的默认值 | 说明 |
+| --- | --- | --- | --- | --- |
+| `location` / `--location` | 字符串; 至少 1 个字符 | 是 | — | 地址/地标或精确 latitude,longitude 字符串。 |
+| `radius` / `--radius` | 数值; 0.1–50000.0 | 否 | 1000 | 类别搜索半径，单位米。 |
+| `topN` / `--top-n` | 整数; 1–20 | 否 | 3 | 每个类别最多扩展详情的地点数。 |
+| `types` / `--types` | 字符串数组; 1–10 项; 每项至少 1 个字符 | 否 | restaurant, cafe, tourist_attraction | 要搜索的 Google 地点类别。 |
+
+### 行为与限制
+
+- 每个类别最多搜索 20 个地点；count 是返回页数量，不是聚合总数。
+- 类别和详情失败会保留在顶层成功结果中。
+- 此复合工具会发出多个 Google 请求，请按任务限制类别与 topN。
+
+### 结果
+
+对象包含已解析的 `location`、`radius` 和 `categories`。每个类别包含 type/count/top 或错误；扩展地点可能包含 details_error。
+
+### 示例
+
+MCP 参数:
+
+```json
+{
+  "location": "48.8584,2.2945",
+  "types": [
+    "cafe"
+  ],
+  "radius": 500,
+  "topN": 1
+}
+```
+
+等效 CLI 调用:
+
+```sh
+mcp-gmap-rs call maps_explore_area --args '{"location":"48.8584,2.2945","types":["cafe"],"radius":500,"topN":1}'
+```
+
+
+## maps_plan_route {#maps_plan_route}
+
+规划经过 2–27 个停靠点的路线；非公共交通可优化 2–25 个中间点，并保留精确坐标。
+
+为有序停靠点规划单条路线，可选请求 Google 重排中间点，同时保持起终点固定。
+
+**CLI 命令:** `plan-route`. **Google 访问凭据:** Routes/Places 支持 API 密钥或 OAuth。命名地点还需 API 密钥进行 Geocoding；精确坐标字符串可避免该查询。
+
+### 参数
+
+| 参数 / CLI 选项 | 类型与模式限制 | 必填 | 省略时的默认值 | 说明 |
+| --- | --- | --- | --- | --- |
+| `avoid_highways` / `--avoid-highways` | 布尔值 | 否 | false | 避开高速公路；仅驾车支持 true。 |
+| `avoid_tolls` / `--avoid-tolls` | 布尔值 | 否 | false | 避开收费道路；仅驾车支持 true。 |
+| `departure_time` / `--departure-time` | 字符串; 至少 1 个字符 | 否 | 不提供 | 出发时间，RFC 3339 格式，包含 Z 或显式 UTC 偏移。 |
+| `mode` / `--mode` | 字符串; 可选值： `driving`, `walking`, `bicycling`, `transit` | 否 | driving | 出行方式。驾车采用考虑交通状况的路线。 |
+| `optimize` / `--optimize` | 布尔值 | 否 | true，但受上述条件限制 | 当总停靠点超过三个且模式不是 transit 时请求优化中间点。 |
+| `stops` / `--stops` | 字符串数组; 2–27 项; 每项至少 1 个字符 | 是 | — | 有序地址/地标或精确 latitude,longitude 字符串；首尾保持为端点。 |
+
+### 行为与限制
+
+- 公共交通只支持两个端点，不允许中间停靠点。
+- 只有总停靠点至少四个（至少两个中间点）时优化才生效。
+- 此工具优化单条路线的停靠顺序，不进行车队的车辆/任务分配。
+
+### 结果
+
+对象包含 `mode`、实际生效的 `optimized`、按顺序解析的 `stops`、显示用 `legs`、total_distance、total_duration、polyline 与警告。路段 durationSeconds 为数值秒。
+
+### 示例
+
+MCP 参数:
+
+```json
+{
+  "stops": [
+    "48.8584,2.2945",
+    "48.8606,2.3376",
+    "48.8530,2.3499"
+  ],
+  "mode": "walking",
+  "optimize": false
+}
+```
+
+等效 CLI 调用:
+
+```sh
+mcp-gmap-rs call maps_plan_route --args '{"stops":["48.8584,2.2945","48.8606,2.3376","48.8530,2.3499"],"mode":"walking","optimize":false}'
+```
+
+
+## maps_compare_places {#maps_compare_places}
+
+搜索并比较地点详情，可选比较到 userLocation 的驾车距离。
+
+查找少量地点并补充详情，可选比较到精确用户坐标的驾车距离。
+
+**CLI 命令:** `compare-places`. **Google 访问凭据:** Places 和可选 Routes 支持 API 密钥或 OAuth。
+
+### 参数
+
+| 参数 / CLI 选项 | 类型与模式限制 | 必填 | 省略时的默认值 | 说明 |
+| --- | --- | --- | --- | --- |
+| `limit` / `--limit` | 整数; 1–20 | 否 | 5 | 最多扩展的匹配地点数量。 |
+| `query` / `--query` | 字符串; 至少 1 个字符 | 是 | — | Places 文本搜索查询。 |
+| `userLocation` / `--user-location` | 对象 | 否 | 不比较距离/时间 | 可选距离比较所用的用户精确坐标。 |
+| `userLocation.latitude` | 数值; -90.0–90.0 | 提供父对象时必填 | — | WGS84 纬度，十进制度数，向北为正。 |
+| `userLocation.longitude` | 数值; -180.0–180.0 | 提供父对象时必填 | — | WGS84 经度，十进制度数，向东为正。 |
+
+### 行为与限制
+
+- 出行比较固定为驾车；此工具没有可配置出行方式参数。
+- 详情或距离失败会保留，而不是丢弃其他仍可使用的地点。
+- 仅扩展所请求的候选列表。
+
+### 结果
+
+对象包含 `places` 和可选 `distance_error`。地点可含 details/details_error、distance、drive_time 及逐地点 distance_errors。
+
+### 示例
+
+MCP 参数:
+
+```json
+{
+  "query": "cafes near Eiffel Tower, Paris",
+  "userLocation": {
+    "latitude": 48.8584,
+    "longitude": 2.2945
+  },
+  "limit": 3
+}
+```
+
+等效 CLI 调用:
+
+```sh
+mcp-gmap-rs call maps_compare_places --args '{"query":"cafes near Eiffel Tower, Paris","userLocation":{"latitude":48.8584,"longitude":2.2945},"limit":3}'
+```
+
+
+## maps_search_along_route {#maps_search_along_route}
+
+使用路线编码折线查找沿途地点。
+
+先计算路线，再使用其编码折线查询 Places，而不是用一次圆形搜索近似行程。
+
+**CLI 命令:** `search-along-route`. **Google 访问凭据:** Routes/Places 支持 API 密钥或 OAuth。命名地点还需 API 密钥进行 Geocoding；精确坐标字符串可避免该查询。
+
+### 参数
+
+| 参数 / CLI 选项 | 类型与模式限制 | 必填 | 省略时的默认值 | 说明 |
+| --- | --- | --- | --- | --- |
+| `destination` / `--destination` | 字符串; 至少 1 个字符 | 是 | — | 路线终点地址/地标或精确 latitude,longitude 字符串。 |
+| `maxResults` / `--max-results` | 整数; 1–20 | 否 | 5 | 响应页面中请求的最大 Places 结果数。 |
+| `mode` / `--mode` | 字符串; 可选值： `driving`, `walking`, `bicycling`, `transit` | 否 | walking | 搜索所用路线的出行方式。 |
+| `origin` / `--origin` | 字符串; 至少 1 个字符 | 是 | — | 路线起点地址/地标或精确 latitude,longitude 字符串。 |
+| `textQuery` / `--text-query` | 字符串; 至少 1 个字符 | 是 | — | 沿途停靠地点的 Places 查询，例如咖啡馆或充电站。 |
+
+### 行为与限制
+
+- 默认模式为 walking，不同于默认 driving 的 directions、matrix 与 plan-route。
+- 不自动分页，也不扩展 Place Details。
+- 不公开 directions 的出发/到达时间或避让参数。
+
+### 结果
+
+对象包含 `places`、可选 `routingSummaries`，以及含选定 Google 路线数据和标准化总计的计算 `route`。
+
+### 示例
+
+MCP 参数:
+
+```json
+{
+  "textQuery": "cafes",
+  "origin": "48.8584,2.2945",
+  "destination": "48.8606,2.3376",
+  "mode": "walking",
+  "maxResults": 3
+}
+```
+
+等效 CLI 调用:
+
+```sh
+mcp-gmap-rs call maps_search_along_route --args '{"textQuery":"cafes","origin":"48.8584,2.2945","destination":"48.8606,2.3376","mode":"walking","maxResults":3}'
+```
+
+
+## maps_local_rank_tracker {#maps_local_rank_tracker}
+
+对 1–3 个关键词在地理网格上跟踪搜索排名，返回 ARP、ATRP、SoLV 和逐点错误。
+
+在地理网格的每个点，测量目标地点是否出现在文本搜索前 20 个结果中及其排名。
+
+**CLI 命令:** `local-rank-tracker`. **Google 访问凭据:** 主 API 支持 API 密钥或 OAuth。
+
+### 参数
+
+| 参数 / CLI 选项 | 类型与模式限制 | 必填 | 省略时的默认值 | 说明 |
+| --- | --- | --- | --- | --- |
+| `center` / `--center` | 对象 | 是 | — | 扫描网格的精确中心。 |
+| `center.latitude` | 数值; -90.0–90.0 | 提供父对象时必填 | — | WGS84 纬度，十进制度数，向北为正。 |
+| `center.longitude` | 数值; -180.0–180.0 | 提供父对象时必填 | — | WGS84 经度，十进制度数，向东为正。 |
+| `gridSize` / `--grid-size` | 整数; 3–7 | 否 | 3 | 行数和列数；接受 3–7 范围内的全部整数。 |
+| `gridSpacing` / `--grid-spacing` | 数值; 100.0–10000.0 | 否 | 1000 | 相邻网格点之间的距离，单位米。 |
+| `keyword` / `--keyword` | 字符串; 至少 1 个字符 | 否 | 不提供 | 单个搜索关键词；使用 keyword 或 keywords。 |
+| `keywords` / `--keywords` | 字符串数组; 1–3 项; 每项至少 1 个字符 | 否 | 不提供 | 一到三个搜索关键词；两种形式同时提供时优先采用此项。 |
+| `placeId` / `--place-id` | 字符串; 至少 1 个字符 | 是 | — | 目标地点 ID，可带 places/ 前缀。 |
+
+### 行为与限制
+
+- keyword 或 keywords 至少提供一个；逐行模式无法表示此二选一要求。
+- 搜索请求数量为关键词数 × gridSize²，重试前最多 147 次。
+- 失败点不计入排名指标，不作为有效未命中。没有可用观测时指标可能为 null。
+- 搜索排名不是目标的用户评论评分。结果是带位置偏向的文本搜索样本，不保证用户在 Google Maps 看到的排名。
+
+### 结果
+
+对象包含 target、grid_size、grid_spacing_m 及逐关键词的指标/网格。ARP 平均已找到的排名；ATRP 对成功查询但未找到目标时计为 21；SoLV 为成功点中进入前 3 名的点所占的百分比。failed_points 与 found_in 表示覆盖情况。
+
+### 示例
+
+MCP 参数:
+
+```json
+{
+  "keyword": "cafe",
+  "placeId": "ChIJLU7jZClu5kcR4PcOOO6p3I0",
+  "center": {
+    "latitude": 48.8584,
+    "longitude": 2.2945
+  },
+  "gridSize": 3,
+  "gridSpacing": 500
+}
+```
+
+等效 CLI 调用:
+
+```sh
+mcp-gmap-rs call maps_local_rank_tracker --args '{"keyword":"cafe","placeId":"ChIJLU7jZClu5kcR4PcOOO6p3I0","center":{"latitude":48.8584,"longitude":2.2945},"gridSize":3,"gridSpacing":500}'
+```
