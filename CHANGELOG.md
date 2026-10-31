@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.0 - 2026-10-31
+
+- Support service-account/ADC OAuth for Places (New), Routes, Weather and Air Quality, with key authentication retained for current legacy endpoints.
+- Document Google project billing, API enablement, restricted API keys, service-account JSON keys and keyless Kubernetes/GKE authentication.
+- Load an optional dotenv file with environment-variable and CLI overrides using config-rs.
+- Add explicit file selection, file-loading opt-out and environment-based HTTP settings.
+- Add a non-root Docker image, container smoke checks and a Kubernetes deployment example.
+
 ## 0.1.1 - 2026-10-30
 
 - Add a docs.rs landing guide covering all 18 tools and the public Rust entry point.

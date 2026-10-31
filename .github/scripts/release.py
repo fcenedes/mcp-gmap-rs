@@ -42,7 +42,7 @@ def package(target, output):
     version = subprocess.check_output([binary, "--version"], env=env, text=True, timeout=30)
     if version.strip() != f"{NAME} {VERSION}":
         raise SystemExit("executable version does not match Cargo.toml")
-    tools = json.loads(subprocess.check_output([binary, "tools"], env=env, timeout=30))
+    tools = json.loads(subprocess.check_output([binary, "--no-env-file", "tools"], env=env, timeout=30))
     if not tools or not any(tool.get("name") == "maps_geocode" for tool in tools):
         raise SystemExit("release executable failed tool-discovery smoke test")
     output.mkdir(parents=True, exist_ok=True)
@@ -68,16 +68,16 @@ def audit_package():
     path = ROOT / "target" / "package" / f"{NAME}-{VERSION}.crate"
     allowed_files = {
         "Cargo.toml", "Cargo.toml.orig", "Cargo.lock", "README.md", "LICENSE",
-        "CHANGELOG.md", ".env.example", ".cargo_vcs_info.json",
+        "CHANGELOG.md", ".env.example", ".cargo_vcs_info.json", "Dockerfile", ".dockerignore",
     }
-    required = {"Cargo.lock", "LICENSE", "licenses/cablate-mcp-google-map-MIT.txt", ".env.example", "docs/crate.md"}
+    required = {"Cargo.lock", "LICENSE", "licenses/cablate-mcp-google-map-MIT.txt", ".env.example", "docs/crate.md", "docs/google-cloud-setup.md", "Dockerfile", ".dockerignore", "deploy/kubernetes.yaml"}
     seen = set()
     with tarfile.open(path, "r:gz") as archive:
         for member in archive.getmembers():
             if not member.isfile():
                 raise SystemExit(f"unexpected non-file package entry: {member.name}")
             name = member.name.removeprefix(f"{NAME}-{VERSION}/")
-            if name not in allowed_files and not name.startswith(("src/", "tests/", "docs/", "licenses/")):
+            if name not in allowed_files and not name.startswith(("src/", "tests/", "docs/", "deploy/", "licenses/")):
                 raise SystemExit(f"unexpected package file: {name}")
             if any(part == ".env" or (part.startswith(".env.") and part != ".env.example") for part in Path(name).parts):
                 raise SystemExit("credential file found in crate")

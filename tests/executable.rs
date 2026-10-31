@@ -8,12 +8,20 @@ use tokio::{
 
 fn binary() -> Command {
     let mut command = Command::new(env!("CARGO_BIN_EXE_mcp-gmap-rs"));
+    command.arg("--no-env-file");
     for name in [
         "GOOGLE_MAPS_API_KEY",
+        "GOOGLE_MAPS_AUTH_MODE",
+        "GOOGLE_APPLICATION_CREDENTIALS",
+        "GOOGLE_CLOUD_QUOTA_PROJECT",
         "GOOGLE_MAPS_ENABLED_TOOLS",
         "GOOGLE_MAPS_TIMEOUT",
         "GOOGLE_MAPS_LANGUAGE",
         "MCP_HTTP_TOKEN",
+        "MCP_ENV_FILE",
+        "MCP_HTTP_LISTEN",
+        "MCP_HTTP_ALLOWED_HOSTS",
+        "MCP_HTTP_ALLOWED_ORIGINS",
         "RUST_LOG",
     ] {
         command.env_remove(name);

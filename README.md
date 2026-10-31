@@ -33,6 +33,10 @@ store; the host still needs working CA certificates and network access to Google
 
 ## Configure Google access
 
+Follow the [Google Cloud setup guide](docs/google-cloud-setup.md) for project
+billing, API enablement, restricted API-key creation and service-account OAuth
+with JSON credentials, local ADC or Kubernetes/GKE workload identity.
+
 ```sh
 export GOOGLE_MAPS_API_KEY='your-key'
 ```
@@ -43,22 +47,60 @@ Weather API, and Air Quality API. You only need APIs for tools you actually call
 Calls can incur charges; composite tools make multiple API requests. Availability
 and travel-mode coverage depend on Google and the region.
 
-The executable reads environment variables; it does **not** automatically load
-`.env` files. See [.env.example](.env.example). API keys stay in process
+Configuration is layered: **defaults → optional `.env` → environment variables →
+CLI flags**. The default file is `.env` in the working directory; parent directories
+are not searched. See [.env.example](.env.example). API keys stay in process
 configuration and are never accepted as MCP tool arguments or HTTP query parameters.
+
+```sh
+cp .env.example .env
+# Edit .env, then run normally:
+mcp-gmap-rs tools
+# Or select a mounted configuration file:
+mcp-gmap-rs --env-file /etc/mcp-gmap/runtime.env serve http
+# Use only environment variables and flags:
+mcp-gmap-rs --no-env-file serve http
+```
+
+`MCP_ENV_FILE` also selects a file; `--env-file` takes precedence. An explicitly
+selected file must exist. A missing default `.env` is allowed; unreadable or
+malformed files fail startup without printing their contents. `--no-env-file`
+disables all file loading. Files are parsed without modifying the process environment.
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
 | `GOOGLE_MAPS_API_KEY` | unset | Server/CLI credential for Google API calls |
+| `GOOGLE_MAPS_AUTH_MODE` | `api-key` | `api-key` or `oauth`; OAuth is used for Places (New), Routes, Weather and Air Quality |
+| `GOOGLE_APPLICATION_CREDENTIALS` | ADC discovery | Path to service-account or other supported ADC JSON credentials |
+| `GOOGLE_CLOUD_QUOTA_PROJECT` | unset | Required Maps billing/quota project ID or number for OAuth requests |
 | `GOOGLE_MAPS_LANGUAGE` | `en` | Google response language |
 | `GOOGLE_MAPS_TIMEOUT` | `30` | Timeout per HTTP request, 1–600 seconds |
 | `GOOGLE_MAPS_ENABLED_TOOLS` | all | Comma-separated `maps_*` tool names, or `*` |
 | `MCP_HTTP_TOKEN` | unset | Bearer token for HTTP clients; required for non-loopback binds |
+| `MCP_HTTP_LISTEN` | `127.0.0.1:3000` | HTTP bind address; the Docker image defaults to `0.0.0.0:3000` |
+| `MCP_HTTP_ALLOWED_HOSTS` | loopback hosts | Comma-separated allowed HTTP Host values |
+| `MCP_HTTP_ALLOWED_ORIGINS` | none | Comma-separated browser origins; specify ports explicitly |
 | `RUST_LOG` | `warn` | Diagnostic log filter; logs go to stderr |
 
-`--language`, `--timeout`, and `--enabled-tools` override their environment values.
+`--auth-mode`, `--language`, `--timeout`, and `--enabled-tools` override their environment values.
+HTTP `--listen`, `--allowed-host`, and `--allowed-origin` do the same. Repeated
+allowlist flags replace the corresponding file/environment list as a whole.
+An explicitly empty environment value also overrides the file; it can clear an
+optional token or allowlist, but an empty timeout is invalid. Configuration is
+read at startup; restart the process after changing files or Kubernetes Secrets.
 Unknown tool names in an allowlist fail startup. Tool discovery and input-schema
-inspection work without an API key; actual API calls need one.
+inspection work without credentials; actual API calls need credentials supported
+by the selected endpoints.
+
+In OAuth mode, keep `GOOGLE_MAPS_API_KEY` for the current Geocoding v3, Elevation,
+Time Zone and Static Maps endpoints if used. Composite/location-resolution flows
+may need both credential types. OAuth-supported calls send a cached/refreshed
+access token and quota project, with no API key; an OAuth failure does not retry
+using a key. Google OAuth configures outbound Google access independently of
+the MCP server's `MCP_HTTP_TOKEN`.
+
+For containers and Kubernetes Secrets/ConfigMaps, see the
+[Docker and Kubernetes guide](docs/containers.md) and [Dockerfile](Dockerfile).
 
 ## CLI
 
@@ -205,6 +247,9 @@ APIs, billing and network access, and make billable Google requests:
 ```sh
 cargo test --locked --test live -- --ignored --test-threads=1
 ```
+
+Four additional opt-in tests exercise OAuth on Places, Routes, Weather and Air
+Quality with the API key removed. See the [OAuth validation instructions](docs/google-cloud-setup.md#4-verify-and-troubleshoot).
 
 Live tests are ignored in ordinary `cargo test` and CI runs. Run a single tool
 with, for example, `cargo test --locked --test live live_maps_weather -- --ignored`.

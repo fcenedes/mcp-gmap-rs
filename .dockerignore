@@ -1,0 +1,16 @@
+# Only build inputs enter the context; local credentials never reach a layer.
+**
+!Dockerfile
+!.dockerignore
+!Cargo.toml
+!Cargo.lock
+!src/
+!src/**
+!docs/
+!docs/crate.md
+!LICENSE
+!licenses/
+!licenses/**
+**/.env
+**/.env.*
+**/sa_key.json

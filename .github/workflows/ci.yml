@@ -127,6 +127,22 @@ jobs:
               summary.write("### Public Rust documentation coverage\n\n```text\n" + text + "\n```\n")
           PY
 
+  container:
+    name: Container build and smoke checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.checkout_ref || github.ref }}
+          persist-credentials: false
+      - name: Build Linux runtime image
+        run: docker build --tag mcp-gmap-rs:ci .
+      - name: Verify CLI and both MCP transports in the container
+        run: python3 .github/scripts/smoke-container.py mcp-gmap-rs:ci
+      - name: Validate the Kubernetes example
+        run: go run github.com/yannh/kubeconform/cmd/kubeconform@v0.8.0 -strict -summary deploy/kubernetes.yaml
+
   package:
     name: Cargo package verification
     runs-on: ubuntu-24.04

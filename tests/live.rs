@@ -20,6 +20,8 @@ fn invoke(tool: &str, args: Value) -> Value {
         "GOOGLE_MAPS_API_KEY must be nonempty"
     );
     let output = Command::new(env!("CARGO_BIN_EXE_mcp-gmap-rs"))
+        .arg("--no-env-file")
+        .args(["--auth-mode", "api-key"])
         .args(["call", tool, "--args", &args.to_string()])
         .env("GOOGLE_MAPS_API_KEY", &key)
         .env_remove("GOOGLE_MAPS_ENABLED_TOOLS")
@@ -42,6 +44,82 @@ fn invoke(tool: &str, args: Value) -> Value {
         failures.join("; ").replace(&key, "[REDACTED]")
     );
     value
+}
+
+fn invoke_oauth(tool: &str, args: Value) -> Value {
+    assert!(
+        std::env::var("GOOGLE_CLOUD_QUOTA_PROJECT").is_ok_and(|value| !value.trim().is_empty()),
+        "set GOOGLE_CLOUD_QUOTA_PROJECT and configure service-account/ADC credentials for live OAuth tests"
+    );
+    let output = Command::new(env!("CARGO_BIN_EXE_mcp-gmap-rs"))
+        .args([
+            "--no-env-file",
+            "--auth-mode",
+            "oauth",
+            "call",
+            tool,
+            "--args",
+            &args.to_string(),
+        ])
+        .env_remove("GOOGLE_MAPS_API_KEY")
+        .env_remove("GOOGLE_MAPS_ENABLED_TOOLS")
+        .env_remove("GOOGLE_MAPS_TIMEOUT")
+        .env_remove("GOOGLE_MAPS_LANGUAGE")
+        .env_remove("RUST_LOG")
+        .output()
+        .expect("start live OAuth executable");
+    assert!(
+        output.status.success(),
+        "{tool}: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let value: Value = serde_json::from_slice(&output.stdout).expect("tool must return JSON");
+    let mut failures = Vec::new();
+    collect_failures(&value, "", &mut failures);
+    assert!(
+        failures.is_empty(),
+        "{tool} returned partial failures: {}",
+        failures.join("; ")
+    );
+    value
+}
+
+#[test]
+#[ignore = "requires service-account/ADC OAuth, Places API and billable Google requests"]
+fn live_oauth_places() {
+    let places = invoke_oauth(
+        "maps_search_places",
+        json!({"query":"Eiffel Tower, Paris, France"}),
+    );
+    assert!(nonempty_string(&places[0]["id"]));
+}
+
+#[test]
+#[ignore = "requires service-account/ADC OAuth, Routes API and billable Google requests"]
+fn live_oauth_routes() {
+    let route = invoke_oauth(
+        "maps_directions",
+        json!({"origin":"48.8584,2.2945","destination":"48.8606,2.3376","mode":"walking"}),
+    );
+    assert!(
+        route["total_distance"]["value"]
+            .as_f64()
+            .is_some_and(|value| value > 0.0)
+    );
+}
+
+#[test]
+#[ignore = "requires service-account/ADC OAuth, Weather API and billable Google requests"]
+fn live_oauth_weather() {
+    let weather = invoke_oauth("maps_weather", location());
+    assert!(weather["temperature"]["degrees"].as_f64().is_some());
+}
+
+#[test]
+#[ignore = "requires service-account/ADC OAuth, Air Quality API and billable Google requests"]
+fn live_oauth_air_quality() {
+    let air = invoke_oauth("maps_air_quality", location());
+    assert!(!air["indexes"].as_array().unwrap().is_empty());
 }
 
 fn collect_failures(value: &Value, path: &str, failures: &mut Vec<String>) {

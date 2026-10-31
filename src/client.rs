@@ -4,6 +4,8 @@ use reqwest::{Client, Method, RequestBuilder, Response};
 use serde_json::{Value, json};
 use tokio::sync::Semaphore;
 
+use crate::auth::OAuth;
+
 pub(crate) type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Debug, thiserror::Error)]
@@ -12,6 +14,12 @@ pub(crate) enum Error {
     Input(String),
     #[error("GOOGLE_MAPS_API_KEY is required to call Google Maps")]
     MissingKey,
+    #[error(
+        "Google OAuth authentication failed; check GOOGLE_APPLICATION_CREDENTIALS / ADC, service-account permissions and connectivity"
+    )]
+    OAuth,
+    #[error("Google OAuth token acquisition timed out")]
+    OAuthTimeout,
     #[error("Google API request failed: {0}")]
     Api(String),
     #[error("Google API request timed out")]
@@ -26,6 +34,7 @@ pub(crate) enum Error {
 pub(crate) struct MapsClient {
     http: Client,
     key: Option<Arc<str>>,
+    pub oauth: Option<OAuth>,
     pub language: Arc<str>,
     permits: Arc<Semaphore>,
     #[cfg(test)]
@@ -44,6 +53,7 @@ impl MapsClient {
         Ok(Self {
             http,
             key: key.filter(|s| !s.trim().is_empty()).map(Arc::from),
+            oauth: None,
             language: language.into(),
             permits: Arc::new(Semaphore::new(5)),
             #[cfg(test)]
@@ -58,15 +68,32 @@ impl MapsClient {
         }
     }
 
-    fn request(&self, method: Method, host: &str, path: &str) -> Result<RequestBuilder> {
-        let key = self.key.as_deref().ok_or(Error::MissingKey)?;
+    fn uses_oauth(&self, host: &str) -> bool {
+        self.oauth.is_some()
+            && matches!(
+                host,
+                "places.googleapis.com"
+                    | "routes.googleapis.com"
+                    | "weather.googleapis.com"
+                    | "airquality.googleapis.com"
+            )
+    }
+
+    async fn request(&self, method: Method, host: &str, path: &str) -> Result<RequestBuilder> {
         let url = format!("https://{host}{path}");
         #[cfg(test)]
         let url = self
             .test_base
             .as_ref()
             .map_or(url, |base| format!("{base}/{host}{path}"));
-        Ok(self.http.request(method, url).header("X-Goog-Api-Key", key))
+        let request = self.http.request(method, url);
+        if self.uses_oauth(host)
+            && let Some(oauth) = &self.oauth
+        {
+            return oauth.authorize(request).await;
+        }
+        let key = self.key.as_deref().ok_or(Error::MissingKey)?;
+        Ok(request.header("X-Goog-Api-Key", key))
     }
 
     pub async fn get(
@@ -75,12 +102,14 @@ impl MapsClient {
         path: &str,
         mut query: Vec<(String, String)>,
     ) -> Result<Value> {
-        // Legacy Maps APIs and Weather use the key query parameter.
-        query.push((
-            "key".into(),
-            self.key.as_deref().ok_or(Error::MissingKey)?.into(),
-        ));
-        self.json(self.request(Method::GET, host, path)?.query(&query))
+        // Query-string keys are retained for key-authenticated GET endpoints only.
+        if !self.uses_oauth(host) {
+            query.push((
+                "key".into(),
+                self.key.as_deref().ok_or(Error::MissingKey)?.into(),
+            ));
+        }
+        self.json(self.request(Method::GET, host, path).await?.query(&query))
             .await
     }
 
@@ -91,7 +120,7 @@ impl MapsClient {
         body: &Value,
         mask: Option<&str>,
     ) -> Result<Value> {
-        let mut request = self.request(Method::POST, host, path)?.json(body);
+        let mut request = self.request(Method::POST, host, path).await?.json(body);
         if let Some(mask) = mask {
             request = request.header("X-Goog-FieldMask", mask);
         }
@@ -99,8 +128,22 @@ impl MapsClient {
     }
 
     async fn json(&self, request: RequestBuilder) -> Result<Value> {
+        let request = request.build().map_err(network_error)?;
+        let bearer = request
+            .headers()
+            .get(reqwest::header::AUTHORIZATION)
+            .and_then(|value| value.to_str().ok())
+            .and_then(|value| value.strip_prefix("Bearer "))
+            .map(str::to_owned);
+        let redact = |message: &str| {
+            let message = self.redact(message);
+            match bearer.as_deref().filter(|value| !value.is_empty()) {
+                Some(token) => message.replace(token, "[REDACTED]"),
+                None => message,
+            }
+        };
         let _permit = self.permits.acquire().await.map_err(|_| Error::Network)?;
-        let response = request.send().await.map_err(network_error)?;
+        let response = self.http.execute(request).await.map_err(network_error)?;
         let status = response.status();
         let bytes = bounded_body(response).await?;
         let data: Value = serde_json::from_slice(&bytes).map_err(|_| Error::Response)?;
@@ -109,16 +152,13 @@ impl MapsClient {
                 .pointer("/error/message")
                 .and_then(Value::as_str)
                 .unwrap_or("request rejected");
-            return Err(Error::Api(format!(
-                "HTTP {status}: {}",
-                self.redact(message)
-            )));
+            return Err(Error::Api(format!("HTTP {status}: {}", redact(message))));
         }
         if let Some(status) = data.get("status").and_then(Value::as_str)
             && status != "OK"
             && status != "ZERO_RESULTS"
         {
-            return Err(Error::Api(self.redact(&format!(
+            return Err(Error::Api(redact(&format!(
                 "{status}: {}",
                 data["error_message"].as_str().unwrap_or("request rejected")
             ))));
@@ -132,7 +172,8 @@ impl MapsClient {
             self.key.as_deref().ok_or(Error::MissingKey)?.into(),
         ));
         let request = self
-            .request(Method::GET, "maps.googleapis.com", "/maps/api/staticmap")?
+            .request(Method::GET, "maps.googleapis.com", "/maps/api/staticmap")
+            .await?
             .query(&query)
             .build()
             .map_err(|_| Error::Input("invalid static map request".into()))?;
@@ -201,7 +242,8 @@ impl MapsClient {
                     Method::GET,
                     "places.googleapis.com",
                     &format!("/v1/places/{id}"),
-                )?
+                )
+                .await?
                 .query(&[("languageCode", self.language.as_ref())])
                 .header("X-Goog-FieldMask", DETAIL_MASK),
             )
@@ -224,7 +266,8 @@ impl MapsClient {
                                     Method::GET,
                                     "places.googleapis.com",
                                     &format!("/v1/{name}/media"),
-                                )?
+                                )
+                                .await?
                                 .query(&[("maxWidthPx", "800"), ("skipHttpRedirect", "true")]),
                             )
                             .await?;

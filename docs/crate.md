@@ -22,19 +22,55 @@ executables are available from the repository's GitHub Releases page.
 
 ## Configuration
 
-Export `GOOGLE_MAPS_API_KEY` in the environment before making Google requests.
-The executable does not automatically load `.env` files. Discovery and schema
+Configure Google API credentials in the environment or an optional `.env` in the
+working directory before making Google requests. API-key mode is the default;
+OAuth is opt-in. Configuration precedence is defaults →
+`.env` → environment variables → CLI flags. Discovery and schema
 inspection work without a key. API keys are process configuration and are not
 accepted as tool arguments.
+
+Use `--env-file /etc/mcp-gmap/runtime.env` or `MCP_ENV_FILE` for another path;
+the flag wins. `--no-env-file` disables file loading. Only the working directory's
+default `.env` may be absent; explicit paths must exist, and malformed/unreadable
+files fail startup without printing their contents. Parent directories are not
+searched. Files are parsed without changing the process environment.
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
 | `GOOGLE_MAPS_API_KEY` | unset | Credential for Google API requests |
+| `GOOGLE_MAPS_AUTH_MODE` | `api-key` | `api-key` or `oauth`; `--auth-mode` overrides it |
+| `GOOGLE_APPLICATION_CREDENTIALS` | ADC discovery | Path to a service-account or supported ADC JSON credential file |
+| `GOOGLE_CLOUD_QUOTA_PROJECT` | unset | Required consumer project for OAuth Google API calls |
 | `GOOGLE_MAPS_LANGUAGE` | `en` | Google response language |
 | `GOOGLE_MAPS_TIMEOUT` | `30` | Timeout per Google request, in seconds |
 | `GOOGLE_MAPS_ENABLED_TOOLS` | all | Comma-separated `maps_*` names, or `*` |
 | `MCP_HTTP_TOKEN` | unset | HTTP bearer token; required outside loopback |
+| `MCP_HTTP_LISTEN` | `127.0.0.1:3000` | HTTP bind IP:port |
+| `MCP_HTTP_ALLOWED_HOSTS` | loopback hosts | Comma-separated HTTP Host allowlist |
+| `MCP_HTTP_ALLOWED_ORIGINS` | none | Comma-separated browser origins with explicit ports |
 | `RUST_LOG` | `warn` | Diagnostic logging to stderr |
+
+`--language`, `--timeout`, `--enabled-tools`, and HTTP `--listen` override the
+corresponding values. Repeated `--allowed-host` / `--allowed-origin` flags replace
+the entire corresponding list. Empty environment values override file values;
+empty optional credentials/lists clear them, while an empty timeout is invalid.
+Settings are read once at startup, including mounted Secret files.
+
+For project billing, API enablement, key creation and service-account setup, see
+the bundled `docs/google-cloud-setup.md` or the
+[repository setup guide](https://github.com/fcenedes/mcp-gmap-rs/blob/main/docs/google-cloud-setup.md).
+OAuth mode uses Google's official Rust auth library, the `cloud-platform` scope,
+cached/refreshed access tokens and a quota-project header for Places (New), Routes,
+Weather and Air Quality. Other current endpoints (Geocoding v3, Elevation, Time
+Zone and Static Maps) still use `GOOGLE_MAPS_API_KEY`; composite flows may need it.
+With no credential file selected, ADC can discover local credentials or use the
+attached service/workload account. Credential loading is lazy for discovery.
+Tokens are not MCP client credentials: the HTTP server still uses `MCP_HTTP_TOKEN`.
+
+The repository includes a multi-stage Dockerfile and Kubernetes example. The
+container runs as UID/GID 10001 and defaults to `serve http` on `0.0.0.0:3000`,
+requiring `MCP_HTTP_TOKEN`. CLI commands and `serve stdio` are also available by
+overriding its command. See the bundled `docs/containers.md` guide.
 
 Enable the Google APIs used by your commands: Places API (New), Geocoding API,
 Routes API, Elevation API, Time Zone API, Maps Static API, Weather API, and Air

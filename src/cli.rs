@@ -11,67 +11,35 @@ use tracing_subscriber::EnvFilter;
 use crate::{
     catalog::Catalog,
     client::MapsClient,
-    server::{self, HttpOptions},
+    server,
+    settings::Settings,
     tools::{EngineState, Output},
 };
 
 pub(crate) async fn run() -> anyhow::Result<()> {
     let catalog = Catalog::new(None)?;
     let matches = command(&catalog).get_matches();
+    let settings = Settings::load(&matches)?;
     tracing_subscriber::fmt()
         .with_writer(io::stderr)
         .with_env_filter(
-            EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("warn")),
+            EnvFilter::try_new(&settings.log_filter).unwrap_or_else(|_| EnvFilter::new("warn")),
         )
         .try_init()
         .ok();
-    let filter = matches.get_one::<String>("enabled-tools");
-    let catalog = Catalog::new(filter.map(String::as_str))?;
-    let client = MapsClient::new(
-        std::env::var("GOOGLE_MAPS_API_KEY").ok(),
-        Duration::from_secs(
-            *matches
-                .get_one::<u64>("timeout")
-                .context("missing timeout")?,
-        ),
-        matches
-            .get_one::<String>("language")
-            .context("missing language")?
-            .clone(),
+    let catalog = Catalog::new(Some(&settings.enabled_tools))?;
+    let mut client = MapsClient::new(
+        settings.api_key.clone(),
+        Duration::from_secs(settings.timeout),
+        settings.language.clone(),
     )?;
+    client.oauth = settings.oauth.clone();
     let engine = EngineState { client, catalog };
     match matches.subcommand() {
         None => server::serve_stdio(engine).await,
         Some(("serve", args)) => match args.subcommand() {
             Some(("stdio", _)) | None => server::serve_stdio(engine).await,
-            Some(("http", http)) => {
-                let token = std::env::var("MCP_HTTP_TOKEN")
-                    .ok()
-                    .filter(|s| !s.is_empty());
-                if token.as_ref().is_some_and(|s| s.trim().is_empty()) {
-                    anyhow::bail!("MCP_HTTP_TOKEN cannot be whitespace");
-                }
-                server::serve_http(
-                    engine,
-                    HttpOptions {
-                        listen: http
-                            .get_one::<String>("listen")
-                            .context("missing listen address")?
-                            .parse()
-                            .context("listen must be an IP:port socket address")?,
-                        token,
-                        allowed_hosts: http
-                            .get_many::<String>("allowed-host")
-                            .map(|s| s.cloned().collect())
-                            .unwrap_or_default(),
-                        allowed_origins: http
-                            .get_many::<String>("allowed-origin")
-                            .map(|s| s.cloned().collect())
-                            .unwrap_or_default(),
-                    },
-                )
-                .await
-            }
+            Some(("http", _)) => server::serve_http(engine, settings.http_options()?).await,
             _ => anyhow::bail!("unknown transport"),
         },
         Some(("tools", _)) => print_json(&json!(
@@ -122,16 +90,19 @@ pub(crate) async fn run() -> anyhow::Result<()> {
 fn command(catalog: &Catalog) -> Command {
     let mut command=Command::new("mcp-gmap-rs").version(env!("CARGO_PKG_VERSION"))
         .about("Google Maps CLI and MCP server (stdio or Streamable HTTP)")
-        .after_help("No command starts MCP stdio. Set GOOGLE_MAPS_API_KEY for API calls. Objects and arrays use JSON. Example: mcp-gmap-rs geocode --address 'Paris, France'")
-        .arg(Arg::new("enabled-tools").long("enabled-tools").env("GOOGLE_MAPS_ENABLED_TOOLS").global(true).help("Comma-separated MCP tool names (default: all)"))
-        .arg(Arg::new("timeout").long("timeout").env("GOOGLE_MAPS_TIMEOUT").global(true).default_value("30").value_parser(clap::value_parser!(u64).range(1..=600)).help("Timeout per Google HTTP request in seconds"))
-        .arg(Arg::new("language").long("language").env("GOOGLE_MAPS_LANGUAGE").global(true).default_value("en").help("Google response language code"))
+        .after_help("No command starts MCP stdio. Set GOOGLE_MAPS_API_KEY, or select --auth-mode oauth for supported APIs with service accounts/ADC. Objects and arrays use JSON. Example: mcp-gmap-rs geocode --address 'Paris, France'")
+        .arg(Arg::new("env-file").long("env-file").global(true).conflicts_with("no-env-file").help("Load this dotenv file (or MCP_ENV_FILE); default: optional .env in the working directory"))
+        .arg(Arg::new("no-env-file").long("no-env-file").global(true).action(ArgAction::SetTrue).help("Disable dotenv file loading, including MCP_ENV_FILE"))
+        .arg(Arg::new("auth-mode").long("auth-mode").global(true).value_parser(["api-key", "oauth"]).help("Override GOOGLE_MAPS_AUTH_MODE (default: api-key); OAuth uses ADC/service accounts for supported APIs"))
+        .arg(Arg::new("enabled-tools").long("enabled-tools").global(true).help("Override GOOGLE_MAPS_ENABLED_TOOLS; comma-separated MCP names (default: all)"))
+        .arg(Arg::new("timeout").long("timeout").global(true).value_parser(clap::value_parser!(u64).range(1..=600)).help("Override GOOGLE_MAPS_TIMEOUT; seconds per request (default: 30)"))
+        .arg(Arg::new("language").long("language").global(true).help("Override GOOGLE_MAPS_LANGUAGE (default: en)"))
         .subcommand(Command::new("serve").about("Launch an MCP server (defaults to stdio)")
             .subcommand(Command::new("stdio").about("MCP over standard input/output"))
             .subcommand(Command::new("http").about("MCP Streamable HTTP at /mcp")
-                .arg(Arg::new("listen").long("listen").default_value("127.0.0.1:3000").help("Bind IP:port (use [::1]:3000 for IPv6)"))
-                .arg(Arg::new("allowed-host").long("allowed-host").action(ArgAction::Append).help("Allowed HTTP Host; repeat for remote deployment. Defaults to loopback hosts"))
-                .arg(Arg::new("allowed-origin").long("allowed-origin").action(ArgAction::Append).help("Allowed browser origin; repeat. Present Origin headers are rejected by default"))))
+                .arg(Arg::new("listen").long("listen").help("Override MCP_HTTP_LISTEN; IP:port (default: 127.0.0.1:3000)"))
+                .arg(Arg::new("allowed-host").long("allowed-host").action(ArgAction::Append).help("Replace MCP_HTTP_ALLOWED_HOSTS; repeat for multiple hosts. Defaults to loopback hosts"))
+                .arg(Arg::new("allowed-origin").long("allowed-origin").action(ArgAction::Append).help("Replace MCP_HTTP_ALLOWED_ORIGINS; repeat. Present Origin headers are rejected by default"))))
         .subcommand(Command::new("tools").about("List enabled tools and JSON schemas; no API key needed"))
         .subcommand(Command::new("schema").about("Print a tool's input JSON schema").arg(Arg::new("tool").required(true)))
         .subcommand(Command::new("call").about("Call a tool with JSON arguments; --args - reads stdin")

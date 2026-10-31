@@ -4,7 +4,11 @@ CI runs on pushes to `main`, pull requests, manual dispatch, and as a reusable
 release check. It checks formatting, strict Clippy, offline tests on Linux/macOS,
 the declared Rust 1.88 minimum, and compilation of the actual Cargo
 package. Package auditing checks the file allowlist, original license and example
-configuration; Google credentials are never needed in CI.
+configuration; Google credentials are never needed in CI. A Linux container job
+builds the Dockerfile, exercises CLI discovery and both MCP transports as a
+non-root user with a read-only filesystem, verifies mounted dotenv/environment
+overrides, authentication and SIGTERM shutdown, and validates the Kubernetes
+example against its schemas.
 
 Action dependencies are pinned to commit SHAs. Dependabot checks Cargo and Actions
 dependencies weekly. Live Google tests remain opt-in because they are billable

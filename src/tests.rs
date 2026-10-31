@@ -17,6 +17,7 @@ use tokio::{net::TcpListener, task::JoinHandle};
 use tokio_util::sync::CancellationToken;
 
 use crate::{
+    auth::OAuth,
     catalog::Catalog,
     client::{Error, MapsClient},
     server::{HttpOptions, http_router},
@@ -82,6 +83,21 @@ impl Fixture {
     fn records(&self) -> Vec<Record> {
         self.state.records.lock().unwrap().clone()
     }
+    fn enable_oauth(&mut self) -> tempfile::TempDir {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("credentials.json");
+        std::fs::write(&path, serde_json::to_vec(&json!({
+            "type":"authorized_user", "client_id":"fixture-client",
+            "client_secret":"fixture-client-secret", "refresh_token":"fixture-refresh-token",
+            "token_uri":format!("{}/oauth/token", self.engine.client.test_base.as_deref().unwrap())
+        })).unwrap()).unwrap();
+        self.engine.client.oauth = Some(OAuth::new(
+            Some(path),
+            Some("fixture-project".into()),
+            Duration::from_secs(2),
+        ));
+        directory
+    }
     fn override_response(&self, path: &str, status: StatusCode, value: Value) {
         self.state
             .overrides
@@ -104,6 +120,13 @@ async fn google(
     headers: HeaderMap,
     body: Bytes,
 ) -> Response {
+    if uri.path() == "/oauth/slow-token" {
+        tokio::time::sleep(Duration::from_millis(200)).await;
+        return axum::Json(
+            json!({"access_token":"fixture-oauth-token","expires_in":3600,"token_type":"Bearer"}),
+        )
+        .into_response();
+    }
     let body: Value = serde_json::from_slice(&body).unwrap_or(Value::Null);
     let path = uri.path();
     state.records.lock().unwrap().push(Record {
@@ -117,6 +140,7 @@ async fn google(
         return (status, axum::Json(value)).into_response();
     }
     let value=match path {
+        "/oauth/token"=>json!({"access_token":"fixture-oauth-token","expires_in":3600,"token_type":"Bearer"}),
         "/maps.googleapis.com/maps/api/geocode/json"=>{
             let query=uri.query().unwrap_or_default();
             if query.contains("fallback") || query.contains("missing") {json!({"status":"ZERO_RESULTS","results":[]})}
@@ -207,6 +231,162 @@ async fn invalid_inputs_never_reach_google() {
         );
     }
     assert!(fixture.records().is_empty());
+}
+
+#[tokio::test]
+async fn oauth_authenticates_supported_endpoints_and_caches_refreshed_tokens() {
+    let mut f = Fixture::new().await;
+    let _credentials = f.enable_oauth();
+    for (name, args) in [
+        ("maps_search_places", json!({"query":"cafe"})),
+        ("maps_place_details", json!({"placeId":"p1","maxPhotos":1})),
+        (
+            "maps_directions",
+            json!({"origin":"48.1,2.1","destination":"48.2,2.2"}),
+        ),
+        ("maps_weather", json!({"latitude":48.85,"longitude":2.35})),
+        (
+            "maps_air_quality",
+            json!({"latitude":48.85,"longitude":2.35}),
+        ),
+    ] {
+        f.call(name, args).await;
+    }
+    let records = f.records();
+    let refreshes: Vec<_> = records
+        .iter()
+        .filter(|r| r.path == "/oauth/token")
+        .collect();
+    assert_eq!(refreshes.len(), 1);
+    assert_eq!(refreshes[0].body["grant_type"], "refresh_token");
+    let api_calls: Vec<_> = records
+        .iter()
+        .filter(|r| r.path != "/oauth/token")
+        .collect();
+    assert_eq!(api_calls.len(), 6);
+    for request in api_calls {
+        assert_eq!(
+            request.headers["authorization"],
+            "Bearer fixture-oauth-token"
+        );
+        assert_eq!(request.headers["x-goog-user-project"], "fixture-project");
+        assert!(!request.headers.contains_key("x-goog-api-key"));
+        assert!(!request.query.contains("key="));
+        assert!(!request.query.contains("fixture-oauth-token"));
+    }
+}
+
+#[tokio::test]
+async fn oauth_uses_api_keys_only_for_legacy_endpoints() {
+    let mut f = Fixture::new().await;
+    let _credentials = f.enable_oauth();
+    for (name, args) in [
+        ("maps_geocode", json!({"address":"Paris"})),
+        (
+            "maps_elevation",
+            json!({"locations":[{"latitude":48.85,"longitude":2.35}]}),
+        ),
+        ("maps_timezone", json!({"latitude":48.85,"longitude":2.35})),
+        ("maps_static_map", json!({"center":"Paris"})),
+    ] {
+        f.call(name, args).await;
+    }
+    let records = f.records();
+    assert_eq!(records.len(), 4);
+    for request in records {
+        assert_eq!(request.headers["x-goog-api-key"], "fixture-secret-key");
+        assert!(request.query.contains("key=fixture-secret-key"));
+        assert!(!request.headers.contains_key("authorization"));
+        assert!(!request.headers.contains_key("x-goog-user-project"));
+    }
+}
+
+#[tokio::test]
+async fn oauth_can_run_without_a_key_and_rejects_key_only_operations() {
+    let mut f = Fixture::new().await;
+    let mut client = MapsClient::new(None, Duration::from_secs(2), "en".into()).unwrap();
+    client.test_base = f.engine.client.test_base.clone();
+    f.engine.client = client;
+    let _credentials = f.enable_oauth();
+    f.call("maps_search_places", json!({"query":"cafe"})).await;
+    assert!(matches!(
+        f.engine
+            .call("maps_geocode", json!({"address":"Paris"}))
+            .await,
+        Err(Error::MissingKey)
+    ));
+    assert_eq!(f.records().len(), 2);
+}
+
+#[tokio::test]
+async fn oauth_failures_never_downgrade_to_keys_or_expose_tokens() {
+    let mut f = Fixture::new().await;
+    let _credentials = f.enable_oauth();
+    f.override_response("/oauth/token",StatusCode::UNAUTHORIZED,json!({"error":"invalid_grant","error_description":"fixture-refresh-token fixture-client-secret"}));
+    let error = f
+        .engine
+        .call("maps_search_places", json!({"query":"cafe"}))
+        .await
+        .err()
+        .unwrap()
+        .to_string();
+    assert!(error.contains("Google OAuth authentication failed"));
+    assert!(!error.contains("fixture-refresh-token"));
+    assert!(!error.contains("fixture-client-secret"));
+    assert_eq!(f.records().len(), 1);
+
+    f.state.overrides.lock().unwrap().clear();
+    let _replacement_credentials = f.enable_oauth();
+    f.override_response(
+        "/places.googleapis.com/v1/places:searchText",
+        StatusCode::FORBIDDEN,
+        json!({"error":{"message":"fixture-oauth-token fixture-secret-key"}}),
+    );
+    let error = f
+        .engine
+        .call("maps_search_places", json!({"query":"cafe"}))
+        .await
+        .err()
+        .unwrap()
+        .to_string();
+    assert!(!error.contains("fixture-oauth-token"));
+    assert!(!error.contains("fixture-secret-key"));
+    assert!(error.contains("[REDACTED]"));
+    assert_eq!(f.records().len(), 3);
+}
+
+#[tokio::test]
+async fn oauth_token_waits_are_bounded_and_missing_billing_projects_fail_locally() {
+    let mut f = Fixture::new().await;
+    let directory = f.enable_oauth();
+    let path = directory.path().join("credentials.json");
+    let mut json: Value = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+    json["token_uri"] = json!(format!(
+        "{}/oauth/slow-token",
+        f.engine.client.test_base.as_deref().unwrap()
+    ));
+    std::fs::write(&path, serde_json::to_vec(&json).unwrap()).unwrap();
+    f.engine.client.oauth = Some(OAuth::new(
+        Some(path.clone()),
+        Some("fixture-project".into()),
+        Duration::from_millis(50),
+    ));
+    assert!(matches!(
+        f.engine
+            .call("maps_search_places", json!({"query":"cafe"}))
+            .await,
+        Err(Error::OAuthTimeout)
+    ));
+    f.engine.client.oauth = Some(OAuth::new(Some(path), None, Duration::from_secs(1)));
+    let error = f
+        .engine
+        .call("maps_search_places", json!({"query":"cafe"}))
+        .await
+        .err()
+        .unwrap()
+        .to_string();
+    assert!(error.contains("GOOGLE_CLOUD_QUOTA_PROJECT"));
+    assert!(f.records().is_empty());
 }
 
 #[tokio::test]

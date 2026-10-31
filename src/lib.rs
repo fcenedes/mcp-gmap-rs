@@ -1,12 +1,14 @@
 #![doc = include_str!("../docs/crate.md")]
 #![deny(missing_docs, rustdoc::broken_intra_doc_links)]
 
+mod auth;
 mod catalog;
 mod cli;
 mod client;
 mod composite;
 mod routes;
 mod server;
+mod settings;
 mod tools;
 
 #[cfg(test)]
@@ -15,8 +17,9 @@ mod tests;
 /// Parse command-line arguments and run a tool or MCP server.
 ///
 /// This is the executable's entry point. It reads the process's arguments and
-/// environment; with no arguments, it starts the MCP stdio server. Run it inside
-/// a Tokio runtime. See the [crate guide](crate) for commands and configuration.
+/// environment and optional dotenv file; with no arguments, it starts the MCP
+/// stdio server. Run it inside a Tokio runtime. See the [crate guide](crate) for
+/// commands and configuration.
 ///
 /// Diagnostics go to stderr. Stdout carries CLI JSON or MCP messages, depending
 /// on the selected command. Argument parsing can exit the process for help,

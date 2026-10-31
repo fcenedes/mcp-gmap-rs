@@ -98,3 +98,87 @@ hosted docs were not yet available. docs.rs builds published crates, not GitHub
 tags or unreleased `main` changes. Version v0.1.1 includes these
 changes; the existing v0.1.0 tag and archives have not been modified. CI now builds
 docs on Linux with stable and nightly, reports coverage, and checks examples.
+
+## Layered configuration and container preparation
+
+Validated locally on 2026-10-31 on macOS arm64 with Docker Desktop Linux arm64.
+The eight configuration subprocess tests cover default-file discovery, explicit
+file selection/opt-out, dotenv/environment/CLI precedence, timeout validation,
+credential-safe parse errors, empty/whitespace tokens, and effective HTTP
+bind/auth/host/origin settings. The existing 21 offline tests and the Rust
+example also pass; live Google tests remain opt-in and were not rerun for this
+change. Rust 1.88 checks all targets and features successfully.
+
+The Dockerfile built a Linux arm64 image. Its smoke checks passed CLI discovery,
+MCP stdio initialization/discovery, authenticated Streamable HTTP, mounted dotenv
+with environment overrides, unauthenticated health probes and graceful SIGTERM.
+These checks ran as UID/GID 10001 with a read-only root filesystem, dropped
+capabilities and privilege escalation disabled. The image contains the system CA
+bundle and no bundled `.env`. Build inputs are allowlisted by `.dockerignore`.
+
+Strict stable and nightly documentation builds passed. Cargo packaging compiled
+and the file audit included the Dockerfile, Kubernetes example, guide and
+licenses while excluding local credentials. Kubeconform v0.8.0 validated all
+three Kubernetes resources with strict schema checking. No workload was deployed
+to a Kubernetes cluster. Linux amd64 container checks are configured in CI but
+have not been run on GitHub for this change yet. No container image or new crate
+version was published as part of these local checks.
+
+## OAuth and Google Cloud setup preparation
+
+Validated locally on 2026-10-31. The default offline run passes 36 tests and
+ignores 22 live tests: the original 18 API-key scenarios plus four new OAuth
+scenarios for Places, Routes, Weather and Air Quality. At preparation time, no
+live OAuth request or service-account key creation had been performed.
+
+Local token/API fixtures verify OAuth Authorization and quota-project headers
+on all four supported API families, including Places details/photos; absence of
+API keys from OAuth requests; cached token reuse; explicit key use on the current
+Geocoding v3, Elevation, Time Zone and Static Maps endpoints; operation without a
+key on supported endpoints; bounded token waits; billing-project errors; and
+credential/token redaction. The refresh fixture uses an authorized-user ADC file
+with synthetic credentials, while a malformed service-account file checks safe
+failure and lazy loading. At preparation time, Google service-account JWT
+exchange, real GKE metadata and external federation had not been accepted against
+live infrastructure; the service-account results below supersede that boundary.
+
+The official Google auth SDK is pinned to 1.15.0 to preserve Rust 1.88 support;
+the selected dependency graph passes the minimum-version check. Stable/nightly
+strict docs builds, the Rust example, Clippy, package compilation/auditing and
+Linux arm64 Docker build/smoke checks pass. Container discovery also succeeds in
+OAuth mode with an unavailable credential file, confirming no token is fetched
+for discovery. The Cloud setup guide covers billing, all eight API service IDs,
+restricted keys, service-account creation, consumer IAM permission, mounted JSON
+keys, local ADC impersonation and GKE workload identity. These remain local,
+changes prepared for v0.2.0.
+
+## Live service-account OAuth acceptance
+
+On 2026-10-31 a user-provided service-account JSON key was used with its project
+as the explicit OAuth quota project. `sa_key.json` is untracked and explicitly
+ignored by Git and Docker; local permissions are 0600. Cargo's package file list
+excludes it. Credential contents were not printed or committed.
+
+All four opt-in live OAuth tests passed with the API key removed from each
+process:
+
+| API | Live check | Result |
+| --- | --- | --- |
+| Places (New) | Text search returned a nonempty place ID | Passed |
+| Routes | Walking route returned a positive distance | Passed |
+| Weather | Current conditions returned a numeric temperature | Passed |
+| Air Quality | Current conditions returned air quality indices | Passed |
+
+The first run passed Air Quality; Places, Routes and Weather returned HTTP 403
+identifying the missing `serviceusage.services.use` permission. After the user
+granted Service Usage Consumer on the quota project, the next four-test run
+passed Air Quality and Routes. Places and Weather still returned the permission
+error, then passed individual retries after a 45-second wait, consistent with
+IAM propagation. These results confirm real service-account OAuth token exchange
+and access to all four API families in the tested project; no runtime code fix
+was needed.
+
+The checks cover small Paris-based scenarios. Live service-account token expiry
+and refresh over an hour, GKE metadata authentication and external federation
+remain untested against live infrastructure. Cached token reuse and refresh
+request handling remain covered by the local token/API fixtures.
