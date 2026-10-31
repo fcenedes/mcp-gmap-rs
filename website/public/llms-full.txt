@@ -1,0 +1,2267 @@
+# mcp-gmap-rs / en
+
+https://fcenedes.github.io/mcp-gmap-rs/
+
+
+<!-- https://fcenedes.github.io/mcp-gmap-rs/guide/agent-skill -->
+
+# Agent skill
+
+The portable `mcp-gmap` skill teaches an agent how to choose tools, call MCP or CLI safely, inspect partial failures and retain Google attribution. It supplements the executable or MCP connection you configure separately.
+
+## Install from source or a release
+
+The source package and every release archive include [the skill folder](https://github.com/fcenedes/mcp-gmap-rs/tree/main/skills/mcp-gmap). From a checkout or extracted archive, install it for Codex:
+
+```sh
+mkdir -p "${CODEX_HOME:-$HOME/.codex}/skills"
+cp -R skills/mcp-gmap "${CODEX_HOME:-$HOME/.codex}/skills/"
+```
+
+Invoke it as `$mcp-gmap`, for example:
+
+> Use $mcp-gmap to find cafes near Gare de Lyon, compare walking routes and preserve source links.
+
+For other agents, place the same folder in their supported skill directory, or load `SKILL.md` and its linked references. The instruction body is agent-independent; `agents/openai.yaml` provides optional Codex UI metadata. Install a working executable on the agent’s PATH or configure its [MCP connection](./mcp).
+
+## What the skill adds
+
+The skill starts with tool discovery, so it does not assume that an older installed release exposes the newest catalog. It prefers exact coordinates and returned place IDs, keeps search scopes small, and chooses dedicated tools for address validation, aggregate counts or along-route search instead of approximating those operations from unrelated results.
+
+It treats credentials as process/deployment configuration, never tool arguments. It distinguishes inbound MCP authorization from outbound Google access and uses offline diagnostics first. Live diagnostic probes are potentially billable. Composite output must be checked for nested errors, even when the top-level call succeeds.
+
+The [tool-selection reference](https://github.com/fcenedes/mcp-gmap-rs/blob/main/skills/mcp-gmap/references/tool-selection.md) explains the decision rules. The [CLI reference](https://github.com/fcenedes/mcp-gmap-rs/blob/main/skills/mcp-gmap/references/cli.md) covers structured invocation and access diagnostics. See this manual’s [recipes](./recipes) for complete workflows and [tool reference](../reference/tools) for every argument.
+
+
+<!-- https://fcenedes.github.io/mcp-gmap-rs/guide/authentication -->
+
+# Authentication
+
+Configure outbound Google credentials separately from the credentials used by MCP HTTP clients. API-key mode is the default; setting a service-account path alone does not enable OAuth.
+
+## API-key and OAuth coverage
+
+| Endpoint family | API key | OAuth in this executable |
+| --- | --- | --- |
+| Places (New), Routes, Weather, Air Quality, Address Validation, Places Aggregate | Yes | Yes |
+| Geocoding v3, Elevation, Time Zone, Maps Static, Pollen, Roads | Yes | No |
+
+Named-location resolution and composite calls may require a key even when their main operation supports OAuth. Use exact coordinate inputs to avoid unnecessary geocoding. OAuth failures never silently fall back to an API key. See [Google Cloud setup](./google-cloud) to enable the exact services and restrict a key.
+
+## Service-account OAuth
+
+
+In OAuth mode, Places (New), Routes, Weather, Air Quality, Address Validation and
+Places Aggregate requests receive an
+OAuth **access token** and an `X-Goog-User-Project` header. This project requests
+the `https://www.googleapis.com/auth/cloud-platform` scope documented by those
+APIs. Google’s Rust auth library obtains, caches and refreshes the tokens.
+`GOOGLE_MAPS_TIMEOUT` also bounds credential initialization and token acquisition.
+No manually pasted access token or application OAuth consent screen is needed
+for the service-account flow. See [Maps server-side OAuth guidance](https://developers.google.com/maps/api-security-best-practices#use-oauth-for-server-side-apps).
+
+Create a dedicated service account and grant it permission to consume services
+on the project used for Maps billing/quota:
+
+```sh
+export PROJECT_ID='your-project-id'
+export SA_EMAIL="mcp-gmap@${PROJECT_ID}.iam.gserviceaccount.com"
+gcloud iam service-accounts create mcp-gmap --project="$PROJECT_ID" \
+  --display-name='MCP Google Maps'
+gcloud projects add-iam-policy-binding "$PROJECT_ID" \
+  --member="serviceAccount:${SA_EMAIL}" \
+  --role='roles/serviceusage.serviceUsageConsumer'
+```
+
+The Service Usage Consumer role includes `serviceusage.services.use` for quota
+and billing. It does not grant the ability to enable services or create keys;
+those setup steps need a separately authorized administrator. Enable the Maps
+APIs in the quota project using the [Google Cloud setup guide](./google-cloud). See [Service Usage permissions](https://docs.cloud.google.com/service-usage/docs/access-control).
+
+Choose one credential source below. The same settings work with CLI, stdio and
+HTTP. Configuration follows the usual file → environment → flag precedence.
+
+### A. Mounted service-account JSON key
+
+If your organization permits JSON keys, open **IAM & Admin → Service Accounts**,
+select the account, then **Keys → Add key → Create new key → JSON**. Save it
+outside the source checkout. Alternatively:
+
+```sh
+mkdir -p "$HOME/.config/mcp-gmap-rs"
+gcloud iam service-accounts keys create \
+  "$HOME/.config/mcp-gmap-rs/service-account.json" \
+  --iam-account="$SA_EMAIL" --project="$PROJECT_ID"
+chmod 600 "$HOME/.config/mcp-gmap-rs/service-account.json"
+export GOOGLE_APPLICATION_CREDENTIALS="$HOME/.config/mcp-gmap-rs/service-account.json"
+export GOOGLE_CLOUD_QUOTA_PROJECT="$PROJECT_ID"
+export GOOGLE_MAPS_AUTH_MODE=oauth
+```
+
+For a mounted file, the equivalent `.env` is:
+
+```dotenv
+GOOGLE_MAPS_AUTH_MODE=oauth
+GOOGLE_APPLICATION_CREDENTIALS=/credentials/service-account.json
+GOOGLE_CLOUD_QUOTA_PROJECT=your-project-id
+# Optional, for Geocoding v3 / Elevation / Time Zone / Static Maps / Pollen / Roads:
+# GOOGLE_MAPS_API_KEY=your-restricted-api-key
+```
+
+Set the credential path only when using a readable JSON file; do not set it to
+an empty string or to the JSON contents.
+Relative paths are resolved from the working directory. File values are used
+directly, without mutating the process environment. The loader also accepts ADC
+`external_account`, `impersonated_service_account` and `authorized_user` JSON
+configurations. Restart the process after changing a credential file.
+
+Service-account keys are long-lived credentials. Prefer the keyless options
+below when available; keep JSON keys out of Git and image layers, and rotate or
+delete unused keys. Google documents [key creation and organization policies](https://docs.cloud.google.com/iam/docs/keys-create-delete).
+
+### B. Application Default Credentials without a JSON key
+
+Leave `GOOGLE_APPLICATION_CREDENTIALS` unset in both the process environment and
+the selected dotenv file or Kubernetes Secret/ConfigMap. Shell `unset` alone does
+not remove a file-layer value; remove the entry rather than setting an empty path.
+Then set:
+
+```dotenv
+GOOGLE_MAPS_AUTH_MODE=oauth
+GOOGLE_CLOUD_QUOTA_PROJECT=your-project-id
+```
+
+The official auth library uses [Application Default Credentials (ADC)](https://docs.cloud.google.com/docs/authentication/application-default-credentials):
+local ADC credentials when present, otherwise the attached workload/service
+account through the metadata server. Credential discovery is lazy: `tools`,
+`schema` and help work without fetching a token. An OAuth API call needs a quota
+project and valid credentials.
+
+For local development with service-account impersonation, enable the IAM
+Credentials API and grant your developer account Token Creator on the service
+account, then create local ADC credentials:
+
+```sh
+gcloud services enable iamcredentials.googleapis.com --project="$PROJECT_ID"
+gcloud iam service-accounts add-iam-policy-binding "$SA_EMAIL" \
+  --project="$PROJECT_ID" --member='user:you@example.com' \
+  --role='roles/iam.serviceAccountTokenCreator'
+unset GOOGLE_APPLICATION_CREDENTIALS
+gcloud auth application-default login --impersonate-service-account="$SA_EMAIL"
+export GOOGLE_MAPS_AUTH_MODE=oauth
+export GOOGLE_CLOUD_QUOTA_PROJECT="$PROJECT_ID"
+```
+
+This uses a short-lived service-account token for Maps calls without downloading
+its private key. See [service-account impersonation](https://docs.cloud.google.com/iam/docs/service-account-impersonation).
+
+### C. Kubernetes and GKE workload identity
+
+For generic Kubernetes, mount the credential JSON as a Secret file and set the
+three OAuth variables in option A. The file must be readable by UID 10001 used
+by the container. Mount it read-only and keep `MCP_HTTP_TOKEN` in its own runtime
+Secret. [The container guide](./deployment) explains the base Deployment.
+
+On GKE, prefer [Workload Identity Federation for GKE](https://docs.cloud.google.com/kubernetes-engine/docs/how-to/workload-identity)
+with a Kubernetes ServiceAccount linked to the IAM service account. Enable it
+for your cluster/node pool first (Autopilot already enables it), then:
+
+```sh
+gcloud services enable iamcredentials.googleapis.com --project="$PROJECT_ID"
+kubectl create serviceaccount mcp-gmap-rs --namespace default
+gcloud iam service-accounts add-iam-policy-binding "$SA_EMAIL" \
+  --project="$PROJECT_ID" --role='roles/iam.workloadIdentityUser' \
+  --member="serviceAccount:${PROJECT_ID}.svc.id.goog[default/mcp-gmap-rs]"
+kubectl annotate serviceaccount mcp-gmap-rs --namespace default \
+  "iam.gke.io/gcp-service-account=${SA_EMAIL}"
+kubectl patch deployment mcp-gmap-rs --namespace default --type=merge \
+  -p '{"spec":{"template":{"spec":{"serviceAccountName":"mcp-gmap-rs"}}}}'
+kubectl set env deployment/mcp-gmap-rs --namespace default \
+  GOOGLE_MAPS_AUTH_MODE=oauth GOOGLE_CLOUD_QUOTA_PROJECT="$PROJECT_ID"
+```
+
+These commands assume the cluster and IAM service account are in `PROJECT_ID`
+and the base Deployment is in `default`. Adjust project/namespace names for
+your installation. Do not set `GOOGLE_APPLICATION_CREDENTIALS` for this metadata
+flow. The pod obtains access tokens through the GKE metadata server. Outside
+GKE, an `external_account` credential configuration plus the provider's projected
+identity token can be used with Google's Workload Identity Federation setup.
+
+For OAuth-only operation, remove the Google API key from the runtime Secret and
+enable only tools/inputs whose calls stay on OAuth-supported APIs. Keep the key
+when using the key-only endpoints from the table or composite flows that need
+them. OAuth failures on supported APIs fail explicitly; they never silently
+downgrade to the key.
+
+## Verify and troubleshoot
+
+```sh
+mcp-gmap-rs --auth-mode oauth search-places --query 'coffee in Paris'
+mcp-gmap-rs --auth-mode oauth weather --latitude 48.8584 --longitude 2.2945
+```
+
+These are real, potentially billable calls. Check the effective mode and quota
+project when testing; OAuth billing uses `GOOGLE_CLOUD_QUOTA_PROJECT`, while
+key-authenticated calls use the key's project. The projects may differ.
+
+Use `mcp-gmap-rs doctor` for offline configuration checks, or `doctor --live` for
+explicitly billable API probes. The [production guide](./production) describes
+the report and tool filtering.
+
+With OAuth variables exported, run the six opt-in live acceptance tests with:
+
+```sh
+cargo test --locked --test live live_oauth_ -- --ignored --test-threads=1
+```
+
+These tests explicitly remove the API key from each child process, so a passing
+test exercises OAuth. They cover Places, Routes, Weather, Air Quality, Address
+Validation and Places Aggregate and
+require their APIs enabled. They do not load `.env`; export the OAuth settings
+or run in a configured workload. Ordinary tests/CI use local token/API fixtures
+and do not require a service account or contact Google.
+
+| Symptom | Check |
+| --- | --- |
+| `GOOGLE_MAPS_API_KEY is required` | The selected operation reaches a key-only endpoint, or API-key mode is selected. |
+| OAuth authentication failed | Credential path/type, key validity, workload identity/impersonation binding, IAM Credentials API when used, token-endpoint connectivity and clock accuracy. Application errors omit credential contents and tokens. |
+| `GOOGLE_CLOUD_QUOTA_PROJECT is required` | Set the Maps consumer project ID/number for OAuth calls. |
+| Google `403` / API disabled | Enable the exact service in the consumer project; ensure billing and Service Usage permission. |
+| API-key IP denial | Match restrictions to the server or cluster's public egress IP. |
+| Token timeout | Allow access to Google token/STS/IAM endpoints or the workload metadata server; review `GOOGLE_MAPS_TIMEOUT`. |
+| HTTP `401` from this MCP server | Send its `MCP_HTTP_TOKEN`; Google service-account tokens authenticate a separate outbound connection. |
+
+
+<!-- https://fcenedes.github.io/mcp-gmap-rs/guide/cli -->
+
+# Command-line interface
+
+Use the CLI for one-shot queries, shell automation and structured subprocess calls. Every tool shares its input schema and implementation with MCP.
+
+## Discover the installed interface
+
+```sh
+mcp-gmap-rs --version
+mcp-gmap-rs --help
+mcp-gmap-rs tools
+mcp-gmap-rs schema search-nearby
+mcp-gmap-rs search-nearby --help
+```
+
+`tools` reports the enabled tools and their schemas. Check your installed version rather than assuming that every capability in the newest manual is present. Running without a subcommand starts the stdio server, so always supply a command for one-shot automation.
+
+## Flags or shared JSON
+
+Tool commands use kebab-case flags; object and array values take JSON. Boolean flags accept `true` or `false`, and a bare boolean flag means `true`.
+
+```sh
+mcp-gmap-rs search-nearby \
+  --center '{"value":"48.8584,2.2945","isCoordinates":true}' \
+  --keyword cafe --radius 500 --open-now
+```
+
+The generic `call` interface accepts either a logical MCP tool name or CLI command name and uses the exact MCP argument object:
+
+```sh
+mcp-gmap-rs call maps_geocode --args '{"address":"Paris, France"}'
+printf '%s' '{"address":"Paris, France"}' | mcp-gmap-rs call geocode --args -
+```
+
+When launching a subprocess programmatically, pass serialized JSON as a distinct argument. Avoid interpolating untrusted text into shell command strings. Top-level parameters have flags; nested fields stay inside JSON objects.
+
+## Output and failure handling
+
+Ordinary tool results are JSON on stdout. Errors go to stderr and produce a nonzero exit status. `doctor` also writes its JSON report to stdout when checks fail. Batch, matrix and composite results can contain per-item errors even when the command exits successfully: inspect those fields before treating the whole operation as complete.
+
+```sh
+mcp-gmap-rs place-details --place-id ChIJLU7jZClu5kcR4PcOOO6p3I0 --output place.json
+mcp-gmap-rs static-map --center Paris --zoom 12 --output paris.png
+```
+
+`--output` writes JSON for ordinary tools and raw PNG for a static map. Without it, CLI static-map output contains base64 data. Times generally use RFC 3339 with an explicit timezone; the Time Zone tool’s optional `timestamp` is Unix **milliseconds**. See [all tools and examples](../reference/tools).
+
+
+<!-- https://fcenedes.github.io/mcp-gmap-rs/guide/configuration -->
+
+# Configuration
+
+The CLI and both MCP transports share the same startup configuration. Choose a file for local work, environment injection for containers, and flags for explicit per-process overrides.
+
+## Precedence
+
+Values are applied in this order, with later layers taking priority:
+
+**Built-in defaults → optional dotenv file → process environment → CLI flags**
+
+The default file is `.env` in the current working directory. Parent directories are not searched. A missing default file is allowed; an unreadable or malformed file fails startup without printing its contents.
+
+```sh
+mcp-gmap-rs --env-file /etc/mcp-gmap/runtime.env serve http
+mcp-gmap-rs --no-env-file tools
+```
+
+`MCP_ENV_FILE` selects a file too, while `--env-file` takes precedence. An explicitly selected file must exist. `--no-env-file` disables file loading, including `MCP_ENV_FILE`; it conflicts with `--env-file`. Dotenv parsing does not mutate the process environment.
+
+## Override a mounted configuration
+
+```dotenv
+GOOGLE_MAPS_LANGUAGE=en
+GOOGLE_MAPS_TIMEOUT=30
+GOOGLE_MAPS_ENABLED_TOOLS=maps_search_places,maps_place_details
+```
+
+With that file mounted, an environment variable changes the language and a flag changes the timeout:
+
+```sh
+GOOGLE_MAPS_LANGUAGE=fr mcp-gmap-rs \
+  --env-file /etc/mcp-gmap/runtime.env --timeout 15 tools
+```
+
+Repeated `--allowed-host` and `--allowed-origin` flags replace their corresponding file/environment lists as a whole. An explicitly empty environment value also overrides the file: it can clear an optional token or list, while an empty timeout is invalid.
+
+## Control the tool surface
+
+`GOOGLE_MAPS_ENABLED_TOOLS` or `--enabled-tools` accepts comma-separated logical names such as `maps_weather,maps_air_quality`, or `*` for all tools. Unknown names fail startup. Disabled tools disappear from discovery and cannot be called. Discovery and schema inspection need no credentials, but a requested API operation must have the appropriate Google credential.
+
+Application settings are read at startup. Restart after changing environment values, credential JSON or Kubernetes Secret/ConfigMap configuration. Native TLS certificate, key and client-CA files are the exception: they support [SIGHUP reload](./production#native-tls-and-mutual-tls).
+
+See the [complete configuration reference](../reference/configuration) for all 21 settings, defaults, flags and ranges. Website language selection does not change `GOOGLE_MAPS_LANGUAGE`, which controls Google response text.
+
+
+<!-- https://fcenedes.github.io/mcp-gmap-rs/guide/deployment -->
+
+# Deployment
+
+For Google API-key creation, API enablement and service-account OAuth, follow the
+[Google Cloud setup guide](./google-cloud). The same layered settings work
+in containers. OAuth can use a mounted JSON credential file or the workload's ADC
+identity; credentials are supplied at runtime.
+
+Download or clone the [source repository](https://github.com/fcenedes/mcp-gmap-rs), then build from its root:
+
+```sh
+docker build -t mcp-gmap-rs:local .
+```
+
+The multi-stage Dockerfile compiles with Rust 1.94.1 and the lockfile. The runtime
+contains the executable, Debian CA certificates and licenses, runs as UID/GID
+10001, and supports a read-only root filesystem. The allowlisted build context
+excludes local `.env` files, Git data and build output. No credentials are needed
+to build. BuildKit caches Cargo downloads and build output for subsequent builds.
+
+The same Dockerfile builds natively on Linux amd64 and arm64. To build both and
+push to your registry with a configured Buildx builder:
+
+```sh
+docker buildx build --platform linux/amd64,linux/arm64 \
+  -t registry.example.com/your-team/mcp-gmap-rs:YOUR_VERSION --push .
+```
+
+No container registry publication is configured automatically. Replace image
+names and versions with the image you built or published.
+
+## Run HTTP, CLI or stdio
+
+The image defaults to `serve http` on `0.0.0.0:3000`. Supply a bearer token at
+runtime, for example through the same `.env` format shown in `.env.example`:
+
+```sh
+docker run --rm --read-only --cap-drop ALL --security-opt no-new-privileges \
+  --env-file .env -p 127.0.0.1:3000:3000 mcp-gmap-rs:local
+```
+
+Ensure `.env` contains `MCP_HTTP_TOKEN`, required because the container listens
+outside loopback. Google calls use `GOOGLE_MAPS_API_KEY` or the OAuth settings
+and credential mounts from the setup guide, depending on the enabled tools.
+Clients use `http://127.0.0.1:3000/mcp` and `Authorization: Bearer <token>`.
+`GET /health` needs no token and does not contact Google.
+
+Docker's `--env-file` injects environment variables. To exercise the application's
+file loader instead, mount a readable file and select it:
+
+```sh
+docker run --rm --read-only \
+  --mount type=bind,src="$(pwd)/.env",dst=/etc/mcp-gmap/runtime.env,readonly \
+  -e GOOGLE_MAPS_LANGUAGE=fr -p 127.0.0.1:3000:3000 \
+  mcp-gmap-rs:local --env-file /etc/mcp-gmap/runtime.env serve http
+```
+
+The environment overrides values in the mounted file, and CLI flags override
+both. The image's `MCP_HTTP_LISTEN=0.0.0.0:3000` is also an environment value;
+change it with `-e MCP_HTTP_LISTEN=...` or `--listen` if needed. To use environment
+variables exclusively, pass `--no-env-file serve http`.
+
+Override the image command for CLI or stdio use:
+
+```sh
+docker run --rm mcp-gmap-rs:local tools
+docker run --rm --env-file .env mcp-gmap-rs:local geocode --address Paris
+docker run --rm -i --env-file .env mcp-gmap-rs:local serve stdio
+```
+
+Use `-i` for stdio, without allocating a TTY. When writing CLI output files, mount
+a directory writable by UID 10001 and use `--output` within it.
+
+## Kubernetes
+
+The [base Kubernetes manifest](https://github.com/fcenedes/mcp-gmap-rs/blob/main/deploy/kubernetes.yaml) supplies non-secret settings through a
+ConfigMap and credentials through an existing Secret named `mcp-gmap-rs`.
+Create that Secret from a local file containing `GOOGLE_MAPS_API_KEY` and
+`MCP_HTTP_TOKEN` (the file is not committed):
+
+```sh
+kubectl create secret generic mcp-gmap-rs --from-env-file=/secure/credentials.env
+```
+
+Replace `mcp-gmap-rs:local` in the Deployment with your registry image, or load
+your local image into your development cluster. Then apply the example:
+
+```sh
+kubectl apply -f deploy/kubernetes.yaml
+kubectl rollout status deployment/mcp-gmap-rs
+kubectl port-forward service/mcp-gmap-rs 3000:3000
+```
+
+The example targets the `default` namespace. Adjust the configured service DNS
+hostnames when using another namespace or an ingress. The ClusterIP Service is
+private to the cluster; use a TLS ingress/proxy for remote clients, forwarding a
+Host listed in `MCP_HTTP_ALLOWED_HOSTS`, authorization, and MCP/SSE headers. Add
+explicit browser origins, including ports, when required.
+
+The deployment uses `--no-env-file` because all configuration is injected through
+`envFrom`. As an alternative, mount a Secret containing a dotenv file, remove
+that flag and set `args: ["--env-file", "/etc/mcp-gmap/runtime.env", "serve", "http"]`.
+The projected file must be readable by UID 10001; environment variables from
+Secrets or ConfigMaps still override it. See the upstream Kubernetes guidance on
+[environment injection](https://kubernetes.io/docs/tasks/inject-data-application/define-environment-variable-container/)
+and [Secret volumes](https://kubernetes.io/docs/concepts/configuration/secret/).
+
+Application configuration is read at startup. Restart pods after changing those
+Secret/ConfigMap values; native TLS files also support SIGHUP reload.
+Probes use `/health` for HTTP availability; a healthy pod does not prove that a
+Google API is enabled or its credentials are authorized. Google calls require
+outbound HTTPS and working DNS. API-key restrictions must permit the cluster's
+public egress address; OAuth requires access to its token/identity endpoints.
+
+Keep one replica for the default in-memory MCP session store. Multiple replicas
+need session affinity so each session reaches its owning pod; rolling restarts
+discard sessions and clients must reconnect. Resource requests/limits in the
+example are starting values to tune for your workload.
+
+SIGTERM triggers graceful MCP/HTTP shutdown; Kubernetes allows 30 seconds in the
+example. The image also runs with dropped capabilities and no privilege escalation.
+
+## Production HTTPS, metrics and limits
+
+The [production guide](./production) covers native TLS/mTLS, certificate reload,
+the optional `deploy/gateway.yaml` HTTPS Gateway, metrics, request budgets, HTTP
+rate limits, JSON logs and offline/live `doctor` checks. Pass the same TLS flags
+after the image name, or inject `MCP_TLS_CERT`, `MCP_TLS_KEY` and optional
+`MCP_TLS_CLIENT_CA` with read-only PEM mounts. Keep all real keys outside the image.
+The default ConfigMap sets request limits and JSON logging; metrics remain off
+until explicitly enabled. Its default plaintext Service is intended for the
+private gateway-to-pod hop.
+
+## OAuth credentials in a container
+
+For a service-account JSON file, mount it read-only and set the path inside the
+container, not the host path:
+
+```sh
+docker run --rm --read-only --env-file /secure/oauth.env \
+  --mount type=bind,src=/secure/service-account.json,dst=/credentials/service-account.json,readonly \
+  -p 127.0.0.1:3000:3000 mcp-gmap-rs:local
+```
+
+The OAuth environment file sets `GOOGLE_MAPS_AUTH_MODE=oauth`,
+`GOOGLE_APPLICATION_CREDENTIALS=/credentials/service-account.json`,
+`GOOGLE_CLOUD_QUOTA_PROJECT=your-project-id` and `MCP_HTTP_TOKEN`. UID 10001 must
+be able to read the mounted file. Retain an API key only for tools that require
+key-only endpoints. On GKE, use the [workload identity instructions](./authentication#c-kubernetes-and-gke-workload-identity)
+instead of mounting a long-lived key.
+
+
+<!-- https://fcenedes.github.io/mcp-gmap-rs/guide/development -->
+
+# Development and releases
+
+The runtime is a standalone Rust project. CLI, MCP stdio and Streamable HTTP share the same tool implementations. The documentation website is separate authoring/build tooling; end users need only the compiled executable.
+
+## Build and check
+
+Clone [the repository](https://github.com/fcenedes/mcp-gmap-rs), then use its lockfile:
+
+```sh
+cargo fmt --check
+cargo clippy --all-targets --all-features --locked -- -D warnings
+cargo test --all-targets --all-features --locked
+cargo test --doc --all-features --locked
+cargo build --release --locked
+```
+
+Rust 1.88 is the declared minimum; release binaries use Rust 1.94.1. Default tests use local Google/token fixtures and require no credentials or network access to Google. CI also checks Linux/macOS, minimum Rust, stable/nightly rustdoc, source packaging, Docker/MCP/TLS smoke scenarios and Kubernetes manifests.
+
+After local verification, `cargo clean` reclaims generated build output; subsequent builds recompile it.
+
+## Keep the reference complete
+
+The canonical tool guide combines actual executable schemas with reviewed defaults, results and behavioral notes:
+
+```sh
+python3 .github/scripts/tool-reference.py --binary /path/to/mcp-gmap-rs
+python3 .github/scripts/tool-reference.py --binary /path/to/mcp-gmap-rs --check --verify-examples
+```
+
+The checker strips credentials, disables dotenv loading and validates all examples at the missing-key boundary without contacting Google. Update the reviewed JSON notes when parameters or behavior change.
+
+Live tests are opt-in and potentially billable. With an explicitly configured test key, run `cargo test --locked --test live live_maps_ -- --ignored --test-threads=1`. The six OAuth tests use the `live_oauth_` filter and remove the key from child processes. Never commit credentials or enable live tests in ordinary CI.
+
+## Publish a version
+
+Update the Cargo version, lockfile, changelog, install examples and release notes together. Push and wait for CI, then create an annotated matching `vX.Y.Z` tag. The Release workflow checks the exact tag, builds three native targets, verifies archives/checksums and publishes the staged draft.
+
+The separate **Publish crate** workflow requires that published GitHub release. Dispatch it for the same tag. Store its scoped `CARGO_REGISTRY_TOKEN` in the `crates-io` GitHub environment, never in this repository. docs.rs builds automatically after crates.io publication; a GitHub release alone does not update hosted Rust documentation. Verify the actual hosted build after uploading.
+
+See the [release procedures](https://github.com/fcenedes/mcp-gmap-rs/blob/main/docs/releases.md), [validation record](https://github.com/fcenedes/mcp-gmap-rs/blob/main/docs/validation.md) and [public Rust entry point](https://docs.rs/mcp-gmap-rs/latest/mcp_gmap_rs/fn.run.html).
+
+
+<!-- https://fcenedes.github.io/mcp-gmap-rs/guide/getting-started -->
+
+# Getting started
+
+Install one executable, configure Google access, then use the same 23 tools from your terminal or an MCP client. This manual describes v0.3.1.
+
+## Install
+
+Prebuilt Linux x86_64, macOS Apple Silicon and macOS Intel binaries are available in [GitHub Releases](https://github.com/fcenedes/mcp-gmap-rs/releases). Download the archive for your machine, verify it against `SHA256SUMS`, extract it and put `mcp-gmap-rs` on your `PATH`. Linux binaries target glibc 2.35 or newer. macOS binaries are not signed or notarized.
+
+With Rust 1.88 or newer, install from crates.io:
+
+```sh
+cargo install mcp-gmap-rs --version 0.3.1 --locked
+mcp-gmap-rs --version
+```
+
+No Rust, Python or JavaScript runtime is needed after the executable is built. The host needs CA certificates, DNS and outbound HTTPS access to Google.
+
+## Configure access
+
+[Create a restricted key and enable services](./google-cloud), or configure [service-account OAuth](./authentication). Store credentials in an ignored `.env` in your working directory:
+
+```dotenv
+GOOGLE_MAPS_AUTH_MODE=api-key
+GOOGLE_MAPS_API_KEY=your-restricted-api-key
+```
+
+Environment variables override the file. Keep credentials outside source control and image layers. The working directory matters: parent directories are not searched for `.env`.
+
+## Discover, check, call
+
+Discovery and offline diagnostics do not make Google requests:
+
+```sh
+mcp-gmap-rs tools
+mcp-gmap-rs schema search-places
+mcp-gmap-rs doctor
+```
+
+Then make your first potentially billable call:
+
+```sh
+mcp-gmap-rs search-places --query 'coffee near Gare de Lyon, Paris'
+```
+
+The result is JSON. Keep the returned place IDs for follow-up details rather than resolving the same names repeatedly. Read [CLI usage](./cli) for automation or [MCP integration](./mcp) to connect an agent. [Recipes](./recipes) show how to combine tools; the [complete reference](../reference/tools) documents every parameter, default and result.
+
+
+<!-- https://fcenedes.github.io/mcp-gmap-rs/guide/google-cloud -->
+
+# Google Cloud setup
+
+This executable authenticates **outbound calls to Google** with an API key or
+OAuth 2.0 credentials. `MCP_HTTP_TOKEN` independently authenticates clients
+connecting to your MCP HTTP server; choosing Google OAuth does not replace it.
+
+## Enable services and billing
+
+In the [Google Cloud console](https://console.cloud.google.com/), select or create
+a project, then link an active billing account under **Billing**. Enable the
+APIs you need under **APIs & Services → Library**. Enabling an API and allowing it
+in an API key's restrictions are separate steps. Calls can incur charges.
+
+The following table describes the endpoints used by this version of the project:
+
+| Google API | Service to enable | Authentication used here |
+| --- | --- | --- |
+| [Places API (New)](https://developers.google.com/maps/documentation/places/web-service/get-api-key) | `places.googleapis.com` | API key or OAuth |
+| [Routes API](https://developers.google.com/maps/documentation/routes/get-api-key) | `routes.googleapis.com` | API key or OAuth |
+| [Weather API](https://developers.google.com/maps/documentation/weather/get-api-key) | `weather.googleapis.com` | API key or OAuth |
+| [Air Quality API](https://developers.google.com/maps/documentation/air-quality/get-api-key) | `airquality.googleapis.com` | API key or OAuth |
+| [Address Validation API](https://developers.google.com/maps/documentation/address-validation/get-api-key) | `addressvalidation.googleapis.com` | API key or OAuth |
+| [Places Aggregate API](https://developers.google.com/maps/documentation/places-aggregate/get-api-key) | `areainsights.googleapis.com` | API key or OAuth |
+| [Pollen API](https://developers.google.com/maps/documentation/pollen/get-api-key) | `pollen.googleapis.com` | API key |
+| [Roads API](https://developers.google.com/maps/documentation/roads/get-api-key) | `roads.googleapis.com` | API key |
+| [Geocoding API v3](https://developers.google.com/maps/documentation/geocoding/guides-v3/get-api-key) | `geocoding-backend.googleapis.com` | API key |
+| [Elevation API](https://developers.google.com/maps/documentation/elevation/get-api-key) | `elevation-backend.googleapis.com` | API key |
+| [Time Zone API](https://developers.google.com/maps/documentation/timezone/get-api-key) | `timezone-backend.googleapis.com` | API key |
+| [Maps Static API](https://developers.google.com/maps/documentation/maps-static/get-api-key) | `static-maps-backend.googleapis.com` | API key |
+
+To enable all twelve with an administrator's `gcloud` login:
+
+```sh
+export PROJECT_ID='your-project-id'
+gcloud services enable --project="$PROJECT_ID" \
+  places.googleapis.com routes.googleapis.com \
+  weather.googleapis.com airquality.googleapis.com \
+  geocoding-backend.googleapis.com elevation-backend.googleapis.com \
+  timezone-backend.googleapis.com static-maps-backend.googleapis.com \
+  addressvalidation.googleapis.com areainsights.googleapis.com \
+  pollen.googleapis.com roads.googleapis.com
+```
+
+The CLI's `directions` and `distance-matrix` tools use **Routes API**, so the
+legacy Directions and Distance Matrix APIs are not required. Geocoding still
+uses v3 in this project; [OAuth support in Google's Geocoding v4](https://developers.google.com/maps/documentation/geocoding/geocoding-v4-overview) does not change
+the authentication of these v3 calls. Composite tools can call multiple APIs.
+Named-location resolution or fallback can require Geocoding even when the main
+operation uses Places or Routes. Use coordinates when you need to avoid that
+dependency, or retain a restricted key for the key-only endpoints.
+
+## Create a restricted API key
+
+1. Open [Google Maps Platform → Keys & Credentials](https://console.cloud.google.com/google/maps-apis/credentials)
+   in the selected project and choose **Create credentials → API key**.
+2. Select only the APIs from the table that this instance will use. For an
+   existing key, edit its API restrictions and save them.
+3. Set the application restriction to **IP addresses** for this server-side
+   application. Allow the public egress IP addresses Google will see. Kubernetes
+   pod/private IPs are normally not the public source address; a fixed Cloud NAT
+   or other egress address makes this restriction predictable.
+4. Store the key in an ignored `.env`, environment injection or a Kubernetes
+   Secret. See [Google's key restriction guidance](https://developers.google.com/maps/api-security-best-practices#restrict-your-api-keys).
+
+Example `.env`:
+
+```dotenv
+GOOGLE_MAPS_AUTH_MODE=api-key
+GOOGLE_MAPS_API_KEY=your-restricted-api-key
+```
+
+`api-key` is the default. Supplying a service-account path alone does not change
+authentication mode. Discovery does not contact Google; use a real call to
+verify project billing, API enablement and restrictions:
+
+```sh
+mcp-gmap-rs geocode --address 'Paris, France'
+```
+
+
+## Next steps
+
+For service-account JSON, ADC, local impersonation and GKE identity, follow
+[Authentication](./authentication). Then choose [CLI](./cli) or [MCP](./mcp).
+The [tool reference](../reference/tools) identifies each tool’s credential requirements.
+
+
+<!-- https://fcenedes.github.io/mcp-gmap-rs/guide/mcp -->
+
+# MCP integration
+
+Connect an MCP host through stdio for a local child process or Streamable HTTP for a long-running service. Both expose the same enabled tool catalog and schemas.
+
+## Local stdio
+
+A generic MCP client configuration is:
+
+```json
+{
+  "mcpServers": {
+    "google-maps": {
+      "command": "/absolute/path/to/mcp-gmap-rs",
+      "args": ["--env-file", "/secure/mcp-gmap/runtime.env", "serve", "stdio"]
+    }
+  }
+}
+```
+
+Use the host’s configuration format and an absolute executable path. The selected dotenv file must exist. You may inject environment variables using the host instead. This is a standalone MCP server configuration; no assistant-specific runtime plugin is required.
+
+```sh
+mcp-gmap-rs serve stdio
+```
+
+Standard input and output carry newline-delimited MCP JSON-RPC only. Diagnostics go to stderr. Running the executable without arguments starts the same transport. A container-based stdio host must attach stdin without allocating a TTY.
+
+## Streamable HTTP
+
+```sh
+mcp-gmap-rs serve http --listen 127.0.0.1:3000
+```
+
+Set your MCP client’s Streamable HTTP URL to **`http://127.0.0.1:3000/mcp`**. Where the host supports remote MCP entries, configure the endpoint and authorization header:
+
+```json
+{
+  "url": "https://maps.example.com/mcp",
+  "headers": {
+    "Authorization": "Bearer your-mcp-http-token"
+  }
+}
+```
+
+The exact wrapper around this entry depends on the MCP host. The server supports protocol negotiation and the appropriate POST, GET/SSE and DELETE session operations through the Rust MCP SDK. Use an MCP client rather than treating one isolated JSON-RPC POST as a complete session.
+
+## Bind addresses and access
+
+Non-loopback listeners require `MCP_HTTP_TOKEN`. Clients send that token as a bearer credential; it is separate from Google OAuth or API keys. Add the endpoint’s Host value and any actual browser origins explicitly:
+
+```sh
+mcp-gmap-rs serve http --listen 0.0.0.0:3000 \
+  --allowed-host maps.example.com \
+  --allowed-origin https://app.example.com:443
+```
+
+The default rejects present Origin headers unless allowlisted. Request bodies are limited to 1 MiB. `/health` checks process liveness without calling Google. For public access, configure [native TLS/mTLS or a gateway](./production). Proxies must preserve authorization and MCP protocol/session headers and allow unbuffered streaming. Sessions and Google identity are process-local; see [deployment](./deployment) before adding replicas.
+
+
+<!-- https://fcenedes.github.io/mcp-gmap-rs/guide/production -->
+
+# Production operations
+
+This guide covers v0.3.x. All Google tools share
+the same implementation across CLI, MCP stdio and Streamable HTTP.
+
+## Native TLS and mutual TLS
+
+The HTTP listener can serve HTTPS directly using rustls and TLS 1.2/1.3:
+
+```sh
+mcp-gmap-rs serve http --listen 0.0.0.0:3443 \
+  --tls-cert /etc/mcp-gmap/tls/tls.crt \
+  --tls-key /etc/mcp-gmap/tls/tls.key \
+  --allowed-host maps.example.com:3443
+```
+
+Supply `MCP_HTTP_TOKEN` separately through the environment or a Secret. Clients
+connect to `https://maps.example.com:3443/mcp`, verify the server certificate,
+and send `Authorization: Bearer <token>`. Certificate files contain a PEM leaf
+certificate followed by its intermediate chain; the private key must match.
+The executable does not issue certificates or implement ACME. Use your PKI,
+cert-manager, or a TLS gateway for issuance and renewal.
+
+Add `--tls-client-ca /etc/mcp-gmap/tls/client-ca.pem` to require a client
+certificate signed by that CA. Native mTLS applies to every path, including
+`/health` and `/metrics`, and does not replace the HTTP bearer token. Any valid
+client identity under the configured trust roots is accepted at the TLS layer;
+there are no per-certificate tool permissions or revocation-list checks.
+
+On Linux/macOS, replace the files atomically, then send `SIGHUP` to reload the
+certificate, key and optional client CA together. Existing connections keep their
+TLS state; new handshakes use the replacement. If loading fails, the previous
+configuration stays active and an error is logged without printing key material.
+Mounted Kubernetes Secret files can be reloaded this way after their projection
+updates. Other settings still require a process restart.
+
+For UID/GID 10001 in the container, mount keys read-only with permissions that
+allow that identity to read them; use a suitable group and `fsGroup` for projected
+Secrets. With native TLS, Kubernetes HTTP probes must use `scheme: HTTPS`.
+Kubelet HTTP probes cannot provide an mTLS client certificate; use a TCP probe
+for that deployment, understanding that it checks the listener, not TLS or Google.
+
+## Kubernetes TLS gateway
+
+[the Gateway manifest](https://github.com/fcenedes/mcp-gmap-rs/blob/main/deploy/gateway.yaml) provides an HTTPS Gateway and HTTPRoute for the base
+Deployment in [the base Kubernetes manifest](https://github.com/fcenedes/mcp-gmap-rs/blob/main/deploy/kubernetes.yaml). Install the Gateway API CRDs and a
+conformant controller first. Replace `your-gateway-class` and `maps.example.com`,
+and provision a `kubernetes.io/tls` Secret named `mcp-gmap-tls` in the same namespace.
+The example uses stable Gateway/HTTPRoute v1 fields and HTTPRoute timeouts
+supported since Gateway API v1.2. Check your controller's timeout support.
+
+```sh
+kubectl create secret tls mcp-gmap-tls --cert=/secure/fullchain.pem --key=/secure/key.pem
+kubectl set env deployment/mcp-gmap-rs \
+  MCP_HTTP_ALLOWED_HOSTS='maps.example.com,mcp-gmap-rs:3000,localhost:3000,127.0.0.1:3000'
+kubectl apply -f deploy/gateway.yaml
+kubectl get gateway,httproute
+```
+
+Persist the corresponding allowed-host setting in the ConfigMap or deployment
+source too. Add actual browser origins with `MCP_HTTP_ALLOWED_ORIGINS` when needed.
+The route exposes only `/mcp`; health and metrics stay on the private Service.
+Authorization and MCP session/protocol headers must pass through unchanged.
+Disable response buffering/caching and configure streaming/idle timeouts in the
+chosen controller. The route disables request/backend-request deadlines; configure
+appropriate connection/idle limits at the gateway for your clients.
+
+This configuration terminates TLS at the gateway and uses HTTP to the ClusterIP
+backend. Use native TLS plus a controller-supported BackendTLSPolicy or a mesh if
+the gateway-to-pod connection must also be encrypted. Restrict direct pod/Service
+access with your cluster's network policy. TLS does not provide MCP OAuth login:
+the executable uses a shared bearer token and one Google identity per process.
+
+See the upstream [Gateway TLS guide](https://gateway-api.sigs.k8s.io/guides/user-guides/tls/)
+and [HTTPRoute timeout guide](https://gateway-api.sigs.k8s.io/guides/http-timeouts/).
+
+## Limits, retries and deadlines
+
+| Variable | Default | Flag | Meaning |
+| --- | --- | --- | --- |
+| `GOOGLE_MAPS_MAX_REQUESTS` | `200` | `--max-requests` | Google HTTP attempts per tool invocation, 1–10000; includes retries |
+| `GOOGLE_MAPS_MAX_RETRIES` | `2` | `--max-retries` | Additional attempts per Google request, 0–5 |
+| `GOOGLE_MAPS_TOOL_TIMEOUT` | `120` | `--tool-timeout` | Overall tool deadline in seconds, 1–3600 |
+| `MCP_HTTP_RATE_LIMIT` | `120` | HTTP `--rate-limit` | Authenticated `/mcp` HTTP requests per minute per process; 0 disables |
+| `MCP_METRICS_ENABLED` | `false` | HTTP `--metrics [true\|false]` | Enable protected Prometheus `/metrics` |
+| `MCP_LOG_FORMAT` | `text` | `--log-format text\|json` | Diagnostic event format on stderr |
+| `MCP_TLS_CERT` | unset | HTTP `--tls-cert` | PEM server certificate chain file |
+| `MCP_TLS_KEY` | unset | HTTP `--tls-key` | Matching PEM server private key file |
+| `MCP_TLS_CLIENT_CA` | unset | HTTP `--tls-client-ca` | PEM CA bundle; require client certificates |
+
+These settings follow defaults → optional dotenv → environment → flags. TLS
+certificate and key must be supplied together. Empty environment TLS paths clear
+their file values. `GOOGLE_MAPS_TIMEOUT` bounds each Google HTTP request including
+semaphore queueing, retries, backoff and response reading; OAuth acquisition has
+its own bound using the same timeout. The overall tool deadline includes both.
+
+Each invocation has a fresh request budget shared across all its concurrent
+branches. Five Google API requests can execute concurrently per process. Once
+the budget is exhausted, further attempts fail locally. Composites may return
+successful output containing per-item budget/errors; inspect those fields. This
+limits request count, not currency: different Google requests/fields have different
+prices, and a matrix request can bill multiple elements.
+
+Read-only Google requests retry HTTP 429, 500, 502, 503 and 504 and network failures.
+Retries honor `Retry-After` seconds or HTTP dates, otherwise use exponential
+backoff with jitter. They stay within the request deadline and invocation budget.
+Other HTTP errors, including 400/401/403, are not retried. No authentication
+failure silently switches to API-key mode. Set retries to zero to make a single
+attempt. Google-internal legacy JSON error statuses are reported without retries.
+
+The HTTP limiter is a token bucket with a burst capacity equal to its per-minute
+rate and continuous refill. It covers initialization, POST, GET and DELETE on
+`/mcp`, across all sessions. Unauthorized requests do not consume the bucket.
+Rejections return HTTP 429 with `Retry-After`. Health and metric scrapes are exempt.
+The limiter is global to one process, not per user/IP; it does not trust forwarded
+IP headers. Use gateway authentication and per-client limits for shared deployments.
+
+## Metrics and diagnostic events
+
+```sh
+mcp-gmap-rs --log-format json serve http --metrics --rate-limit 120
+```
+
+`GET /metrics` uses the same bearer token as `/mcp` when configured. On an
+unauthenticated loopback listener it is also unauthenticated. It is disabled by
+default, and native mTLS applies when enabled. Expose it only to trusted scrapers.
+The Prometheus text endpoint exports:
+
+- `mcp_gmap_tool_calls_total{tool,outcome}` for completed tool calls;
+- `mcp_gmap_tool_duration_seconds{tool,outcome}` as a histogram;
+- `mcp_gmap_google_requests_total{api,status}` for Google HTTP attempts, including retries;
+- `mcp_gmap_http_rate_limited_total` for rejected HTTP requests.
+
+Labels contain built-in tool names, API hostnames, HTTP status codes and fixed
+outcomes. They never contain addresses, coordinates, credentials, tokens or session
+IDs. A composite with per-item errors may count as a successful top-level call;
+inspect its result and the upstream status metrics. Metrics reset on restart.
+
+Set `RUST_LOG=info` to see tool completion events with name, success and elapsed
+time. Arguments and Google response bodies are not included. The listener's startup
+address is printed separately on stderr. Stdout remains CLI JSON or MCP traffic.
+
+## Doctor
+
+```sh
+mcp-gmap-rs doctor
+# Explicit opt-in: makes potentially billable requests.
+mcp-gmap-rs doctor --live
+# Check only the API dependencies of selected tools:
+mcp-gmap-rs --enabled-tools maps_pollen,maps_area_insights doctor --live
+```
+
+Without `--live`, doctor checks local credential configuration, HTTP settings and
+TLS file/key matching without making network requests. It does not prove key
+validity, IAM, API enablement, certificate trust/hostname/expiry or ADC access.
+ADC discovery is reported as `not_tested` until a live request. Doctor never
+prints credential values or their JSON. A JSON report goes to stdout; a failed
+check produces exit status 1. Parse `checks[].status`: `pass`, `fail` or `not_tested`.
+
+Live mode makes one representative tool invocation for each distinct Google API
+used by enabled tools, with normal retry/deadline/budget settings. It avoids running
+expensive composites. Routes use exact coordinates. Roads uses nearest-road lookup.
+Probes use public Paris landmarks, not user-provided addresses. Success means Google
+accepted that probe, not that every operation or geographic region is available.
+
+
+## Shutdown and configuration changes
+
+Ctrl-C and SIGTERM shut down the HTTP server and its active MCP sessions. The
+Kubernetes example gives the process 30 seconds. Other application configuration,
+including environment-injected Secret changes, requires a restart; only native TLS
+certificate/key/client-CA files support SIGHUP reload. Sessions and metrics are
+in memory and are lost on restart. Run a single replica or configure session
+affinity; clients must reconnect when their owning process exits.
+
+See [Deployment](./deployment) for container permissions, probes and runtime
+credential mounts, and [Configuration reference](../reference/configuration) for
+every setting and flag.
+
+
+<!-- https://fcenedes.github.io/mcp-gmap-rs/guide/recipes -->
+
+# Recipes
+
+Combine small, explicit calls around one location or a shortlist of returned place IDs. These examples make potentially billable Google requests. Review [authentication](./authentication) first; composites may use more than one API and return partial errors.
+
+## Find a cafe and compare the trip
+
+Search within a real radius, expand only shortlisted IDs, then compare travel. Nearby’s `keyword` is a Google place type, not free text.
+
+```sh
+mcp-gmap-rs search-nearby \
+  --center '{"value":"48.8584,2.2945","isCoordinates":true}' \
+  --keyword cafe --radius 500 --open-now --min-rating 4
+mcp-gmap-rs place-details --place-id ChIJLU7jZClu5kcR4PcOOO6p3I0 --max-photos 0
+mcp-gmap-rs distance-matrix --origins '["48.8584,2.2945"]' \
+  --destinations '["48.8606,2.3376","48.8530,2.3499"]' --mode walking
+```
+
+Use [`search-places`](../reference/tools#maps_search_places) for natural-language intent, [`compare-places`](../reference/tools#maps_compare_places) for detailed matches with optional driving distance, or [`explore-area`](../reference/tools#maps_explore_area) for category-based exploration. A search page is not an exhaustive inventory. Preserve Google source links, review authors and AI disclosures.
+
+## Plan stops and find a detour
+
+```sh
+mcp-gmap-rs plan-route \
+  --stops '["48.8584,2.2945","48.8606,2.3376","48.8530,2.3499"]' \
+  --mode walking --optimize false
+mcp-gmap-rs search-along-route --text-query cafes \
+  --origin '48.8584,2.2945' --destination '48.8606,2.3376' \
+  --mode walking --max-results 3
+```
+
+[`directions`](../reference/tools#maps_directions) handles one journey with time/avoidance options; [`plan-route`](../reference/tools#maps_plan_route) preserves endpoints when optimizing intermediates. Transit accepts only two total stops. Along-route search follows a polyline instead of substituting a midpoint circle. It defaults to walking, so always choose the intended travel mode.
+
+## Resolve once, inspect local conditions
+
+```sh
+mcp-gmap-rs geocode --address 'Eiffel Tower, Paris, France'
+mcp-gmap-rs weather --latitude 48.8584 --longitude 2.2945 \
+  --type forecast_daily --forecast-days 3
+mcp-gmap-rs air-quality --latitude 48.8584 --longitude 2.2945
+mcp-gmap-rs pollen --latitude 48.8584 --longitude 2.2945 --days 3
+mcp-gmap-rs timezone --latitude 48.8584 --longitude 2.2945
+mcp-gmap-rs elevation --locations '[{"latitude":48.8584,"longitude":2.2945}]'
+```
+
+Reuse coordinates instead of repeating resolution. Keep observations, forecasts and provider recommendations distinct; coverage can vary. [`reverse-geocode`](../reference/tools#maps_reverse_geocode) resolves coordinates back to an address; [`batch-geocode`](../reference/tools#maps_batch_geocode) resolves up to 50 addresses with per-address errors. Time Zone’s optional timestamp uses Unix milliseconds; elevation is in metres.
+
+## Validate a postal address
+
+```sh
+mcp-gmap-rs validate-address --address-lines '["5 Avenue Anatole France"]' \
+  --locality Paris --postal-code 75007 --region-code FR
+```
+
+Inspect the verdict, corrections and unresolved components. Address validation is distinct from geocoding and does not guarantee delivery. USPS CASS is opt-in and requires `regionCode` US or PR in this implementation.
+
+## Count places without counting search hits
+
+```sh
+mcp-gmap-rs area-insights \
+  --area '{"circle":{"latLng":{"latitude":48.8584,"longitude":2.2945},"radius":500}}' \
+  --included-types '["restaurant"]' --min-rating 4
+```
+
+Aggregate counts normally use Google’s string int64 representation. Optional place IDs are available only when the count is at most 100; details are not fetched automatically. For explicitly requested visibility analysis, [`local-rank-tracker`](../reference/tools#maps_local_rank_tracker) measures keyword ranks across a grid. Start with one keyword and a 3×3 grid; ranks are not review ratings, and failed points must stay visible.
+
+## Match GPS data and save a map
+
+Use [`snap-to-roads`](../reference/tools#maps_snap_to_roads) for an ordered trace and [`nearest-roads`](../reference/tools#maps_nearest_roads) for independent points. Preserve `originalIndex`; interpolation adds points that may not have one. Speed limits are not returned.
+
+```sh
+mcp-gmap-rs nearest-roads --points '[{"latitude":48.8584,"longitude":2.2945}]'
+mcp-gmap-rs static-map --center '48.8584,2.2945' --zoom 14 --output area.png
+```
+
+The [tool reference](../reference/tools) lists exact bounds, required fields, defaults and result formats for every operation.
+
+
+<!-- https://fcenedes.github.io/mcp-gmap-rs/guide/troubleshooting -->
+
+# Troubleshooting
+
+First identify the failing connection: a local configuration error, the MCP client-to-server connection, or an outbound Google request. Correct the relevant layer, then rerun the affected operation.
+
+## Start offline
+
+```sh
+mcp-gmap-rs --version
+mcp-gmap-rs tools
+mcp-gmap-rs doctor
+```
+
+`doctor` prints JSON even when checks fail. Inspect its exit status and `checks[].status`: `pass`, `fail` or `not_tested`. Offline checks do not prove IAM, API enablement, billing, certificate trust/expiry or ADC access. `/health` only proves process liveness.
+
+If a malformed local dotenv file blocks discovery, `--no-env-file tools` skips it. This can change the selected tool set, so do not mistake it for verification of the intended file configuration.
+
+## Interpret common failures
+
+| Symptom | Next check |
+| --- | --- |
+| `GOOGLE_MAPS_API_KEY is required` | API-key mode is selected or this operation reaches a key-only endpoint. |
+| `GOOGLE_CLOUD_QUOTA_PROJECT is required` | Set the consumer project ID/number for OAuth. |
+| Google 403 / API disabled | Enable the exact API in the credential’s consumer project; check billing and API-key restrictions. |
+| `serviceusage.services.use` denied | Grant the service account `roles/serviceusage.serviceUsageConsumer` on the quota project; allow IAM propagation, then retry. |
+| API-key IP denial | Allow the server or cluster’s public egress IP, not its private pod IP. |
+| MCP HTTP 401 | Send the server’s bearer token; a Google access token authenticates a different connection. |
+| Host/Origin rejected | Match the configured Host and browser origin exactly, including relevant ports. |
+| HTTP 429 from MCP | The process-wide limiter is exhausted; honor `Retry-After` and check client concurrency. |
+| OAuth timeout | Check token/STS/IAM or metadata connectivity, system clock and per-request timeout. |
+| TLS connection fails | Check the certificate chain, hostname, trust and optional mTLS client certificate separately from HTTP authorization. |
+| Exit 0 but incomplete data | Inspect matrix/composite per-item errors, not just the process exit status. |
+
+## Verify live access deliberately
+
+Live probes make potentially billable calls. Scope them to the API dependencies you need:
+
+```sh
+mcp-gmap-rs --enabled-tools maps_weather doctor --live
+```
+
+A passing probe does not guarantee every geographic region or operation. After a Google Cloud change, rerun the same failed call rather than inferring success from console settings. See [authentication](./authentication) for IAM and credential sources, [configuration](./configuration) for precedence and [production operations](./production) for budgets, deadlines and metrics. Never print credential JSON or dump the environment into an issue report.
+
+
+<!-- https://fcenedes.github.io/mcp-gmap-rs/reference/configuration -->
+
+# Configuration reference
+
+These 21 application settings apply to CLI, MCP stdio and Streamable HTTP as appropriate. Values follow **defaults → optional dotenv → environment → flags**. See [configuration](../guide/configuration) for file selection and override semantics.
+
+Global flags go before a tool or `serve`; HTTP-only flags go after `serve http`. A dash in the flag column means there is no corresponding CLI flag: inject that value through the environment or selected dotenv file.
+
+## Google access and tool execution
+
+| Environment variable | Default | CLI flag | Meaning and accepted values |
+| --- | --- | --- | --- |
+| `GOOGLE_MAPS_API_KEY` | Unset | — | Restricted Google API key. Required in `api-key` mode and for this implementation’s key-only endpoints, including when OAuth mode is selected. Never a tool argument. |
+| `GOOGLE_MAPS_AUTH_MODE` | `api-key` | `--auth-mode` | `api-key` or `oauth`. OAuth supports Places (New), Routes, Weather, Air Quality, Address Validation and Places Aggregate. |
+| `GOOGLE_APPLICATION_CREDENTIALS` | ADC discovery | — | Readable service-account or supported ADC JSON file path. Relative paths use the working directory. Leave unset for local ADC or metadata discovery. |
+| `GOOGLE_CLOUD_QUOTA_PROJECT` | Unset | — | Required consumer billing/quota project ID or number for OAuth calls. The service account needs `serviceusage.services.use` in that project. |
+| `GOOGLE_MAPS_LANGUAGE` | `en` | `--language` | Language code for language-aware Google responses. Independent of this manual’s language selector. |
+| `GOOGLE_MAPS_TIMEOUT` | `30` | `--timeout` | Per-request timeout in seconds, integer 1–600. Includes queueing, retries, backoff and response reads; OAuth acquisition has its own bound using the same value. |
+| `GOOGLE_MAPS_ENABLED_TOOLS` | All (`*`) | `--enabled-tools` | Comma-separated `maps_*` names or `*`. Unknown names fail startup. Disabled tools are absent from discovery and cannot be called. |
+| `GOOGLE_MAPS_MAX_REQUESTS` | `200` | `--max-requests` | Google HTTP attempt budget per tool invocation, integer 1–10000. Shared across composite branches; retries consume attempts. |
+| `GOOGLE_MAPS_MAX_RETRIES` | `2` | `--max-retries` | Additional transient attempts per Google request, integer 0–5. Zero means one initial attempt. Retries remain within timeout and budget. |
+| `GOOGLE_MAPS_TOOL_TIMEOUT` | `120` | `--tool-timeout` | Overall tool deadline in seconds, integer 1–3600. Includes credential acquisition, queueing, API calls and retries. |
+
+Five Google HTTP requests can execute concurrently per process. The attempt budget limits requests rather than currency; one matrix request can bill multiple elements. Some composites return per-item errors when a branch exhausts its budget or deadline. See [production limits](../guide/production#limits-retries-and-deadlines).
+
+## HTTP listener and access
+
+| Environment variable | Default | HTTP flag | Meaning and accepted values |
+| --- | --- | --- | --- |
+| `MCP_HTTP_TOKEN` | Unset | — | Shared bearer token for MCP clients. Required for non-loopback binds. Separate from Google credentials and still required with native mTLS. |
+| `MCP_HTTP_LISTEN` | `127.0.0.1:3000` | `--listen` | Listener IP address and port. The Docker image sets the environment value to `0.0.0.0:3000`. |
+| `MCP_HTTP_ALLOWED_HOSTS` | Loopback hosts | `--allowed-host` | Comma-separated accepted HTTP Host values. Repeat the flag for several values; flags replace the whole file/environment list. Include the relevant port. |
+| `MCP_HTTP_ALLOWED_ORIGINS` | None | `--allowed-origin` | Comma-separated allowed browser origins. Present Origin headers are rejected unless allowed. Specify ports explicitly; repeated flags replace the list. |
+| `MCP_HTTP_RATE_LIMIT` | `120` | `--rate-limit` | Authenticated `/mcp` requests per minute per process, integer 0–1000000. Zero disables. Burst capacity equals the rate; continuous refill. |
+| `MCP_METRICS_ENABLED` | `false` | `--metrics [true\|false]` | Enable Prometheus `/metrics`. A bare `--metrics` means true. Uses the same bearer credential when configured; native mTLS also applies. |
+| `MCP_TLS_CERT` | Unset | `--tls-cert` | PEM server leaf certificate plus intermediate chain. Must be supplied together with a matching private key. |
+| `MCP_TLS_KEY` | Unset | `--tls-key` | PEM server private key path. Keep readable by the runtime identity and out of source/images. |
+| `MCP_TLS_CLIENT_CA` | Unset | `--tls-client-ca` | PEM client CA bundle enabling mandatory client certificates on every listener path. Does not replace the bearer token. |
+
+The HTTP token bucket is global to the process, not per user/IP. Unauthorized requests do not consume it; health and metrics are exempt. Rejections return 429 with `Retry-After`. The request-body limit is 1 MiB. See [MCP access](../guide/mcp#bind-addresses-and-access) and [TLS operations](../guide/production#native-tls-and-mutual-tls).
+
+## Diagnostic events
+
+| Environment variable | Default | CLI flag | Meaning and accepted values |
+| --- | --- | --- | --- |
+| `RUST_LOG` | `warn` | — | Diagnostic log filter. `info` enables tool completion events; arguments and Google response bodies are not logged. |
+| `MCP_LOG_FORMAT` | `text` | `--log-format` | `text` or `json`. Diagnostics always go to stderr, leaving stdout for CLI JSON or MCP traffic. |
+
+## File selection and output controls
+
+File selection happens before the application layers above. `MCP_ENV_FILE` chooses a dotenv path; global `--env-file PATH` takes precedence. An explicitly selected file must exist. `--no-env-file` disables all dotenv loading and conflicts with `--env-file`. Without a selection, only the working directory’s optional `.env` is read.
+
+An explicitly empty environment value still overrides a file value. It can clear an optional token, TLS path or allowlist; it does not make an empty numeric setting valid. Loaded file values do not mutate the process environment.
+
+`doctor --live` opts into potentially billable probes; ordinary `doctor` is offline. Tool `--output PATH` saves JSON, or raw PNG for `static-map`. These are command controls, not additional environment settings.
+
+Application settings and credential-file changes require a restart. On Linux/macOS, SIGHUP can reload native TLS certificate/key/client-CA files together; failed reloads preserve the previous TLS configuration. See [configuration](../guide/configuration) and [production operations](../guide/production).
+
+
+<!-- https://fcenedes.github.io/mcp-gmap-rs/reference/tools -->
+
+
+<!-- Generated by scripts/generate-reference.py. Edit the source notes, then regenerate. -->
+
+# Tool reference
+
+All 23 tools, with every parameter, default, constraint and example. The same interface is available through MCP and the CLI.
+
+## Calling conventions
+
+The examples are MCP argument objects. For a raw MCP `tools/call`, use the tool name as `name` and the object as `arguments`. Hosts may prefix tool names. The equivalent CLI calls below use `mcp-gmap-rs call TOOL --args JSON`.
+
+Only top-level parameters have CLI flags. Pass nested objects and arrays as JSON. A bare boolean flag means `true`; `--flag false` sets `false`. Unknown properties are rejected. Inspect your installed release with `tools` or `schema TOOL`.
+
+Google authentication and language are process configuration, not tool parameters. Exact route coordinates avoid address resolution; named locations may also require an API key for Geocoding. See [authentication](../guide/authentication) and [configuration](../guide/configuration).
+
+Calls can incur Google charges. Composite and matrix results may contain per-item errors even when the tool succeeds. Preserve Google source links, review/photo authors and AI-summary disclosures. Examples illustrate inputs, not current coverage or results.
+
+Types, required fields and schema bounds come from the executable's schema-derived reference. Defaults, result descriptions and cross-field restrictions are reviewed against the implementation. Google may impose additional coverage and quota limits.
+
+## Tools
+
+- [`maps_geocode`](#maps_geocode)
+- [`maps_validate_address`](#maps_validate_address)
+- [`maps_pollen`](#maps_pollen)
+- [`maps_area_insights`](#maps_area_insights)
+- [`maps_snap_to_roads`](#maps_snap_to_roads)
+- [`maps_nearest_roads`](#maps_nearest_roads)
+- [`maps_reverse_geocode`](#maps_reverse_geocode)
+- [`maps_search_places`](#maps_search_places)
+- [`maps_search_nearby`](#maps_search_nearby)
+- [`maps_place_details`](#maps_place_details)
+- [`maps_directions`](#maps_directions)
+- [`maps_distance_matrix`](#maps_distance_matrix)
+- [`maps_elevation`](#maps_elevation)
+- [`maps_timezone`](#maps_timezone)
+- [`maps_weather`](#maps_weather)
+- [`maps_air_quality`](#maps_air_quality)
+- [`maps_static_map`](#maps_static_map)
+- [`maps_batch_geocode`](#maps_batch_geocode)
+- [`maps_explore_area`](#maps_explore_area)
+- [`maps_plan_route`](#maps_plan_route)
+- [`maps_compare_places`](#maps_compare_places)
+- [`maps_search_along_route`](#maps_search_along_route)
+- [`maps_local_rank_tracker`](#maps_local_rank_tracker)
+
+## maps_geocode {#maps_geocode}
+
+Convert an address or landmark to coordinates.
+
+Resolve an address or landmark to the first Geocoding match. Use this to obtain reusable coordinates and a place ID; it does not validate postal deliverability.
+
+**CLI command:** `geocode`. **Google access:** API key required in this implementation.
+
+### Parameters
+
+| Parameter / CLI flag | Type and schema limits | Required | Default when omitted | Description |
+| --- | --- | --- | --- | --- |
+| `address` / `--address` | string; at least 1 character(s) | Yes | — | Address, city or landmark to geocode. |
+
+### Behavior and restrictions
+
+- No match is a tool error, not an empty successful location.
+- This direct tool uses Geocoding v3; Places fallback is used by location-resolving composites, not by this call.
+
+### Result
+
+An object with `location.lat`, `location.lng`, `formatted_address` and `place_id`. Only the first result is returned.
+
+### Example
+
+MCP arguments:
+
+```json
+{
+  "address": "Eiffel Tower, Paris, France"
+}
+```
+
+Equivalent CLI call:
+
+```sh
+mcp-gmap-rs call maps_geocode --args '{"address":"Eiffel Tower, Paris, France"}'
+```
+
+
+## maps_validate_address {#maps_validate_address}
+
+Validate and standardize a postal address; returns Google's verdict, corrections, components and geocode. A verdict is evidence, not a delivery guarantee.
+
+Validate postal components and return corrections, the standardized address and Google’s verdict. Keep the verdict and unresolved components visible to the caller.
+
+**CLI command:** `validate-address`. **Google access:** API key or OAuth for the main API.
+
+### Parameters
+
+| Parameter / CLI flag | Type and schema limits | Required | Default when omitted | Description |
+| --- | --- | --- | --- | --- |
+| `addressLines` / `--address-lines` | array of string; 1–10 items; each item at least 1 character(s) | Yes | — | One or more postal-address lines, in order. |
+| `administrativeArea` / `--administrative-area` | string; at least 1 character(s) | No | Not supplied | State, province or corresponding administrative area. |
+| `enableUspsCass` / `--enable-usps-cass` | boolean | No | false | Request USPS CASS processing; this implementation requires regionCode US or PR when true. |
+| `locality` / `--locality` | string; at least 1 character(s) | No | Not supplied | City or locality. |
+| `postalCode` / `--postal-code` | string; at least 1 character(s) | No | Not supplied | Postal/ZIP code. |
+| `regionCode` / `--region-code` | string; pattern: `^[A-Z]{2}$` | No | Not supplied; Google may infer it | Two-letter uppercase country/region code; recommended to disambiguate the address. |
+
+### Behavior and restrictions
+
+- A validation verdict is not a delivery guarantee.
+- Region/API coverage varies. This tool does not submit validation feedback or automatically accept corrections.
+
+### Result
+
+The complete validation response, typically including `result.verdict`, `result.address`, `result.geocode` and `responseId`; Google may omit unavailable fields.
+
+### Example
+
+MCP arguments:
+
+```json
+{
+  "addressLines": [
+    "5 Avenue Anatole France"
+  ],
+  "regionCode": "FR",
+  "locality": "Paris",
+  "postalCode": "75007"
+}
+```
+
+Equivalent CLI call:
+
+```sh
+mcp-gmap-rs call maps_validate_address --args '{"addressLines":["5 Avenue Anatole France"],"regionCode":"FR","locality":"Paris","postalCode":"75007"}'
+```
+
+
+## maps_pollen {#maps_pollen}
+
+Get 1-5 days of pollen forecasts, indices and health recommendations for exact coordinates. Coverage varies by location and season.
+
+Retrieve a short daily pollen forecast for exact coordinates. The response preserves pollen types, indices, plant information and provider recommendations.
+
+**CLI command:** `pollen`. **Google access:** API key required in this implementation.
+
+### Parameters
+
+| Parameter / CLI flag | Type and schema limits | Required | Default when omitted | Description |
+| --- | --- | --- | --- | --- |
+| `days` / `--days` | integer; 1–5 | No | 1 | Number of daily forecast records to request. |
+| `latitude` / `--latitude` | number; -90.0–90.0 | Yes | — | WGS84 latitude in decimal degrees; north is positive. |
+| `longitude` / `--longitude` | number; -180.0–180.0 | Yes | — | WGS84 longitude in decimal degrees; east is positive. |
+| `plantsDescription` / `--plants-description` | boolean | No | false | Include detailed plant descriptions and related information when available. |
+
+### Behavior and restrictions
+
+- Requests use a page size of 5, sufficient for this tool’s maximum five-day request; no additional pages are fetched automatically.
+- Availability depends on location, season and Google coverage.
+
+### Result
+
+The original Pollen response, including `regionCode`, `dailyInfo` and any `nextPageToken`. Each day can include pollen-type and plant information.
+
+### Example
+
+MCP arguments:
+
+```json
+{
+  "latitude": 48.8584,
+  "longitude": 2.2945,
+  "days": 3,
+  "plantsDescription": false
+}
+```
+
+Equivalent CLI call:
+
+```sh
+mcp-gmap-rs call maps_pollen --args '{"latitude":48.8584,"longitude":2.2945,"days":3,"plantsDescription":false}'
+```
+
+
+## maps_area_insights {#maps_area_insights}
+
+Count places within a circle, region or polygon using Places Aggregate. Optional place IDs are available only for counts of 100 or less; no automatic details requests.
+
+Count matching places in a circle, region or polygon with Places Aggregate. This is an aggregate query rather than a count of a limited Places search page.
+
+**CLI command:** `area-insights`. **Google access:** API key or OAuth for the main API.
+
+### Parameters
+
+| Parameter / CLI flag | Type and schema limits | Required | Default when omitted | Description |
+| --- | --- | --- | --- | --- |
+| `area` / `--area` | object | Yes | — | Exactly one of circle, region or customArea. |
+| `area.circle` | object | No | Not supplied | Circular area; mutually exclusive with region/customArea. |
+| `area.circle.latLng` | object | When parent is supplied | — | Circle center as exact coordinates. |
+| `area.circle.latLng.latitude` | number; -90.0–90.0 | When parent is supplied | — | WGS84 latitude in decimal degrees; north is positive. |
+| `area.circle.latLng.longitude` | number; -180.0–180.0 | When parent is supplied | — | WGS84 longitude in decimal degrees; east is positive. |
+| `area.circle.radius` | integer; 23–50000 | When parent is supplied | — | Circle radius in metres. |
+| `area.customArea` | object | No | Not supplied | Custom polygon area; mutually exclusive with circle/region. |
+| `area.customArea.polygon` | object | When parent is supplied | — | Polygon boundary. |
+| `area.customArea.polygon.coordinates` | array of object; 4–1000 items | When parent is supplied | — | Ordered ring of coordinate objects; first and last coordinates must match. |
+| `area.customArea.polygon.coordinates[].latitude` | number; -90.0–90.0 | When parent is supplied | — | WGS84 latitude in decimal degrees; north is positive. |
+| `area.customArea.polygon.coordinates[].longitude` | number; -180.0–180.0 | When parent is supplied | — | WGS84 longitude in decimal degrees; east is positive. |
+| `area.region` | object | No | Not supplied | An administrative/geographic region identified by a Google place resource. |
+| `area.region.place` | string; pattern: `^places/[A-Za-z0-9_-]+$` | When parent is supplied | — | Region resource in places/PLACE_ID format, not a free-form region name. |
+| `excludedTypes` / `--excluded-types` | array of string; 1–50 items; each item at least 1 character(s) | No | No excluded-type filter | Google place types to exclude. |
+| `includePlaces` / `--include-places` | boolean | No | false | Request matching place resource IDs in addition to the count. |
+| `includedTypes` / `--included-types` | array of string; 1–50 items; each item at least 1 character(s) | Yes | — | Google place types to include, such as restaurant or cafe. |
+| `maxRating` / `--max-rating` | number; 1.0–5.0 | No | No upper rating filter | Inclusive upper rating bound. |
+| `minRating` / `--min-rating` | number; 1.0–5.0 | No | No lower rating filter | Inclusive lower rating bound; cannot exceed maxRating. |
+| `operatingStatus` / `--operating-status` | array of string; 1–3 items; values: `OPERATING_STATUS_OPERATIONAL`, `OPERATING_STATUS_PERMANENTLY_CLOSED`, `OPERATING_STATUS_TEMPORARILY_CLOSED` | No | Google defaults to operational places | Allowed operating states. |
+| `priceLevels` / `--price-levels` | array of string; 1–5 items; values: `PRICE_LEVEL_FREE`, `PRICE_LEVEL_INEXPENSIVE`, `PRICE_LEVEL_MODERATE`, `PRICE_LEVEL_EXPENSIVE`, `PRICE_LEVEL_VERY_EXPENSIVE` | No | All price levels | Allowed price levels. |
+
+### Behavior and restrictions
+
+- Supply exactly one area form. Nested objects are JSON values on the CLI; their child parameters do not have independent flags.
+- Polygon rings must be closed. Google also checks polygon geometry, supported types, area and coverage.
+- Place IDs are available only for counts of 100 or less. The tool does not automatically request Place Details.
+
+### Result
+
+Google’s response with `count` (normally an int64 string) and optional `placeInsights[].place` resources when IDs were requested and available.
+
+### Example
+
+MCP arguments:
+
+```json
+{
+  "area": {
+    "circle": {
+      "latLng": {
+        "latitude": 48.8584,
+        "longitude": 2.2945
+      },
+      "radius": 500
+    }
+  },
+  "includedTypes": [
+    "restaurant"
+  ],
+  "minRating": 4
+}
+```
+
+Equivalent CLI call:
+
+```sh
+mcp-gmap-rs call maps_area_insights --args '{"area":{"circle":{"latLng":{"latitude":48.8584,"longitude":2.2945},"radius":500}},"includedTypes":["restaurant"],"minRating":4}'
+```
+
+
+## maps_snap_to_roads {#maps_snap_to_roads}
+
+Snap an ordered GPS path of 2-100 points to roads. Keep consecutive points within about 300 metres for good results. Optional interpolation adds road geometry.
+
+Match an ordered GPS trace to the most likely road geometry. Use Nearest Roads for independent points rather than a travelled path.
+
+**CLI command:** `snap-to-roads`. **Google access:** API key required in this implementation.
+
+### Parameters
+
+| Parameter / CLI flag | Type and schema limits | Required | Default when omitted | Description |
+| --- | --- | --- | --- | --- |
+| `interpolate` / `--interpolate` | boolean | No | false | Add intermediate road geometry between supplied points. |
+| `path` / `--path` | array of object; 2–100 items | Yes | — | GPS coordinate objects in travel order. |
+| `path[].latitude` | number; -90.0–90.0 | When parent is supplied | — | WGS84 latitude in decimal degrees; north is positive. |
+| `path[].longitude` | number; -180.0–180.0 | When parent is supplied | — | WGS84 longitude in decimal degrees; east is positive. |
+
+### Behavior and restrictions
+
+- Consecutive input points should be within about 300 metres for good matching.
+- Interpolated points may not have an originalIndex. Speed limits are not requested by this tool.
+
+### Result
+
+The original Roads response, including `snappedPoints` and any `warningMessage`. Points preserve road `placeId`, `location` and `originalIndex` when provided.
+
+### Example
+
+MCP arguments:
+
+```json
+{
+  "path": [
+    {
+      "latitude": -35.27801,
+      "longitude": 149.12958
+    },
+    {
+      "latitude": -35.28032,
+      "longitude": 149.12907
+    }
+  ],
+  "interpolate": true
+}
+```
+
+Equivalent CLI call:
+
+```sh
+mcp-gmap-rs call maps_snap_to_roads --args '{"path":[{"latitude":-35.27801,"longitude":149.12958},{"latitude":-35.28032,"longitude":149.12907}],"interpolate":true}'
+```
+
+
+## maps_nearest_roads {#maps_nearest_roads}
+
+Find the nearest road segments for 1-100 independent GPS points; preserves Google's originalIndex and road place IDs.
+
+Find nearby road segments for independent GPS points without interpreting them as one continuous trace.
+
+**CLI command:** `nearest-roads`. **Google access:** API key required in this implementation.
+
+### Parameters
+
+| Parameter / CLI flag | Type and schema limits | Required | Default when omitted | Description |
+| --- | --- | --- | --- | --- |
+| `points` / `--points` | array of object; 1–100 items | Yes | — | Independent coordinate objects to match. |
+| `points[].latitude` | number; -90.0–90.0 | When parent is supplied | — | WGS84 latitude in decimal degrees; north is positive. |
+| `points[].longitude` | number; -180.0–180.0 | When parent is supplied | — | WGS84 longitude in decimal degrees; east is positive. |
+
+### Behavior and restrictions
+
+- A point can match more than one road segment; retain originalIndex rather than assuming one output per input.
+- Speed limits are not requested by this tool.
+
+### Result
+
+The original Roads response with `snappedPoints`, road `placeId`, `location` and `originalIndex` mapping back to input points.
+
+### Example
+
+MCP arguments:
+
+```json
+{
+  "points": [
+    {
+      "latitude": -35.27801,
+      "longitude": 149.12958
+    },
+    {
+      "latitude": -35.28032,
+      "longitude": 149.12907
+    }
+  ]
+}
+```
+
+Equivalent CLI call:
+
+```sh
+mcp-gmap-rs call maps_nearest_roads --args '{"points":[{"latitude":-35.27801,"longitude":149.12958},{"latitude":-35.28032,"longitude":149.12907}]}'
+```
+
+
+## maps_reverse_geocode {#maps_reverse_geocode}
+
+Convert coordinates to a street address.
+
+Convert exact coordinates to the first reverse-Geocoding result. Use the result’s components when a formatted address alone is insufficient.
+
+**CLI command:** `reverse-geocode`. **Google access:** API key required in this implementation.
+
+### Parameters
+
+| Parameter / CLI flag | Type and schema limits | Required | Default when omitted | Description |
+| --- | --- | --- | --- | --- |
+| `latitude` / `--latitude` | number; -90.0–90.0 | Yes | — | WGS84 latitude in decimal degrees; north is positive. |
+| `longitude` / `--longitude` | number; -180.0–180.0 | Yes | — | WGS84 longitude in decimal degrees; east is positive. |
+
+### Behavior and restrictions
+
+- Only the first result is returned. No match is a tool error.
+
+### Result
+
+The first native Geocoding result, including `formatted_address`, `address_components`, `geometry` and `place_id` when available.
+
+### Example
+
+MCP arguments:
+
+```json
+{
+  "latitude": 48.8584,
+  "longitude": 2.2945
+}
+```
+
+Equivalent CLI call:
+
+```sh
+mcp-gmap-rs call maps_reverse_geocode --args '{"latitude":48.8584,"longitude":2.2945}'
+```
+
+
+## maps_search_places {#maps_search_places}
+
+Search Places (New) by text with optional location and rating filters.
+
+Search Places (New) by text and optional location/rating/type filters. Use returned IDs for selective detail requests.
+
+**CLI command:** `search-places`. **Google access:** API key or OAuth for the main API.
+
+### Parameters
+
+| Parameter / CLI flag | Type and schema limits | Required | Default when omitted | Description |
+| --- | --- | --- | --- | --- |
+| `includedType` / `--included-type` | string; at least 1 character(s) | No | No type filter | Google place type, such as cafe. |
+| `locationBias` / `--location-bias` | object | No | No location bias | Optional circular search bias; a bias is not a hard geographic restriction. |
+| `locationBias.latitude` | number; -90.0–90.0 | When parent is supplied | — | WGS84 latitude in decimal degrees; north is positive. |
+| `locationBias.longitude` | number; -180.0–180.0 | When parent is supplied | — | WGS84 longitude in decimal degrees; east is positive. |
+| `locationBias.radius` | number; 0.1–50000.0 | No | 5000 | Bias radius in metres. |
+| `minRating` / `--min-rating` | number; 0.0–5.0 | No | No rating filter | Minimum user rating requested from Google. |
+| `openNow` / `--open-now` | boolean | No | No opening-status restriction | Restrict to places currently open when true. |
+| `query` / `--query` | string; at least 1 character(s) | Yes | — | Natural-language place query. |
+
+### Behavior and restrictions
+
+- This tool requests one page of 20 results and does not return or automatically follow a page token.
+- Missing opening/rating data depends on Google coverage; do not infer an exhaustive inventory from this search.
+
+### Result
+
+An array of up to 20 Google Place objects with selected search fields, Maps/source links and attribution metadata.
+
+### Example
+
+MCP arguments:
+
+```json
+{
+  "query": "coffee near Gare de Lyon, Paris",
+  "openNow": true,
+  "minRating": 4
+}
+```
+
+Equivalent CLI call:
+
+```sh
+mcp-gmap-rs call maps_search_places --args '{"query":"coffee near Gare de Lyon, Paris","openNow":true,"minRating":4}'
+```
+
+
+## maps_search_nearby {#maps_search_nearby}
+
+Find places around an address or exact coordinate pair, filtered by type, rating, and opening status.
+
+Find places inside a bounded radius around a resolved center. Unlike Text Search, this uses a hard circular location restriction.
+
+**CLI command:** `search-nearby`. **Google access:** Places accepts API key or OAuth. Address/landmark centers also need an API key for Geocoding resolution.
+
+### Parameters
+
+| Parameter / CLI flag | Type and schema limits | Required | Default when omitted | Description |
+| --- | --- | --- | --- | --- |
+| `center` / `--center` | object | Yes | — | Center input and the indicator describing how to interpret it. |
+| `center.isCoordinates` | boolean | No | false | Treat value as exact coordinates without geocoding. |
+| `center.value` | string; at least 1 character(s) | When parent is supplied | — | Address/landmark, or a latitude,longitude string when isCoordinates is true. |
+| `keyword` / `--keyword` | string; at least 1 character(s) | No | No type filter | A Google place type passed as includedTypes, such as cafe; not an arbitrary text keyword. |
+| `minRating` / `--min-rating` | number; 0.0–5.0 | No | No rating filter | Minimum rating applied locally to the returned places. |
+| `openNow` / `--open-now` | boolean | No | false | Keep only results whose currentOpeningHours.openNow is true. |
+| `radius` / `--radius` | number; 0.1–50000.0 | No | 1000 | Search radius in metres. |
+
+### Behavior and restrictions
+
+- When filtering, missing opening status does not count as open and missing rating is treated as 0.
+- Address centers require location resolution; coordinates avoid that extra call.
+
+### Result
+
+An array of up to 20 selected Place objects. Local opening/rating filters can reduce the array further.
+
+### Example
+
+MCP arguments:
+
+```json
+{
+  "center": {
+    "value": "48.8584,2.2945",
+    "isCoordinates": true
+  },
+  "keyword": "cafe",
+  "radius": 500
+}
+```
+
+Equivalent CLI call:
+
+```sh
+mcp-gmap-rs call maps_search_nearby --args '{"center":{"value":"48.8584,2.2945","isCoordinates":true},"keyword":"cafe","radius":500}'
+```
+
+
+## maps_place_details {#maps_place_details}
+
+Get full place details, reviews and attribution. Optional photo URLs retain author attribution. Display source/disclosure metadata alongside content.
+
+Expand a known place ID into selected details, reviews and optional photo URLs. Preserve author/source information and any AI disclosure text.
+
+**CLI command:** `place-details`. **Google access:** API key or OAuth for the main API.
+
+### Parameters
+
+| Parameter / CLI flag | Type and schema limits | Required | Default when omitted | Description |
+| --- | --- | --- | --- | --- |
+| `maxPhotos` / `--max-photos` | integer; 0–10 | No | 0 | Maximum photo-media URL lookups to perform. |
+| `placeId` / `--place-id` | string; at least 1 character(s) | Yes | — | Google place ID, optionally prefixed with places/. |
+
+### Behavior and restrictions
+
+- Each selected photo can make an additional request; zero photos avoids those calls.
+- The tool uses a fixed details field mask, not every possible Google Place field. Unavailable fields may be absent.
+
+### Result
+
+A native Google Place object for the requested field mask. When photos are requested, `photoUrls` carries media URLs plus photo-author attribution and source links.
+
+### Example
+
+MCP arguments:
+
+```json
+{
+  "placeId": "ChIJLU7jZClu5kcR4PcOOO6p3I0",
+  "maxPhotos": 1
+}
+```
+
+Equivalent CLI call:
+
+```sh
+mcp-gmap-rs call maps_place_details --args '{"placeId":"ChIJLU7jZClu5kcR4PcOOO6p3I0","maxPhotos":1}'
+```
+
+
+## maps_directions {#maps_directions}
+
+Get directions, route geometry, navigation instructions and travel duration.
+
+Compute a route between two endpoints and expose both selected Google route data and normalized totals.
+
+**CLI command:** `directions`. **Google access:** Routes/Places accept API key or OAuth. Named-location resolution also needs an API key for Geocoding; exact coordinate strings avoid that lookup.
+
+### Parameters
+
+| Parameter / CLI flag | Type and schema limits | Required | Default when omitted | Description |
+| --- | --- | --- | --- | --- |
+| `arrival_time` / `--arrival-time` | string; at least 1 character(s) | No | Not supplied | Desired arrival as RFC 3339 with timezone; transit mode only. |
+| `avoid_highways` / `--avoid-highways` | boolean | No | false | Avoid highways; true is supported only for driving. |
+| `avoid_tolls` / `--avoid-tolls` | boolean | No | false | Avoid toll roads; true is supported only for driving. |
+| `departure_time` / `--departure-time` | string; at least 1 character(s) | No | Not supplied | Departure instant as RFC 3339 including Z or an explicit UTC offset. |
+| `destination` / `--destination` | string; at least 1 character(s) | Yes | — | Destination address/landmark or exact latitude,longitude string. |
+| `mode` / `--mode` | string; values: `driving`, `walking`, `bicycling`, `transit` | No | driving | Travel mode. Driving uses traffic-aware routing. |
+| `origin` / `--origin` | string; at least 1 character(s) | Yes | — | Origin address/landmark or exact latitude,longitude string. |
+
+### Behavior and restrictions
+
+- departure_time and arrival_time cannot both be supplied. arrival_time is accepted only for transit.
+- Avoidance flags require driving. Google applies additional travel-mode/time/region restrictions.
+- No available route is an explicit error.
+
+### Result
+
+An object containing `routes`, `summary`, `total_distance` (value in metres), `total_duration` (value in seconds) and optional optimization indices. Route entries contain selected legs, steps, polyline and warnings.
+
+### Example
+
+MCP arguments:
+
+```json
+{
+  "origin": "48.8584,2.2945",
+  "destination": "48.8606,2.3376",
+  "mode": "walking"
+}
+```
+
+Equivalent CLI call:
+
+```sh
+mcp-gmap-rs call maps_directions --args '{"origin":"48.8584,2.2945","destination":"48.8606,2.3376","mode":"walking"}'
+```
+
+
+## maps_distance_matrix {#maps_distance_matrix}
+
+Compute travel distances and durations for multiple origins and destinations.
+
+Compare travel distance and duration for every origin/destination pair. Check individual cells and errors rather than treating a successful response as complete.
+
+**CLI command:** `distance-matrix`. **Google access:** API key or OAuth for the main API.
+
+### Parameters
+
+| Parameter / CLI flag | Type and schema limits | Required | Default when omitted | Description |
+| --- | --- | --- | --- | --- |
+| `avoid_highways` / `--avoid-highways` | boolean | No | false | Avoid highways; true is supported only for driving. |
+| `avoid_tolls` / `--avoid-tolls` | boolean | No | false | Avoid toll roads; true is supported only for driving. |
+| `departure_time` / `--departure-time` | string; at least 1 character(s) | No | Not supplied | Departure instant as RFC 3339 including Z or an explicit UTC offset. |
+| `destinations` / `--destinations` | array of string; 1–50 items; each item at least 1 character(s) | Yes | — | Destination strings: addresses or exact latitude,longitude pairs. |
+| `mode` / `--mode` | string; values: `driving`, `walking`, `bicycling`, `transit` | No | driving | Travel mode. Driving uses traffic-aware routing. |
+| `origins` / `--origins` | array of string; 1–50 items; each item at least 1 character(s) | Yes | — | Origin strings: addresses or exact latitude,longitude pairs. |
+
+### Behavior and restrictions
+
+- At most 625 origin × destination pairs; transit is limited to 100 pairs.
+- At most 50 non-coordinate origin/destination strings in total. Per-array schema limits do not override these combined limits.
+- Toll/highway avoidance applies only to driving. This tool does not expose arrival_time.
+- A single matrix HTTP request may bill multiple elements.
+
+### Result
+
+An object with `origin_addresses`, `destination_addresses`, row-major `distances` and `durations`, and an `errors` array. Successful cell values are metres/seconds; failed or missing cells remain null.
+
+### Example
+
+MCP arguments:
+
+```json
+{
+  "origins": [
+    "48.8584,2.2945"
+  ],
+  "destinations": [
+    "48.8606,2.3376",
+    "48.8530,2.3499"
+  ],
+  "mode": "walking"
+}
+```
+
+Equivalent CLI call:
+
+```sh
+mcp-gmap-rs call maps_distance_matrix --args '{"origins":["48.8584,2.2945"],"destinations":["48.8606,2.3376","48.8530,2.3499"],"mode":"walking"}'
+```
+
+
+## maps_elevation {#maps_elevation}
+
+Get elevation in meters for geographic coordinates.
+
+Get geographic height for exact coordinate points.
+
+**CLI command:** `elevation`. **Google access:** API key required in this implementation.
+
+### Parameters
+
+| Parameter / CLI flag | Type and schema limits | Required | Default when omitted | Description |
+| --- | --- | --- | --- | --- |
+| `locations` / `--locations` | array of object; 1–512 items | Yes | — | Coordinate objects for which to request elevation. |
+| `locations[].latitude` | number; -90.0–90.0 | When parent is supplied | — | WGS84 latitude in decimal degrees; north is positive. |
+| `locations[].longitude` | number; -180.0–180.0 | When parent is supplied | — | WGS84 longitude in decimal degrees; east is positive. |
+
+### Behavior and restrictions
+
+- The tool returns Google’s reported data without converting elevation units.
+
+### Result
+
+The native Elevation `results` array. Entries can contain `elevation` in metres, `location` and `resolution`.
+
+### Example
+
+MCP arguments:
+
+```json
+{
+  "locations": [
+    {
+      "latitude": 48.8584,
+      "longitude": 2.2945
+    }
+  ]
+}
+```
+
+Equivalent CLI call:
+
+```sh
+mcp-gmap-rs call maps_elevation --args '{"locations":[{"latitude":48.8584,"longitude":2.2945}]}'
+```
+
+
+## maps_timezone {#maps_timezone}
+
+Get timezone, UTC/DST offsets and local time. timestamp is Unix milliseconds.
+
+Resolve timezone identity and UTC/DST offsets at an instant, then derive a local timestamp.
+
+**CLI command:** `timezone`. **Google access:** API key required in this implementation.
+
+### Parameters
+
+| Parameter / CLI flag | Type and schema limits | Required | Default when omitted | Description |
+| --- | --- | --- | --- | --- |
+| `latitude` / `--latitude` | number; -90.0–90.0 | Yes | — | WGS84 latitude in decimal degrees; north is positive. |
+| `longitude` / `--longitude` | number; -180.0–180.0 | Yes | — | WGS84 longitude in decimal degrees; east is positive. |
+| `timestamp` / `--timestamp` | integer; 0–253402300799999 | No | Current UTC time in milliseconds | Unix epoch milliseconds, not seconds. |
+
+### Behavior and restrictions
+
+- The request converts milliseconds to whole seconds; sub-second precision is not preserved.
+- Local time uses the returned raw and DST offsets for the requested instant.
+
+### Result
+
+Timezone response fields such as `timeZoneId`, `timeZoneName`, `rawOffset` and `dstOffset` in seconds, plus derived `localTime` in RFC 3339 format.
+
+### Example
+
+MCP arguments:
+
+```json
+{
+  "latitude": 48.8584,
+  "longitude": 2.2945,
+  "timestamp": 1793448000000
+}
+```
+
+Equivalent CLI call:
+
+```sh
+mcp-gmap-rs call maps_timezone --args '{"latitude":48.8584,"longitude":2.2945,"timestamp":1793448000000}'
+```
+
+
+## maps_weather {#maps_weather}
+
+Get current weather, daily forecast or hourly forecast.
+
+Request current conditions or one page of daily/hourly forecast data for exact coordinates.
+
+**CLI command:** `weather`. **Google access:** API key or OAuth for the main API.
+
+### Parameters
+
+| Parameter / CLI flag | Type and schema limits | Required | Default when omitted | Description |
+| --- | --- | --- | --- | --- |
+| `forecastDays` / `--forecast-days` | integer; 1–10 | No | 5 | Requested daily forecast length; used only with forecast_daily. |
+| `forecastHours` / `--forecast-hours` | integer; 1–240 | No | 24 | Requested hourly forecast length; used only with forecast_hourly. |
+| `latitude` / `--latitude` | number; -90.0–90.0 | Yes | — | WGS84 latitude in decimal degrees; north is positive. |
+| `longitude` / `--longitude` | number; -180.0–180.0 | Yes | — | WGS84 longitude in decimal degrees; east is positive. |
+| `type` / `--type` | string; values: `current`, `forecast_daily`, `forecast_hourly` | No | current | Select current conditions, daily forecast or hourly forecast. |
+
+### Behavior and restrictions
+
+- forecastDays is ignored for other types; forecastHours is ignored outside forecast_hourly.
+- This tool does not automatically follow pagination tokens. The requested horizon may exceed the records in one response page.
+- Coverage and forecast availability depend on Google.
+
+### Result
+
+The native Weather response: current-condition fields, `forecastDays`, or `forecastHours`, depending on type. Preserve returned units, timestamps and any nextPageToken.
+
+### Example
+
+MCP arguments:
+
+```json
+{
+  "latitude": 48.8584,
+  "longitude": 2.2945,
+  "type": "forecast_daily",
+  "forecastDays": 3
+}
+```
+
+Equivalent CLI call:
+
+```sh
+mcp-gmap-rs call maps_weather --args '{"latitude":48.8584,"longitude":2.2945,"type":"forecast_daily","forecastDays":3}'
+```
+
+
+## maps_air_quality {#maps_air_quality}
+
+Get air quality indices, optional pollutant concentrations and health recommendations.
+
+Get current air-quality indices with optional pollutant concentrations and provider health recommendations.
+
+**CLI command:** `air-quality`. **Google access:** API key or OAuth for the main API.
+
+### Parameters
+
+| Parameter / CLI flag | Type and schema limits | Required | Default when omitted | Description |
+| --- | --- | --- | --- | --- |
+| `includeHealthRecommendations` / `--include-health-recommendations` | boolean | No | true | Request Google’s health-recommendation computation. |
+| `includePollutants` / `--include-pollutants` | boolean | No | false | Request pollutant concentrations. |
+| `latitude` / `--latitude` | number; -90.0–90.0 | Yes | — | WGS84 latitude in decimal degrees; north is positive. |
+| `longitude` / `--longitude` | number; -180.0–180.0 | Yes | — | WGS84 longitude in decimal degrees; east is positive. |
+
+### Behavior and restrictions
+
+- Recommendations are provider data, not a personalized medical assessment.
+- This tool exposes current conditions, not historical or forecast endpoints.
+
+### Result
+
+The native Air Quality current-conditions response, including indices and optional `healthRecommendations`/`pollutants` when supplied by Google.
+
+### Example
+
+MCP arguments:
+
+```json
+{
+  "latitude": 48.8584,
+  "longitude": 2.2945,
+  "includePollutants": true
+}
+```
+
+Equivalent CLI call:
+
+```sh
+mcp-gmap-rs call maps_air_quality --args '{"latitude":48.8584,"longitude":2.2945,"includePollutants":true}'
+```
+
+
+## maps_static_map {#maps_static_map}
+
+Fetch a PNG map with markers and paths. MCP returns an inline image; CLI returns base64 JSON or writes --output.
+
+Render a PNG map with optional markers and path specifications.
+
+**CLI command:** `static-map`. **Google access:** API key required in this implementation.
+
+### Parameters
+
+| Parameter / CLI flag | Type and schema limits | Required | Default when omitted | Description |
+| --- | --- | --- | --- | --- |
+| `center` / `--center` | string; at least 1 character(s) | No | Not supplied | Center as an address or latitude,longitude string. |
+| `maptype` / `--maptype` | string; values: `roadmap`, `satellite`, `terrain`, `hybrid` | No | roadmap | Base map style. |
+| `markers` / `--markers` | array of string; 1–100 items; each item at least 1 character(s) | No | No markers | Repeated Google Static Maps marker specifications, e.g. color:red\|48.8584,2.2945. |
+| `path` / `--path` | array of string; 1–100 items; each item at least 1 character(s) | No | No paths | Repeated Google Static Maps path specifications, e.g. color:blue\|48.8584,2.2945\|48.8606,2.3376. |
+| `size` / `--size` | string; pattern: `^[1-9][0-9]{0,2}x[1-9][0-9]{0,2}$` | No | 600x400 | Pixel dimensions WIDTHxHEIGHT; runtime limits each dimension to 1–640. |
+| `zoom` / `--zoom` | integer; 0–21 | No | Omitted; Google chooses or infers it | Explicit zoom level. |
+
+### Behavior and restrictions
+
+- At least one of center, markers or path is required.
+- The complete request URL must fit within 16,384 characters. The schema’s size pattern is broader than the runtime’s 640-pixel bound.
+- Marker/path styling follows Google Static Maps syntax. Google attribution remains in the rendered image.
+
+### Result
+
+MCP returns inline image/png content. CLI returns `{mimeType,base64}` JSON, or raw PNG bytes when --output is supplied.
+
+### Example
+
+MCP arguments:
+
+```json
+{
+  "center": "48.8584,2.2945",
+  "zoom": 14,
+  "size": "320x240",
+  "markers": [
+    "color:red|48.8584,2.2945"
+  ]
+}
+```
+
+Equivalent CLI call:
+
+```sh
+mcp-gmap-rs call maps_static_map --args '{"center":"48.8584,2.2945","zoom":14,"size":"320x240","markers":["color:red|48.8584,2.2945"]}'
+```
+
+
+## maps_batch_geocode {#maps_batch_geocode}
+
+Geocode up to 50 addresses with per-address success or error and bounded concurrency.
+
+Geocode a bounded list of addresses while preserving input order and each item’s success or failure.
+
+**CLI command:** `batch-geocode`. **Google access:** API key required in this implementation.
+
+### Parameters
+
+| Parameter / CLI flag | Type and schema limits | Required | Default when omitted | Description |
+| --- | --- | --- | --- | --- |
+| `addresses` / `--addresses` | array of string; 1–50 items; each item at least 1 character(s) | Yes | — | Address/landmark strings to resolve. |
+
+### Behavior and restrictions
+
+- Uses bounded concurrency with at most five Google requests active per process.
+- Item failures do not force a nonzero CLI exit status; inspect success/error on every row.
+
+### Result
+
+An array in input order. Each row has `address`, `success` and either `data` (the geocode object) or `error`.
+
+### Example
+
+MCP arguments:
+
+```json
+{
+  "addresses": [
+    "Paris, France",
+    "London, UK"
+  ]
+}
+```
+
+Equivalent CLI call:
+
+```sh
+mcp-gmap-rs call maps_batch_geocode --args '{"addresses":["Paris, France","London, UK"]}'
+```
+
+
+## maps_explore_area {#maps_explore_area}
+
+Resolve a location and explore categories with details for top results. Use specific landmarks for trip planning.
+
+Resolve one location, search selected categories around it, and expand only the leading results in each category.
+
+**CLI command:** `explore-area`. **Google access:** Places accepts API key or OAuth. Named locations also need an API key for Geocoding.
+
+### Parameters
+
+| Parameter / CLI flag | Type and schema limits | Required | Default when omitted | Description |
+| --- | --- | --- | --- | --- |
+| `location` / `--location` | string; at least 1 character(s) | Yes | — | Address/landmark or exact latitude,longitude string. |
+| `radius` / `--radius` | number; 0.1–50000.0 | No | 1000 | Category-search radius in metres. |
+| `topN` / `--top-n` | integer; 1–20 | No | 3 | Maximum places per category to expand with details. |
+| `types` / `--types` | array of string; 1–10 items; each item at least 1 character(s) | No | restaurant, cafe, tourist_attraction | Google place categories to search. |
+
+### Behavior and restrictions
+
+- Each category searches up to 20 places; count is the returned page count, not an aggregate inventory.
+- Category and detail failures remain visible within successful top-level output.
+- This composite makes multiple Google requests; limit categories and topN to the task.
+
+### Result
+
+An object with resolved `location`, `radius` and `categories`. Each category has type/count/top or an error; expanded places can contain details_error.
+
+### Example
+
+MCP arguments:
+
+```json
+{
+  "location": "48.8584,2.2945",
+  "types": [
+    "cafe"
+  ],
+  "radius": 500,
+  "topN": 1
+}
+```
+
+Equivalent CLI call:
+
+```sh
+mcp-gmap-rs call maps_explore_area --args '{"location":"48.8584,2.2945","types":["cafe"],"radius":500,"topN":1}'
+```
+
+
+## maps_plan_route {#maps_plan_route}
+
+Plan a route through 2-27 stops. Optimize 2-25 intermediate stops, except transit. Exact coordinates are preserved.
+
+Plan a single route through ordered stops, optionally asking Google to reorder intermediate stops while keeping the endpoints fixed.
+
+**CLI command:** `plan-route`. **Google access:** Routes/Places accept API key or OAuth. Named-location resolution also needs an API key for Geocoding; exact coordinate strings avoid that lookup.
+
+### Parameters
+
+| Parameter / CLI flag | Type and schema limits | Required | Default when omitted | Description |
+| --- | --- | --- | --- | --- |
+| `avoid_highways` / `--avoid-highways` | boolean | No | false | Avoid highways; true is supported only for driving. |
+| `avoid_tolls` / `--avoid-tolls` | boolean | No | false | Avoid toll roads; true is supported only for driving. |
+| `departure_time` / `--departure-time` | string; at least 1 character(s) | No | Not supplied | Departure instant as RFC 3339 including Z or an explicit UTC offset. |
+| `mode` / `--mode` | string; values: `driving`, `walking`, `bicycling`, `transit` | No | driving | Travel mode. Driving uses traffic-aware routing. |
+| `optimize` / `--optimize` | boolean | No | true, subject to those conditions | Request intermediate-stop optimization when more than three total stops and mode is not transit. |
+| `stops` / `--stops` | array of string; 2–27 items; each item at least 1 character(s) | Yes | — | Ordered addresses/landmarks or exact latitude,longitude strings; first/last stay endpoints. |
+
+### Behavior and restrictions
+
+- Transit supports only two endpoints and no intermediate stops.
+- Optimization takes effect only for four or more total stops (at least two intermediate stops).
+- This optimizes stop order for one route, not vehicle/task assignment across a fleet.
+
+### Result
+
+An object with `mode`, effective `optimized`, ordered resolved `stops`, display `legs`, total_distance, total_duration, polyline and warnings. Leg durationSeconds is numeric seconds.
+
+### Example
+
+MCP arguments:
+
+```json
+{
+  "stops": [
+    "48.8584,2.2945",
+    "48.8606,2.3376",
+    "48.8530,2.3499"
+  ],
+  "mode": "walking",
+  "optimize": false
+}
+```
+
+Equivalent CLI call:
+
+```sh
+mcp-gmap-rs call maps_plan_route --args '{"stops":["48.8584,2.2945","48.8606,2.3376","48.8530,2.3499"],"mode":"walking","optimize":false}'
+```
+
+
+## maps_compare_places {#maps_compare_places}
+
+Search and compare places with detailed information and optional driving distance from userLocation.
+
+Find and enrich a short list of places, optionally comparing driving distance from exact user coordinates.
+
+**CLI command:** `compare-places`. **Google access:** Places and optional Routes accept API key or OAuth.
+
+### Parameters
+
+| Parameter / CLI flag | Type and schema limits | Required | Default when omitted | Description |
+| --- | --- | --- | --- | --- |
+| `limit` / `--limit` | integer; 1–20 | No | 5 | Maximum matching places to enrich. |
+| `query` / `--query` | string; at least 1 character(s) | Yes | — | Places text-search query. |
+| `userLocation` / `--user-location` | object | No | No distance/time comparison | Exact user coordinates for optional distance comparison. |
+| `userLocation.latitude` | number; -90.0–90.0 | When parent is supplied | — | WGS84 latitude in decimal degrees; north is positive. |
+| `userLocation.longitude` | number; -180.0–180.0 | When parent is supplied | — | WGS84 longitude in decimal degrees; east is positive. |
+
+### Behavior and restrictions
+
+- Comparison travel is driving; this tool has no configurable travel-mode parameter.
+- Details and distance failures are preserved instead of dropping otherwise usable places.
+- Only the requested shortlist is enriched.
+
+### Result
+
+An object with `places` and optional `distance_error`. Places can include details/details_error, distance, drive_time and per-place distance_errors.
+
+### Example
+
+MCP arguments:
+
+```json
+{
+  "query": "cafes near Eiffel Tower, Paris",
+  "userLocation": {
+    "latitude": 48.8584,
+    "longitude": 2.2945
+  },
+  "limit": 3
+}
+```
+
+Equivalent CLI call:
+
+```sh
+mcp-gmap-rs call maps_compare_places --args '{"query":"cafes near Eiffel Tower, Paris","userLocation":{"latitude":48.8584,"longitude":2.2945},"limit":3}'
+```
+
+
+## maps_search_along_route {#maps_search_along_route}
+
+Find places along a route using its encoded polyline.
+
+Compute a route and search Places using its encoded polyline, rather than approximating the journey with one circular search.
+
+**CLI command:** `search-along-route`. **Google access:** Routes/Places accept API key or OAuth. Named-location resolution also needs an API key for Geocoding; exact coordinate strings avoid that lookup.
+
+### Parameters
+
+| Parameter / CLI flag | Type and schema limits | Required | Default when omitted | Description |
+| --- | --- | --- | --- | --- |
+| `destination` / `--destination` | string; at least 1 character(s) | Yes | — | Route destination address/landmark or exact latitude,longitude string. |
+| `maxResults` / `--max-results` | integer; 1–20 | No | 5 | Maximum Places results requested in the response page. |
+| `mode` / `--mode` | string; values: `driving`, `walking`, `bicycling`, `transit` | No | walking | Travel mode for the route used by the search. |
+| `origin` / `--origin` | string; at least 1 character(s) | Yes | — | Route origin address/landmark or exact latitude,longitude string. |
+| `textQuery` / `--text-query` | string; at least 1 character(s) | Yes | — | Places query for stops along the route, such as cafes or charging stations. |
+
+### Behavior and restrictions
+
+- The default mode is walking, unlike directions, matrix and plan-route, which default to driving.
+- No automatic pagination or Place Details expansion is performed.
+- This tool does not expose the departure/arrival or avoidance parameters of directions.
+
+### Result
+
+An object with `places`, optional `routingSummaries`, and the computed `route` including selected Google route data and normalized totals.
+
+### Example
+
+MCP arguments:
+
+```json
+{
+  "textQuery": "cafes",
+  "origin": "48.8584,2.2945",
+  "destination": "48.8606,2.3376",
+  "mode": "walking",
+  "maxResults": 3
+}
+```
+
+Equivalent CLI call:
+
+```sh
+mcp-gmap-rs call maps_search_along_route --args '{"textQuery":"cafes","origin":"48.8584,2.2945","destination":"48.8606,2.3376","mode":"walking","maxResults":3}'
+```
+
+
+## maps_local_rank_tracker {#maps_local_rank_tracker}
+
+Track search rank across a geographic grid for 1-3 keywords; returns ARP, ATRP, SoLV and per-point errors.
+
+Measure a target place’s appearance within the first 20 Text Search results at each point of a geographic grid.
+
+**CLI command:** `local-rank-tracker`. **Google access:** API key or OAuth for the main API.
+
+### Parameters
+
+| Parameter / CLI flag | Type and schema limits | Required | Default when omitted | Description |
+| --- | --- | --- | --- | --- |
+| `center` / `--center` | object | Yes | — | Exact center of the scan grid. |
+| `center.latitude` | number; -90.0–90.0 | When parent is supplied | — | WGS84 latitude in decimal degrees; north is positive. |
+| `center.longitude` | number; -180.0–180.0 | When parent is supplied | — | WGS84 longitude in decimal degrees; east is positive. |
+| `gridSize` / `--grid-size` | integer; 3–7 | No | 3 | Number of rows and columns; all integer values 3–7 are accepted. |
+| `gridSpacing` / `--grid-spacing` | number; 100.0–10000.0 | No | 1000 | Distance in metres between neighboring grid points. |
+| `keyword` / `--keyword` | string; at least 1 character(s) | No | Not supplied | Single search keyword; use keyword or keywords. |
+| `keywords` / `--keywords` | array of string; 1–3 items; each item at least 1 character(s) | No | Not supplied | One to three search keywords; takes precedence if both keyword forms are supplied. |
+| `placeId` / `--place-id` | string; at least 1 character(s) | Yes | — | Target place ID, optionally prefixed with places/. |
+
+### Behavior and restrictions
+
+- At least one of keyword or keywords is required; individual schema rows do not express that alternative.
+- Search requests scale as keyword count × gridSize² (up to 147 before retries).
+- Failed points are excluded from rank metrics, not treated as valid misses. Metrics can be null when no usable observations exist.
+- A search rank is not the target’s user-review rating. Results are samples from biased text searches, not guarantees of a user’s Google Maps ranking.
+
+### Result
+
+An object with target, grid_size, grid_spacing_m and per-keyword metrics/grid. ARP averages found ranks; ATRP uses rank 21 for successful queries where the target was absent; SoLV is the percentage of successful points ranked in the top 3. failed_points and found_in expose coverage.
+
+### Example
+
+MCP arguments:
+
+```json
+{
+  "keyword": "cafe",
+  "placeId": "ChIJLU7jZClu5kcR4PcOOO6p3I0",
+  "center": {
+    "latitude": 48.8584,
+    "longitude": 2.2945
+  },
+  "gridSize": 3,
+  "gridSpacing": 500
+}
+```
+
+Equivalent CLI call:
+
+```sh
+mcp-gmap-rs call maps_local_rank_tracker --args '{"keyword":"cafe","placeId":"ChIJLU7jZClu5kcR4PcOOO6p3I0","center":{"latitude":48.8584,"longitude":2.2945},"gridSize":3,"gridSpacing":500}'
+```

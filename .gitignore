@@ -39,3 +39,10 @@ rustc-ice-*.txt
 # Release archives and Python build-tool caches
 /dist/
 __pycache__/
+
+# Documentation website
+/website/node_modules/
+/website/.vitepress/cache/
+/website/.vitepress/dist/
+/output/playwright/
+/.playwright-cli/

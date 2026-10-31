@@ -1,0 +1,26 @@
+{
+  "name": "mcp-gmap-manual",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vitepress dev",
+    "generate": "python3 scripts/generate-reference.py",
+    "check": "python3 scripts/generate-reference.py --check",
+    "build": "npm run check && vitepress build && python3 scripts/check-site.py",
+    "preview": "vitepress preview",
+    "format:check": "prettier --check .vitepress/config.mts \".vitepress/theme/**/*.{ts,vue,css}\" \"package*.json\""
+  },
+  "devDependencies": {
+    "vitepress": "1.6.4",
+    "vue": "3.5.44",
+    "@fontsource-variable/manrope": "5.3.0",
+    "@fontsource/ibm-plex-mono": "5.3.0",
+    "prettier": "3.9.10"
+  },
+  "engines": {
+    "node": ">=22.12"
+  },
+  "overrides": {
+    "vite": "6.4.5"
+  }
+}

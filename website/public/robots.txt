@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /mcp-gmap-rs/
+Sitemap: https://fcenedes.github.io/mcp-gmap-rs/sitemap.xml

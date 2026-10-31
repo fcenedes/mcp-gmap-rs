@@ -1,0 +1,212 @@
+{
+  "version": "0.3.1",
+  "tools": [
+    {
+      "name": "maps_geocode",
+      "category": "geography",
+      "summary": {
+        "en": "Convert an address or landmark to coordinates.",
+        "fr": "Convertir une adresse ou un lieu connu en coordonnées.",
+        "it": "Converte un indirizzo o un punto di interesse in coordinate."
+      }
+    },
+    {
+      "name": "maps_validate_address",
+      "category": "places",
+      "summary": {
+        "en": "Validate and standardize a postal address; returns Google's verdict, corrections, components and geocode. A verdict is evidence, not a delivery guarantee.",
+        "fr": "Valider et normaliser une adresse postale ; renvoie le verdict Google, les corrections, les composants et le géocodage. Ce verdict ne garantit pas une livraison.",
+        "it": "Valida e normalizza un indirizzo postale, restituendo il verdetto Google, correzioni, componenti e geocodifica. Il verdetto è un elemento di valutazione, non una garanzia di consegna."
+      }
+    },
+    {
+      "name": "maps_pollen",
+      "category": "environment",
+      "summary": {
+        "en": "Get 1-5 days of pollen forecasts, indices and health recommendations for exact coordinates. Coverage varies by location and season.",
+        "fr": "Obtenir 1 à 5 jours de prévisions polliniques, indices et recommandations sanitaires pour des coordonnées exactes. La couverture dépend du lieu et de la saison.",
+        "it": "Ottiene da 1 a 5 giorni di previsioni polliniche, indici e raccomandazioni sanitarie per coordinate esatte. La copertura dipende da luogo e stagione."
+      }
+    },
+    {
+      "name": "maps_area_insights",
+      "category": "places",
+      "summary": {
+        "en": "Count places within a circle, region or polygon using Places Aggregate. Optional place IDs are available only for counts of 100 or less; no automatic details requests.",
+        "fr": "Compter les lieux dans un cercle, une région ou un polygone avec Places Aggregate. Les identifiants facultatifs sont disponibles uniquement pour un total de 100 ou moins ; aucun détail n’est demandé automatiquement.",
+        "it": "Conta i luoghi dentro un cerchio, una regione o un poligono tramite Places Aggregate. Gli identificativi facoltativi sono disponibili solo per conteggi fino a 100; nessuna richiesta automatica di dettagli."
+      }
+    },
+    {
+      "name": "maps_snap_to_roads",
+      "category": "routes",
+      "summary": {
+        "en": "Snap an ordered GPS path of 2-100 points to roads. Keep consecutive points within about 300 metres for good results. Optional interpolation adds road geometry.",
+        "fr": "Rattacher un trajet GPS ordonné de 2 à 100 points au réseau routier. Espacer les points consécutifs d’environ 300 mètres au plus pour de bons résultats. L’interpolation facultative ajoute de la géométrie routière.",
+        "it": "Associa alle strade una traccia GPS ordinata di 2–100 punti. Per buoni risultati mantieni i punti consecutivi entro circa 300 metri. L’interpolazione facoltativa aggiunge geometria stradale."
+      }
+    },
+    {
+      "name": "maps_nearest_roads",
+      "category": "routes",
+      "summary": {
+        "en": "Find the nearest road segments for 1-100 independent GPS points; preserves Google's originalIndex and road place IDs.",
+        "fr": "Trouver les segments routiers les plus proches de 1 à 100 points GPS indépendants ; conserve originalIndex et les identifiants routiers Google.",
+        "it": "Trova i tratti stradali più vicini a 1–100 punti GPS indipendenti; conserva originalIndex di Google e i place ID stradali."
+      }
+    },
+    {
+      "name": "maps_reverse_geocode",
+      "category": "geography",
+      "summary": {
+        "en": "Convert coordinates to a street address.",
+        "fr": "Convertir des coordonnées en adresse postale.",
+        "it": "Converte coordinate in un indirizzo stradale."
+      }
+    },
+    {
+      "name": "maps_search_places",
+      "category": "places",
+      "summary": {
+        "en": "Search Places (New) by text with optional location and rating filters.",
+        "fr": "Rechercher dans Places (New) par texte avec des filtres facultatifs de localisation et de note.",
+        "it": "Cerca Places (New) tramite testo con filtri facoltativi di posizione e valutazione."
+      }
+    },
+    {
+      "name": "maps_search_nearby",
+      "category": "places",
+      "summary": {
+        "en": "Find places around an address or exact coordinate pair, filtered by type, rating, and opening status.",
+        "fr": "Trouver des lieux autour d’une adresse ou d’une paire de coordonnées exactes, filtrés par type, note et état d’ouverture.",
+        "it": "Trova luoghi intorno a un indirizzo o a coordinate esatte, filtrando per tipo, valutazione e stato di apertura."
+      }
+    },
+    {
+      "name": "maps_place_details",
+      "category": "places",
+      "summary": {
+        "en": "Get full place details, reviews and attribution. Optional photo URLs retain author attribution. Display source/disclosure metadata alongside content.",
+        "fr": "Obtenir les détails, avis et attributions d’un lieu. Les URL photo facultatives conservent les auteurs. Afficher les sources et déclarations associées au contenu.",
+        "it": "Ottiene dettagli, recensioni e attribuzioni del luogo. Gli URL delle foto facoltativi conservano l’attribuzione degli autori. Mostra fonti e avvertenze insieme al contenuto."
+      }
+    },
+    {
+      "name": "maps_directions",
+      "category": "routes",
+      "summary": {
+        "en": "Get directions, route geometry, navigation instructions and travel duration.",
+        "fr": "Obtenir un itinéraire, sa géométrie, les instructions de navigation et la durée du trajet.",
+        "it": "Ottiene indicazioni, geometria del percorso, istruzioni di navigazione e durata del viaggio."
+      }
+    },
+    {
+      "name": "maps_distance_matrix",
+      "category": "routes",
+      "summary": {
+        "en": "Compute travel distances and durations for multiple origins and destinations.",
+        "fr": "Calculer distances et durées de trajet pour plusieurs origines et destinations.",
+        "it": "Calcola distanze e durate di viaggio per più origini e destinazioni."
+      }
+    },
+    {
+      "name": "maps_elevation",
+      "category": "geography",
+      "summary": {
+        "en": "Get elevation in meters for geographic coordinates.",
+        "fr": "Obtenir l’altitude en mètres de coordonnées géographiques.",
+        "it": "Ottiene l’altitudine in metri per coordinate geografiche."
+      }
+    },
+    {
+      "name": "maps_timezone",
+      "category": "geography",
+      "summary": {
+        "en": "Get timezone, UTC/DST offsets and local time. timestamp is Unix milliseconds.",
+        "fr": "Obtenir le fuseau, les décalages UTC/heure d’été et l’heure locale. timestamp utilise des millisecondes Unix.",
+        "it": "Ottiene fuso orario, offset UTC/ora legale e ora locale. timestamp è espresso in millisecondi Unix."
+      }
+    },
+    {
+      "name": "maps_weather",
+      "category": "environment",
+      "summary": {
+        "en": "Get current weather, daily forecast or hourly forecast.",
+        "fr": "Obtenir la météo actuelle, les prévisions quotidiennes ou les prévisions horaires.",
+        "it": "Ottiene meteo corrente, previsioni giornaliere oppure orarie."
+      }
+    },
+    {
+      "name": "maps_air_quality",
+      "category": "environment",
+      "summary": {
+        "en": "Get air quality indices, optional pollutant concentrations and health recommendations.",
+        "fr": "Obtenir les indices de qualité de l’air, les concentrations facultatives de polluants et les recommandations sanitaires.",
+        "it": "Ottiene indici di qualità dell’aria, concentrazioni facoltative degli inquinanti e raccomandazioni sanitarie."
+      }
+    },
+    {
+      "name": "maps_static_map",
+      "category": "geography",
+      "summary": {
+        "en": "Fetch a PNG map with markers and paths. MCP returns an inline image; CLI returns base64 JSON or writes --output.",
+        "fr": "Récupérer une carte PNG avec marqueurs et tracés. MCP renvoie une image intégrée ; la CLI renvoie du JSON base64 ou écrit --output.",
+        "it": "Recupera una mappa PNG con indicatori e tracciati. MCP restituisce un’immagine incorporata; la CLI restituisce JSON base64 oppure scrive --output."
+      }
+    },
+    {
+      "name": "maps_batch_geocode",
+      "category": "geography",
+      "summary": {
+        "en": "Geocode up to 50 addresses with per-address success or error and bounded concurrency.",
+        "fr": "Géocoder jusqu’à 50 adresses avec succès ou erreur par adresse et concurrence bornée.",
+        "it": "Geocodifica fino a 50 indirizzi con successo o errore per ciascuno e concorrenza limitata."
+      }
+    },
+    {
+      "name": "maps_explore_area",
+      "category": "places",
+      "summary": {
+        "en": "Resolve a location and explore categories with details for top results. Use specific landmarks for trip planning.",
+        "fr": "Résoudre une localisation et explorer des catégories avec les détails des premiers résultats. Utiliser des lieux précis pour préparer un parcours.",
+        "it": "Risolve una posizione ed esplora categorie con dettagli per i primi risultati. Usa punti di interesse specifici per pianificare un viaggio."
+      }
+    },
+    {
+      "name": "maps_plan_route",
+      "category": "routes",
+      "summary": {
+        "en": "Plan a route through 2-27 stops. Optimize 2-25 intermediate stops, except transit. Exact coordinates are preserved.",
+        "fr": "Planifier un itinéraire de 2 à 27 arrêts. Optimiser 2 à 25 arrêts intermédiaires, sauf en transport en commun. Les coordonnées exactes sont préservées.",
+        "it": "Pianifica un percorso di 2–27 tappe. Ottimizza 2–25 tappe intermedie, escluso transit. Le coordinate esatte vengono mantenute."
+      }
+    },
+    {
+      "name": "maps_compare_places",
+      "category": "places",
+      "summary": {
+        "en": "Search and compare places with detailed information and optional driving distance from userLocation.",
+        "fr": "Rechercher et comparer des lieux avec des informations détaillées et, en option, la distance en voiture depuis userLocation.",
+        "it": "Cerca e confronta luoghi con informazioni dettagliate e distanza in auto facoltativa da userLocation."
+      }
+    },
+    {
+      "name": "maps_search_along_route",
+      "category": "routes",
+      "summary": {
+        "en": "Find places along a route using its encoded polyline.",
+        "fr": "Trouver des lieux le long d’un itinéraire à l’aide de sa polyligne encodée.",
+        "it": "Trova luoghi lungo un percorso usando la sua polilinea codificata."
+      }
+    },
+    {
+      "name": "maps_local_rank_tracker",
+      "category": "places",
+      "summary": {
+        "en": "Track search rank across a geographic grid for 1-3 keywords; returns ARP, ATRP, SoLV and per-point errors.",
+        "fr": "Mesurer le classement de recherche sur une grille géographique pour 1 à 3 mots-clés ; renvoie ARP, ATRP, SoLV et les erreurs par point.",
+        "it": "Misura il posizionamento di ricerca su una griglia geografica per 1–3 parole chiave; restituisce ARP, ATRP, SoLV ed errori per punto."
+      }
+    }
+  ]
+}
