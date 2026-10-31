@@ -46,3 +46,4 @@ __pycache__/
 /website/.vitepress/dist/
 /output/playwright/
 /.playwright-cli/
+/.playwright-mcp/

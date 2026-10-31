@@ -62,3 +62,23 @@ mcp-gmap-rs geocode --address 'Paris, France'
 ## الخطوات التالية {#next-steps}
 
 لـ JSON حساب الخدمة وADC والانتحال المحلي وهوية GKE، اتبع [المصادقة](./authentication). ثم اختر [CLI](./cli) أو [MCP](./mcp). يحدد [مرجع الأدوات](../reference/tools) متطلبات بيانات اعتماد كل أداة.
+
+
+## الخدمات الإضافية والقيود {#expanded-services}
+
+يدعم Solar وMap Tiles أيضًا OAuth. يتطلب Datasets وRoute Optimization استخدام OAuth وأذونات IAM لكل عملية. يتطلب Street View Publish ملف authorized_user محددًا صراحةً وموافقة المستخدم على النطاق streetviewpublish.
+
+| الخدمة | API | المصادقة |
+| --- | --- | --- |
+| Geolocation API | `geolocation.googleapis.com` | مفتاح API |
+| Solar API | `solar.googleapis.com` | مفتاح API / OAuth |
+| Aerial View API | `aerialview.googleapis.com` | مفتاح API |
+| Map Tiles API | `tile.googleapis.com` | مفتاح API / OAuth |
+| Street View Static API | `street-view-image-backend.googleapis.com` | مفتاح API |
+| Maps Platform Datasets API | `mapsplatformdatasets.googleapis.com` | OAuth / IAM |
+| Route Optimization API | `routeoptimization.googleapis.com` | OAuth / IAM |
+| Street View Publish API | `streetviewpublish.googleapis.com` | OAuth لمستخدم موافق؛ تُرفض حسابات الخدمة |
+
+يتطلب Speed Limits أهلية Asset Tracking المقيّدة. يقتصر Aerial View على العناوين الأمريكية المدعومة ويمنع تنزيل الفيديو أو تخزينه مؤقتًا. Map Tiles مخصص للعرض فقط؛ يُمنع التحليل الآلي واستخراج البيانات. أدوات Weather للدقائق والخرائط تجريبية، مع تخزين مؤقت أقصاه ساعة وقيود استخدام إضافية. توضح مراجع الأدوات الشروط والإسناد والحدود بالتفصيل.
+
+[Google: Speed Limits](https://developers.google.com/maps/documentation/roads/speed-limits), [Map Tiles](https://developers.google.com/maps/documentation/tile/policies), [Aerial View](https://developers.google.com/maps/documentation/aerial-view/policies), [Street View Publish](https://developers.google.com/streetview/publish/authorizing).

@@ -1,6 +1,12 @@
 # Getting started
 
-Install one executable, configure Google access, then use the same 23 tools from your terminal or an MCP client. This manual describes v0.3.1.
+This manual includes 42 tools from the current source. The published v0.3.1 crate has 23 tools. Build this checkout to use the additions; installing v0.3.1 does not include them.
+
+Build from the repository checkout:
+
+```sh
+cargo install --path . --locked
+```
 
 ## Install
 

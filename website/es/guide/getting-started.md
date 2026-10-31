@@ -1,6 +1,12 @@
 # Primeros pasos
 
-Instale un ejecutable, configure el acceso a Google y use las mismas 23 herramientas desde el terminal o un cliente MCP. Este manual describe v0.3.1.
+Este manual incluye las 42 herramientas del código actual. El paquete v0.3.1 publicado contiene 23 herramientas. Compila esta copia del repositorio para usar las novedades; instalar v0.3.1 no las incluye.
+
+Desde la copia local del repositorio:
+
+```sh
+cargo install --path . --locked
+```
 
 ## Instalación
 

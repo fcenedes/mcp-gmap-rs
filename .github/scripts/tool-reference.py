@@ -59,11 +59,26 @@ def shape(schema):
     return "; ".join(parts)
 
 
+def prose_links(value):
+    """Keep primary-source URLs clickable in both rustdoc and the web manual."""
+    if isinstance(value, str):
+        def link(match):
+            url = match[0].rstrip(".,;")
+            return "<" + url + ">" + match[0][len(url):]
+        return re.sub(r"(?<![<(`])https?://[^\s<>`]+", link, value)
+    if isinstance(value, list):
+        return [prose_links(item) for item in value]
+    if isinstance(value, dict):
+        return {key: item if key == "example" else prose_links(item) for key, item in value.items()}
+    return value
+
+
 def cell(value):
     return str(value).replace("|", "\\|").replace("\n", " ")
 
 
 def render(tools, notes):
+    notes = prose_links(notes)
     if {tool["name"] for tool in tools} != set(notes):
         raise SystemExit("Tool names and reference notes differ; document every added/removed tool")
     lines = [
@@ -79,8 +94,8 @@ def render(tools, notes):
         "the object in `arguments`. Hosts may prefix tool names. With the CLI, use",
         "`mcp-gmap-rs call TOOL --args JSON` or the equivalent command/flags shown below.", "",
         "Only top-level parameters have CLI flags. Supply nested objects and arrays as",
-        "JSON. Bare boolean flags mean true; `--flag false` sets false. Unknown properties",
-        "are rejected. Inspect an installed version with `tools` or `schema TOOL` before",
+        "JSON. Bare boolean flags mean true; `--flag false` sets false. Unknown top-level properties",
+        "are rejected. Native API body objects accept Google's documented fields, which Google validates. Inspect an installed version with `tools` or `schema TOOL` before",
         "assuming it supports this release's complete catalog.", "",
         "Language-aware calls use the configured Google language. API-key/OAuth selection is process",
         "configuration, never a tool parameter. Exact `latitude,longitude` strings used",
@@ -145,7 +160,7 @@ def main():
     if args.verify_examples:
         for tool in tools:
             result = invoke(binary, "call", tool["name"], "--args", json.dumps(notes[tool["name"]]["example"]))
-            if "GOOGLE_MAPS_API_KEY is required" not in result.stdout + result.stderr:
+            if not any(message in result.stdout + result.stderr for message in ("GOOGLE_MAPS_API_KEY is required", "Google OAuth credentials are required")):
                 raise SystemExit(f"{tool['name']}: example did not reach the expected missing-key boundary")
     print(f"Verified reference for {len(tools)} tools and {sum(len(list(fields(t['inputSchema']))) for t in tools)} parameter paths; no Google calls")
 

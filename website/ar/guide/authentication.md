@@ -139,3 +139,23 @@ cargo test --locked --test live live_oauth_ -- --ignored --test-threads=1
 | رفض عنوان IP لمفتاح API | طابق القيود مع عنوان الخروج العام للخادم أو العنقود. |
 | انتهاء مهلة الرمز | اسمح بالوصول إلى نقاط Google للرموز وSTS وIAM أو خادم بيانات عبء العمل الوصفية، وراجع `GOOGLE_MAPS_TIMEOUT`. |
 | HTTP `401` من خادم MCP هذا | أرسل `MCP_HTTP_TOKEN` الخاص به؛ تُصادق رموز حساب خدمة Google اتصالًا صادرًا مستقلًا. |
+
+
+## الخدمات الإضافية والقيود {#expanded-services}
+
+يدعم Solar وMap Tiles أيضًا OAuth. يتطلب Datasets وRoute Optimization استخدام OAuth وأذونات IAM لكل عملية. يتطلب Street View Publish ملف authorized_user محددًا صراحةً وموافقة المستخدم على النطاق streetviewpublish.
+
+| الخدمة | API | المصادقة |
+| --- | --- | --- |
+| Geolocation API | `geolocation.googleapis.com` | مفتاح API |
+| Solar API | `solar.googleapis.com` | مفتاح API / OAuth |
+| Aerial View API | `aerialview.googleapis.com` | مفتاح API |
+| Map Tiles API | `tile.googleapis.com` | مفتاح API / OAuth |
+| Street View Static API | `street-view-image-backend.googleapis.com` | مفتاح API |
+| Maps Platform Datasets API | `mapsplatformdatasets.googleapis.com` | OAuth / IAM |
+| Route Optimization API | `routeoptimization.googleapis.com` | OAuth / IAM |
+| Street View Publish API | `streetviewpublish.googleapis.com` | OAuth لمستخدم موافق؛ تُرفض حسابات الخدمة |
+
+يتطلب Speed Limits أهلية Asset Tracking المقيّدة. يقتصر Aerial View على العناوين الأمريكية المدعومة ويمنع تنزيل الفيديو أو تخزينه مؤقتًا. Map Tiles مخصص للعرض فقط؛ يُمنع التحليل الآلي واستخراج البيانات. أدوات Weather للدقائق والخرائط تجريبية، مع تخزين مؤقت أقصاه ساعة وقيود استخدام إضافية. توضح مراجع الأدوات الشروط والإسناد والحدود بالتفصيل.
+
+[Google: Speed Limits](https://developers.google.com/maps/documentation/roads/speed-limits), [Map Tiles](https://developers.google.com/maps/documentation/tile/policies), [Aerial View](https://developers.google.com/maps/documentation/aerial-view/policies), [Street View Publish](https://developers.google.com/streetview/publish/authorizing).

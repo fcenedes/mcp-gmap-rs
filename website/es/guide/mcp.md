@@ -54,4 +54,4 @@ mcp-gmap-rs serve http --listen 0.0.0.0:3000 \
   --allowed-origin https://app.example.com:443
 ```
 
-De forma predeterminada, los encabezados Origin presentes se rechazan si no están permitidos. El cuerpo de la solicitud se limita a 1 MiB. `/health` comprueba que el proceso está vivo sin llamar a Google. Para el acceso público, configure [TLS/mTLS nativo o un gateway](./production). Los proxies deben conservar la autorización y los encabezados de protocolo/sesión MCP, y permitir streaming sin buffering. Las sesiones y la identidad de Google son locales a cada proceso; consulte [despliegue](./deployment) antes de añadir réplicas.
+De forma predeterminada, los encabezados Origin presentes se rechazan si no están permitidos. El cuerpo de la solicitud se limita a 12 MiB. `/health` comprueba que el proceso está vivo sin llamar a Google. Para el acceso público, configure [TLS/mTLS nativo o un gateway](./production). Los proxies deben conservar la autorización y los encabezados de protocolo/sesión MCP, y permitir streaming sin buffering. Las sesiones y la identidad de Google son locales a cada proceso; consulte [despliegue](./deployment) antes de añadir réplicas.

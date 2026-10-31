@@ -44,6 +44,10 @@
       "enableUspsCass": {
         "description": "בקשת עיבוד USPS CASS; במימוש זה regionCode חייב להיות US או PR כשהערך true.",
         "default": "false"
+      },
+      "sessionToken": {
+        "description": "אסימון בטוח ל-URL שנוצר בידי הקורא, עד 36 תווי ASCII; מומלץ UUID v4 חדש לכל מפגש. יש להעביר אותו גם ל-Place Details או Address Validation המסיים.",
+        "default": "ללא קיבוץ למפגש; חיוב לכל בקשה"
       }
     },
     "result": "תשובת האימות המלאה, בדרך כלל עם `result.verdict`, `result.address`, `result.geocode` ו-`responseId`; Google עשויה להשמיט שדות שאינם זמינים.",
@@ -411,6 +415,10 @@
       "maxPhotos": {
         "description": "מספר מרבי של חיפושי כתובות מדיה לתמונות.",
         "default": "0"
+      },
+      "sessionToken": {
+        "description": "אסימון בטוח ל-URL שנוצר בידי הקורא, עד 36 תווי ASCII; מומלץ UUID v4 חדש לכל מפגש. יש להעביר אותו גם ל-Place Details או Address Validation המסיים.",
+        "default": "ללא קיבוץ למפגש; חיוב לכל בקשה"
       }
     },
     "result": "אובייקט Google Place מקורי למסכת השדות המבוקשת. כשמבקשים תמונות, `photoUrls` מכיל כתובות מדיה, ייחוס מחברי תמונות וקישורי מקור.",
@@ -937,5 +945,1208 @@
     ],
     "authentication": "מפתח API או OAuth לממשק המרכזי.",
     "summary": "מעקב דירוג חיפוש ברשת גאוגרפית ל-1–3 מילות מפתח; מחזיר ARP, ATRP, SoLV ושגיאות לכל נקודה."
+  },
+  "maps_datasets": {
+    "purpose": "ניהול מערכי נתונים גאוגרפיים לעיצוב Google Maps מבוסס נתונים, לרבות ייבוא אסינכרוני מאובייקט Cloud Storage קיים.",
+    "parameters": {
+      "operation": {
+        "description": "בחירה ב-list/get/create/update/delete/import/download/fetch_errors; הפעולות create/update/delete/import משנות משאבי ענן.",
+        "default": "נדרש"
+      },
+      "parent": {
+        "description": "projects/{project}; נדרש עבור list/create.",
+        "default": "נדרש עבור list/create"
+      },
+      "name": {
+        "description": "projects/{project}/datasets/{dataset}; נדרש למעט list/create. רק get מקבל @active לגרסה האחרונה שהושלמה.",
+        "default": "נדרש לפעולות משאב"
+      },
+      "dataset": {
+        "description": "אובייקט Dataset מקורי עבור create/update. יצירה דורשת displayName ייחודי ו-usage:[\"USAGE_DATA_DRIVEN_STYLING\"]. בעדכון מוזרק שם משאב תואם.",
+        "default": "נדרש עבור create/update"
+      },
+      "gcsSource": {
+        "description": "מקור Cloud Storage קיים לייבוא; נדרשת הרשאת גישה. קבצים מקומיים אינם נקראים.",
+        "default": "נדרש לייבוא"
+      },
+      "gcsSource.inputUri": {
+        "description": "כתובת gs://bucket/object קיימת; נדרשת storage.objects.get, למשל דרך Storage Object Viewer.",
+        "default": "נדרש כאשר gcsSource נשלח"
+      },
+      "gcsSource.fileFormat": {
+        "description": "קידוד המקור FILE_FORMAT_GEOJSON, FILE_FORMAT_KML או FILE_FORMAT_CSV.",
+        "default": "נדרש כאשר gcsSource נשלח"
+      },
+      "versionDescription": {
+        "description": "תיאור גרסת הנתונים החדשה; לייבוא בלבד.",
+        "default": "מושמט"
+      },
+      "updateMask": {
+        "description": "שדות מטא-נתונים מופרדים בפסיקים, למשל description,displayName; השמטה מחליפה את כל המטא-נתונים.",
+        "default": "ברירת המחדל של Google היא * (החלפת כל המטא-נתונים)"
+      },
+      "pageSize": {
+        "description": "מספר מרבי של מערכי נתונים או שגיאות בעמוד; המעטפת מקבלת 1–500.",
+        "default": "list: 100; fetch_errors: ברירת המחדל 50"
+      },
+      "pageToken": {
+        "description": "אסימון העמוד הבא מהתשובה הקודמת; יתר הפרמטרים נשארים ללא שינוי. אין דפדוף אוטומטי.",
+        "default": "העמוד הראשון"
+      },
+      "tag": {
+        "description": "עבור list: ‏active בוחר בגרסה האחרונה שהושלמה ומדלג על מערכים ללא גרסה שהושלמה.",
+        "default": "הגרסה האחרונה ללא תלות במצב העיבוד"
+      }
+    },
+    "result": "JSON מקורי של Dataset, רשימה או שגיאות, שם גרסת ייבוא, או בתי מקור עם MIME וכותרות מטמון. get שומר status.state, status.errorMessage ו-versionId; תחילת ייבוא אינה השלמת עיבוד.",
+    "example": {
+      "operation": "list",
+      "parent": "projects/my-project",
+      "pageSize": 20
+    },
+    "notes": [
+      "נדרשות הרשאות mapsplatformdatasets.datasets.list/get/create/update/delete/import/export לפי הפעולה. ייבוא GCS יוצר גרסה אסינכרונית; בודקים מצב ב-get ושגיאות ב-fetch_errors. אין תשאול אוטומטי.",
+      "ממשק v1 הציבורי אינו מתעד listVersions; משתמשים ב-get לגרסה אחרונה, @active למושלמת וב-versionId, ללא הבטחת היסטוריה מלאה. הורדה דורשת export ו-CLI --output כותב את הבתים.",
+      "Maps Datasets API אינה גובה דמי שימוש, אך נדרש פרויקט מוגדר ול-Google Maps ול-Cloud Storage עשויים להיות חיובים ותנאים משלהם. השימוש הנתמך הוא עיצוב מבוסס נתונים; אין העלאה מקומית מרובת חלקים, משתמשים באובייקט GCS קיים.",
+      "מקורות רשמיים ומגבלות: https://developers.google.com/maps/documentation/datasets/create ; https://developers.google.com/maps/documentation/datasets/overview ; https://developers.google.com/maps/documentation/datasets/reference/rest/v1/media/download ; https://developers.google.com/maps/documentation/datasets/reference/rest/v1/projects.datasets ; https://www.googleapis.com/auth/cloud-platform"
+    ],
+    "authentication": "OAuth2 בלבד בחשבון שירות או ADC ובהיקף https://www.googleapis.com/auth/cloud-platform; מפתחות API אינם מתקבלים. מגדירים בנפרד פרויקט משאב והרשאות פרויקט מכסה.",
+    "summary": "ניהול מערכי נתונים למפות."
+  },
+  "maps_route_optimization": {
+    "purpose": "מיטוב ציי משלוחים ושירות ב-Route Optimization API עם ShipmentModel מקורי מלא, לרבות קיבולות, חלונות זמן ועלויות.",
+    "parameters": {
+      "operation": {
+        "description": "optimize לפתרון סינכרוני; validate שולח VALIDATE_ONLY; ‏batch למשימת GCS; ‏optimize_long_running ו-optimize_uri ניסיוניים; get_operation למצב.",
+        "default": "נדרש"
+      },
+      "parent": {
+        "description": "projects/{project}, עם /locations/- אופציונלי. פתרון סינכרוני וארוך דוחים מיקום אזורי; batch/URI מקבלים את הפורמט המקורי.",
+        "default": "נדרש למעט get_operation"
+      },
+      "name": {
+        "description": "השם המדויק projects/{project}[/locations/{location}]/operations/{ID} מ-Google; עבור get_operation בלבד.",
+        "default": "נדרש עבור get_operation"
+      },
+      "request": {
+        "description": "בקשת Google מלאה ללא parent. פתרון ואימות דורשים model עם משלוחים, כלי רכב ואילוצים. batch: ‏1–100 modelConfigs עם מקור ויעד GCS ו-JSON/PROTO_TEXT. ‏URI: ‏input.uri/output.uri ב-gs:// עם סיומת .json או .txtpb.",
+        "default": "נדרש למעט get_operation"
+      }
+    },
+    "result": "OptimizeToursResponse או Operation מקוריים; בדיקת מצב שומרת done:false, מטא-נתונים ו-response/error בסיום, ללא הסתרת כישלון.",
+    "example": {
+      "operation": "validate",
+      "parent": "projects/my-project",
+      "request": {
+        "model": {
+          "shipments": [],
+          "vehicles": [
+            {
+              "startLocation": {
+                "latitude": 48.85,
+                "longitude": 2.35
+              }
+            }
+          ]
+        },
+        "maxValidationErrors": 10
+      }
+    },
+    "notes": [
+      "validate קורא ל-Google עם VALIDATE_ONLY ואינו פותר את מודל הצי. יש להפעיל את השירות; roles/routeoptimization.viewer מאפשר פתרון וקריאת פעולות, editor מוסיף משימות אצווה. ההרשאות כוללות locations.use ו-operations.create/get.",
+      "משימות batch קוראות וכותבות GCS עם הרשאות מפורשות ועשויות להמשיך לאחר סיום הבקשה. אין העלאת קבצים או תשאול אוטומטי. גרסאות long-running ו-URI ניסיוניות ועשויות להשתנות; נקודת URI רגישה לאותיות :OptimizeToursUri. Google אינה תומכת כעת בביטול, מחיקה או רשימת פעולות; רק get_operation זמין.",
+      "החיוב תלוי במשלוחים וב-SKU ‏Single Vehicle Routing או Fleet Routing. זהו שירות נפרד ממיטוב נקודות ב-Routes API; פקיעת זמן תעבורה אינה מבטלת משימה.",
+      "מקורות רשמיים ומגבלות: https://developers.google.com/maps/documentation/route-optimization/cloud-setup ; https://developers.google.com/maps/documentation/route-optimization/reference/rest/v1/operations ; https://developers.google.com/maps/documentation/route-optimization/reference/rest/v1/projects/batchOptimizeTours ; https://developers.google.com/maps/documentation/route-optimization/reference/rest/v1/projects/optimizeTours ; https://developers.google.com/maps/documentation/route-optimization/usage-and-billing ; https://github.com/googleapis/googleapis/blob/master/google/maps/routeoptimization/v1/route_optimization_service.proto ; https://www.googleapis.com/auth/cloud-platform"
+    ],
+    "authentication": "OAuth2 בלבד בחשבון שירות או ADC ובהיקף https://www.googleapis.com/auth/cloud-platform; מפתחות API אינם מתקבלים. מגדירים בנפרד פרויקט משאב והרשאות פרויקט מכסה.",
+    "summary": "מיטוב מסלולים לצי שלם."
+  },
+  "maps_air_quality_forecast": {
+    "purpose": "קבלת תחזית איכות אוויר לזמן או טווח מפורשים, עד 96 שעות קדימה.",
+    "parameters": {
+      "location": {
+        "description": "קואורדינטות המקום המבוקש; השדות הפנימיים נדרשים.",
+        "default": "נדרש"
+      },
+      "location.latitude": {
+        "description": "קו רוחב WGS84 במעלות, בין ‎-90 ל-90.",
+        "default": "נדרש כאשר המיקום נשלח"
+      },
+      "location.longitude": {
+        "description": "קו אורך WGS84 במעלות, בין ‎-180 ל-180.",
+        "default": "נדרש כאשר המיקום נשלח"
+      },
+      "dateTime": {
+        "description": "זמן UTC יחיד ב-RFC3339 המסתיים ב-Z; Google מעגלת לשעה הקודמת. אינו משתלב עם period או hours.",
+        "default": "יש לבחור בורר זמן"
+      },
+      "period": {
+        "description": "טווח שעות כולל ומסודר: עד 96 שעות תחזית או 720 שעות היסטוריה. אינו משתלב עם dateTime או hours.",
+        "default": "יש לבחור בורר זמן"
+      },
+      "period.startTime": {
+        "description": "תחילת הטווח ב-RFC3339 UTC המסתיימת ב-Z.",
+        "default": "נדרש כאשר התקופה נשלח"
+      },
+      "period.endTime": {
+        "description": "סיום הטווח הכולל ב-RFC3339 UTC המסתיים ב-Z.",
+        "default": "נדרש כאשר התקופה נשלח"
+      },
+      "pageSize": {
+        "description": "מספר רשומות שעה: עד 96 לתחזית ועד 168 להיסטוריה.",
+        "default": "Google: תחזית 24; היסטוריה 72"
+      },
+      "pageToken": {
+        "description": "אסימון העמוד הבא מהתשובה הקודמת; יתר הפרמטרים נשארים ללא שינוי. אין דפדוף אוטומטי.",
+        "default": "העמוד הראשון"
+      },
+      "universalAqi": {
+        "description": "כלילת מדד איכות האוויר האוניברסלי.",
+        "default": "Google: true"
+      },
+      "languageCode": {
+        "description": "תג שפה IETF BCP-47 לטקסט הזמין; Google עשויה לבחור בשפה הנתמכת הקרובה.",
+        "default": "Google: en"
+      },
+      "uaqiColorPalette": {
+        "description": "לוח UAQI: ‏RED_GREEN, ‏INDIGO_PERSIAN_DARK או INDIGO_PERSIAN_LIGHT. לוחות המדדים המקומיים קבועים.",
+        "default": "לוח הצבעים של Google"
+      },
+      "extraComputations": {
+        "description": "חישובים נוספים: LOCAL_AQI, HEALTH_RECOMMENDATIONS, POLLUTANT_ADDITIONAL_INFO, DOMINANT_POLLUTANT_CONCENTRATION ו-POLLUTANT_CONCENTRATION.",
+        "default": "ללא חישובים נוספים"
+      },
+      "customLocalAqis": {
+        "description": "דריסת המדד המקומי למדינות או אזורים מסוימים.",
+        "default": "Google בוחרת מדדים מקומיים"
+      },
+      "customLocalAqis[].regionCode": {
+        "description": "קוד מדינה או אזור בן שתי אותיות עבור הדריסה.",
+        "default": "נדרש לכל דריסה"
+      },
+      "customLocalAqis[].aqi": {
+        "description": "קוד מדד מקומי נתמך, למשל us_epa; Google מאמתת את השילוב.",
+        "default": "נדרש לכל דריסה"
+      }
+    },
+    "result": "hourlyForecasts, regionCode ו-nextPageToken מקוריים, עם מידע מזהמים ובריאות אופציונלי.",
+    "example": {
+      "location": {
+        "latitude": 48.85,
+        "longitude": 2.35
+      },
+      "dateTime": "2026-11-01T12:00:00Z",
+      "pageSize": 24
+    },
+    "notes": [
+      "יש לבחור בדיוק בורר זמן אחד; התחביר, סדר הטווח ואורכו נבדקים מקומית, ו-Google מאמתת זמינות וכיסוי. מוחזר עמוד יחיד; ממשיכים במפורש עם nextPageToken. המדדים, הריכוזים וההמלצות נשמרים. חלות מדיניות Air Quality ודרישות ייחוס, תצוגה ומטמון; הכיסוי משתנה לפי מדינה.",
+      "מקורות רשמיים ומגבלות: https://developers.google.com/maps/documentation/air-quality/policies ; https://developers.google.com/maps/documentation/air-quality/reference/rest/v1/forecast/lookup"
+    ],
+    "authentication": "מפתח API או אסימון OAuth2 בהיקף cloud-platform; יש להפעיל API וחיוב. למשתמש האימות בפרויקט המכסה נדרשת serviceusage.services.use.",
+    "summary": "תחזית איכות אוויר לפי שעה."
+  },
+  "maps_air_quality_history": {
+    "purpose": "קבלת נתוני איכות אוויר היסטוריים מ-30 הימים הקודמים.",
+    "parameters": {
+      "location": {
+        "description": "קואורדינטות המקום המבוקש; השדות הפנימיים נדרשים.",
+        "default": "נדרש"
+      },
+      "location.latitude": {
+        "description": "קו רוחב WGS84 במעלות, בין ‎-90 ל-90.",
+        "default": "נדרש כאשר המיקום נשלח"
+      },
+      "location.longitude": {
+        "description": "קו אורך WGS84 במעלות, בין ‎-180 ל-180.",
+        "default": "נדרש כאשר המיקום נשלח"
+      },
+      "dateTime": {
+        "description": "זמן UTC יחיד ב-RFC3339 המסתיים ב-Z; Google מעגלת לשעה הקודמת. אינו משתלב עם period או hours.",
+        "default": "יש לבחור בורר זמן"
+      },
+      "period": {
+        "description": "טווח שעות כולל ומסודר: עד 96 שעות תחזית או 720 שעות היסטוריה. אינו משתלב עם dateTime או hours.",
+        "default": "יש לבחור בורר זמן"
+      },
+      "period.startTime": {
+        "description": "תחילת הטווח ב-RFC3339 UTC המסתיימת ב-Z.",
+        "default": "נדרש כאשר התקופה נשלח"
+      },
+      "period.endTime": {
+        "description": "סיום הטווח הכולל ב-RFC3339 UTC המסתיים ב-Z.",
+        "default": "נדרש כאשר התקופה נשלח"
+      },
+      "pageSize": {
+        "description": "מספר רשומות שעה: עד 96 לתחזית ועד 168 להיסטוריה.",
+        "default": "Google: תחזית 24; היסטוריה 72"
+      },
+      "pageToken": {
+        "description": "אסימון העמוד הבא מהתשובה הקודמת; יתר הפרמטרים נשארים ללא שינוי. אין דפדוף אוטומטי.",
+        "default": "העמוד הראשון"
+      },
+      "universalAqi": {
+        "description": "כלילת מדד איכות האוויר האוניברסלי.",
+        "default": "Google: true"
+      },
+      "languageCode": {
+        "description": "תג שפה IETF BCP-47 לטקסט הזמין; Google עשויה לבחור בשפה הנתמכת הקרובה.",
+        "default": "Google: en"
+      },
+      "uaqiColorPalette": {
+        "description": "לוח UAQI: ‏RED_GREEN, ‏INDIGO_PERSIAN_DARK או INDIGO_PERSIAN_LIGHT. לוחות המדדים המקומיים קבועים.",
+        "default": "לוח הצבעים של Google"
+      },
+      "extraComputations": {
+        "description": "חישובים נוספים: LOCAL_AQI, HEALTH_RECOMMENDATIONS, POLLUTANT_ADDITIONAL_INFO, DOMINANT_POLLUTANT_CONCENTRATION ו-POLLUTANT_CONCENTRATION.",
+        "default": "ללא חישובים נוספים"
+      },
+      "customLocalAqis": {
+        "description": "דריסת המדד המקומי למדינות או אזורים מסוימים.",
+        "default": "Google בוחרת מדדים מקומיים"
+      },
+      "customLocalAqis[].regionCode": {
+        "description": "קוד מדינה או אזור בן שתי אותיות עבור הדריסה.",
+        "default": "נדרש לכל דריסה"
+      },
+      "customLocalAqis[].aqi": {
+        "description": "קוד מדד מקומי נתמך, למשל us_epa; Google מאמתת את השילוב.",
+        "default": "נדרש לכל דריסה"
+      },
+      "hours": {
+        "description": "מספר השעות הקודמות, 1–720 (30 יום); אינו משתלב עם dateTime או period.",
+        "default": "יש לבחור בדיוק אחד: hours/dateTime/period"
+      }
+    },
+    "result": "hoursInfo, regionCode ו-nextPageToken מקוריים, עם מידע מזהמים ובריאות אופציונלי.",
+    "example": {
+      "location": {
+        "latitude": 48.85,
+        "longitude": 2.35
+      },
+      "hours": 24,
+      "pageSize": 12
+    },
+    "notes": [
+      "יש לבחור בדיוק בורר זמן אחד; התחביר, סדר הטווח ואורכו נבדקים מקומית, ו-Google מאמתת זמינות וכיסוי. מוחזר עמוד יחיד; ממשיכים במפורש עם nextPageToken. המדדים, הריכוזים וההמלצות נשמרים. חלות מדיניות Air Quality ודרישות ייחוס, תצוגה ומטמון; הכיסוי משתנה לפי מדינה.",
+      "מקורות רשמיים ומגבלות: https://developers.google.com/maps/documentation/air-quality/policies ; https://developers.google.com/maps/documentation/air-quality/reference/rest/v1/history/lookup"
+    ],
+    "authentication": "מפתח API או אסימון OAuth2 בהיקף cloud-platform; יש להפעיל API וחיוב. למשתמש האימות בפרויקט המכסה נדרשת serviceusage.services.use.",
+    "summary": "היסטוריית איכות אוויר עד 30 יום."
+  },
+  "maps_air_quality_heatmap": {
+    "purpose": "הורדת אריח מפת חום אמיתי למדד איכות אוויר או מזהם.",
+    "parameters": {
+      "mapType": {
+        "description": "סוג המדד: UAQI_RED_GREEN, UAQI_INDIGO_PERSIAN, PM25_INDIGO_PERSIAN, GBR_DEFRA, DEU_UBA, CAN_EC, FRA_ATMO או US_AQI.",
+        "default": "נדרש"
+      },
+      "zoom": {
+        "description": "רמת זום Web Mercator בין 0 ל-16; ברמה אפס אריח אחד.",
+        "default": "נדרש"
+      },
+      "x": {
+        "description": "עמודת האריח בין 0 ל-‎2^zoom−1; הגבולות נבדקים לפני הפנייה.",
+        "default": "נדרש"
+      },
+      "y": {
+        "description": "שורת האריח בין 0 ל-‎2^zoom−1; הגבולות נבדקים לפני הפנייה.",
+        "default": "נדרש"
+      }
+    },
+    "result": "בתי אריח אמיתי עם MIME וכותרות מטמון מקוריות; MCP מציג תמונה ו-CLI --output יכול לשמור את הבתים.",
+    "example": {
+      "mapType": "UAQI_RED_GREEN",
+      "zoom": 2,
+      "x": 2,
+      "y": 1
+    },
+    "notes": [
+      "הזמינות תלויה במדד ובכיסוי המדינה. מדיניות Air Quality דורשת ייחוס ומגבילה אחסון ותצוגה; יש לשמר כותרות מטמון. המעטפת אינה מעניקה רישיון תוכן.",
+      "מקורות רשמיים ומגבלות: https://developers.google.com/maps/documentation/air-quality/policies ; https://developers.google.com/maps/documentation/air-quality/reference/rest/v1/mapTypes.heatmapTiles/lookupHeatmapTile"
+    ],
+    "authentication": "מפתח API או אסימון OAuth2 בהיקף cloud-platform; יש להפעיל API וחיוב. למשתמש האימות בפרויקט המכסה נדרשת serviceusage.services.use.",
+    "summary": "אריחי מפת איכות אוויר."
+  },
+  "maps_pollen_heatmap": {
+    "purpose": "הורדת אריח PNG אמיתי למדד אבקת עצים, דשא או עשבים.",
+    "parameters": {
+      "mapType": {
+        "description": "מדד אבקה TREE_UPI, GRASS_UPI או WEED_UPI.",
+        "default": "נדרש"
+      },
+      "zoom": {
+        "description": "רמת זום Web Mercator בין 0 ל-16; ברמה אפס אריח אחד.",
+        "default": "נדרש"
+      },
+      "x": {
+        "description": "עמודת האריח בין 0 ל-‎2^zoom−1; הגבולות נבדקים לפני הפנייה.",
+        "default": "נדרש"
+      },
+      "y": {
+        "description": "שורת האריח בין 0 ל-‎2^zoom−1; הגבולות נבדקים לפני הפנייה.",
+        "default": "נדרש"
+      }
+    },
+    "result": "בתי אריח אמיתי עם MIME וכותרות מטמון מקוריות; MCP מציג תמונה ו-CLI --output יכול לשמור את הבתים.",
+    "example": {
+      "mapType": "TREE_UPI",
+      "zoom": 2,
+      "x": 2,
+      "y": 1
+    },
+    "notes": [
+      "הזמינות משתנה לפי המדינות הנתמכות והעונה. מדיניות Pollen קובעת ייחוס, הצגה ב-Google Maps ומטמון; הפעלת API אינה מסירה מגבלות רישיון.",
+      "מקורות רשמיים ומגבלות: https://developers.google.com/maps/documentation/pollen/policies ; https://developers.google.com/maps/documentation/pollen/reference/rest/v1/mapTypes.heatmapTiles/lookupHeatmapTile"
+    ],
+    "authentication": "נדרש מפתח API במימוש זה, גם במצב OAuth; יש להפעיל שירות, חיוב והגבלות מתאימות.",
+    "summary": "אריחי מפות אבקה."
+  },
+  "maps_weather_history": {
+    "purpose": "קבלת עד 24 שעות מזג אוויר קודמות עם דפדוף מפורש.",
+    "parameters": {
+      "location": {
+        "description": "קואורדינטות המקום המבוקש; השדות הפנימיים נדרשים.",
+        "default": "נדרש"
+      },
+      "location.latitude": {
+        "description": "קו רוחב WGS84 במעלות, בין ‎-90 ל-90.",
+        "default": "נדרש כאשר המיקום נשלח"
+      },
+      "location.longitude": {
+        "description": "קו אורך WGS84 במעלות, בין ‎-180 ל-180.",
+        "default": "נדרש כאשר המיקום נשלח"
+      },
+      "pageSize": {
+        "description": "מספר רשומות מרבי בעמוד: 1–24 להיסטוריה, 1–1000 להתראות ולתחזית דקות.",
+        "default": "היסטוריה: Google 24; אחרים: ברירת המחדל של Google"
+      },
+      "pageToken": {
+        "description": "אסימון העמוד הבא מהתשובה הקודמת; יתר הפרמטרים נשארים ללא שינוי. אין דפדוף אוטומטי.",
+        "default": "העמוד הראשון"
+      },
+      "hours": {
+        "description": "מספר שעות קודמות החל מהשעה האחרונה, בין 1 ל-24.",
+        "default": "Google: 24"
+      },
+      "unitsSystem": {
+        "description": "מערכת יחידות METRIC או IMPERIAL.",
+        "default": "Google: METRIC"
+      },
+      "languageCode": {
+        "description": "תג שפה IETF BCP-47 לטקסט הזמין; Google עשויה לבחור בשפה הנתמכת הקרובה.",
+        "default": "Google: en"
+      }
+    },
+    "result": "historyHours, timeZone ו-nextPageToken מקוריים וכל התנאים השעתיים.",
+    "example": {
+      "location": {
+        "latitude": 48.85,
+        "longitude": 2.35
+      },
+      "hours": 12,
+      "pageSize": 6
+    },
+    "notes": [
+      "הנתיב מכסה רק את 24 השעות הקודמות, לא תאריכים היסטוריים שרירותיים. חלות מדיניות Weather ומגבלות כיסוי; אין הבאת עמודים אוטומטית.",
+      "מקורות רשמיים ומגבלות: https://developers.google.com/maps/documentation/weather/policies ; https://developers.google.com/maps/documentation/weather/reference/rest/v1/history.hours/lookup"
+    ],
+    "authentication": "מפתח API או אסימון OAuth2 בהיקף cloud-platform; יש להפעיל API וחיוב. למשתמש האימות בפרויקט המכסה נדרשת serviceusage.services.use.",
+    "summary": "היסטוריית מזג אוויר שעתית ליום האחרון."
+  },
+  "maps_weather_alerts": {
+    "purpose": "קבלת התראות מזג אוויר החלות על מקום, עם חומרה ופרטי הרשות המפרסמת המקוריים.",
+    "parameters": {
+      "location": {
+        "description": "קואורדינטות המקום המבוקש; השדות הפנימיים נדרשים.",
+        "default": "נדרש"
+      },
+      "location.latitude": {
+        "description": "קו רוחב WGS84 במעלות, בין ‎-90 ל-90.",
+        "default": "נדרש כאשר המיקום נשלח"
+      },
+      "location.longitude": {
+        "description": "קו אורך WGS84 במעלות, בין ‎-180 ל-180.",
+        "default": "נדרש כאשר המיקום נשלח"
+      },
+      "pageSize": {
+        "description": "מספר רשומות מרבי בעמוד: 1–24 להיסטוריה, 1–1000 להתראות ולתחזית דקות.",
+        "default": "היסטוריה: Google 24; אחרים: ברירת המחדל של Google"
+      },
+      "pageToken": {
+        "description": "אסימון העמוד הבא מהתשובה הקודמת; יתר הפרמטרים נשארים ללא שינוי. אין דפדוף אוטומטי.",
+        "default": "העמוד הראשון"
+      },
+      "languageCode": {
+        "description": "תג שפה IETF BCP-47 לטקסט הזמין; Google עשויה לבחור בשפה הנתמכת הקרובה.",
+        "default": "Google: en"
+      }
+    },
+    "result": "אוסף weatherAlerts מקורי, פרטי רשות ואזור ו-nextPageToken כאשר זמין.",
+    "example": {
+      "location": {
+        "latitude": 48.85,
+        "longitude": 2.35
+      },
+      "pageSize": 5
+    },
+    "notes": [
+      "הכיסוי, ההשהיה והשדות תלויים ברשות המפרסמת. יש לשמר את ייחוס הספק ולפעול לפי מדיניות Weather; היעדר התראה בתשובה אינו ערובה לבטיחות.",
+      "מקורות רשמיים ומגבלות: https://developers.google.com/maps/documentation/weather/policies ; https://developers.google.com/maps/documentation/weather/reference/rest/v1/publicAlerts/lookup"
+    ],
+    "authentication": "מפתח API או אסימון OAuth2 בהיקף cloud-platform; יש להפעיל API וחיוב. למשתמש האימות בפרויקט המכסה נדרשת serviceusage.services.use.",
+    "summary": "התראות מזג אוויר ציבוריות מקומיות."
+  },
+  "maps_weather_minute_forecast": {
+    "purpose": "ניסיוני: תחזיות משקעים ברזולוציה גבוהה בטווח שש שעות.",
+    "parameters": {
+      "location": {
+        "description": "קואורדינטות המקום המבוקש; השדות הפנימיים נדרשים.",
+        "default": "נדרש"
+      },
+      "location.latitude": {
+        "description": "קו רוחב WGS84 במעלות, בין ‎-90 ל-90.",
+        "default": "נדרש כאשר המיקום נשלח"
+      },
+      "location.longitude": {
+        "description": "קו אורך WGS84 במעלות, בין ‎-180 ל-180.",
+        "default": "נדרש כאשר המיקום נשלח"
+      },
+      "pageSize": {
+        "description": "מספר רשומות מרבי בעמוד: 1–24 להיסטוריה, 1–1000 להתראות ולתחזית דקות.",
+        "default": "היסטוריה: Google 24; אחרים: ברירת המחדל של Google"
+      },
+      "pageToken": {
+        "description": "אסימון העמוד הבא מהתשובה הקודמת; יתר הפרמטרים נשארים ללא שינוי. אין דפדוף אוטומטי.",
+        "default": "העמוד הראשון"
+      },
+      "unitsSystem": {
+        "description": "מערכת יחידות METRIC או IMPERIAL.",
+        "default": "Google: METRIC"
+      }
+    },
+    "result": "overallPredictionTimeframe, timeZone, segments ו-nextPageToken; המקטעים שומרים סוג, הסתברות, כמויות ועוצמה.",
+    "example": {
+      "location": {
+        "latitude": 37.60451,
+        "longitude": -80.59044
+      },
+      "pageSize": 5
+    },
+    "notes": [
+      "ניסיוני טרום זמינות כללית: תמיכה מוגבלת ושינויים לא תואמים אפשריים. נדרש ייחוס; מטמון תחזית דקות ואריחי מזג אוויר מוגבל לשעה אחת ולאחריה יש למחוק. Google אוסרת שימוש בתוכן לשחזור שירות או מוצר שלה, לרבות יישום או מודל שמטרתו הראשית מידע מזג אוויר. ההגבלות חלות גם על צרכנים בהמשך.",
+      "תחזית הדקות והאריחים עשויים לא להיות מסונכרנים. עמוד יחיד בכל קריאה; הזמינות תלויה במיקום ובגישה לשירות.",
+      "מקורות רשמיים ומגבלות: https://developers.google.com/maps/documentation/weather/minute-forecast ; https://developers.google.com/maps/documentation/weather/weather-map"
+    ],
+    "authentication": "מפתח API או אסימון OAuth2 בהיקף cloud-platform; יש להפעיל API וחיוב. למשתמש האימות בפרויקט המכסה נדרשת serviceusage.services.use.",
+    "summary": "תחזית משקעים לדקות, ניסיונית."
+  },
+  "maps_weather_map": {
+    "purpose": "ניסיוני: הורדת אריח משקעים מיידיים לארצות הברית או אירופה.",
+    "parameters": {
+      "mapType": {
+        "description": "US_PRECIPITATION_CURRENT או EU_PRECIPITATION_CURRENT; כיסוי מיידי מוגבל גאוגרפית.",
+        "default": "נדרש"
+      },
+      "zoom": {
+        "description": "רמת זום Web Mercator בין 0 ל-16; ברמה אפס אריח אחד.",
+        "default": "נדרש"
+      },
+      "x": {
+        "description": "עמודת האריח בין 0 ל-‎2^zoom−1; הגבולות נבדקים לפני הפנייה.",
+        "default": "נדרש"
+      },
+      "y": {
+        "description": "שורת האריח בין 0 ל-‎2^zoom−1; הגבולות נבדקים לפני הפנייה.",
+        "default": "נדרש"
+      }
+    },
+    "result": "בתי אריח אמיתי עם MIME וכותרות מטמון מקוריות; MCP מציג תמונה ו-CLI --output יכול לשמור את הבתים.",
+    "example": {
+      "mapType": "US_PRECIPITATION_CURRENT",
+      "zoom": 12,
+      "x": 1025,
+      "y": 1688
+    },
+    "notes": [
+      "ניסיוני טרום זמינות כללית: תמיכה מוגבלת ושינויים לא תואמים אפשריים. נדרש ייחוס; מטמון תחזית דקות ואריחי מזג אוויר מוגבל לשעה אחת ולאחריה יש למחוק. Google אוסרת שימוש בתוכן לשחזור שירות או מוצר שלה, לרבות יישום או מודל שמטרתו הראשית מידע מזג אוויר. ההגבלות חלות גם על צרכנים בהמשך.",
+      "הכיסוי מוגבל לאזורי ארה״ב ואירופה המוצגים במדריך Google. קואורדינטות אריח תקינות אינן מבטיחות נתונים למיקום.",
+      "מקורות רשמיים ומגבלות: https://developers.google.com/maps/documentation/weather/minute-forecast ; https://developers.google.com/maps/documentation/weather/weather-map"
+    ],
+    "authentication": "מפתח API או אסימון OAuth2 בהיקף cloud-platform; יש להפעיל API וחיוב. למשתמש האימות בפרויקט המכסה נדרשת serviceusage.services.use.",
+    "summary": "מפת משקעים מיידיים, ניסיונית."
+  },
+  "maps_speed_limits": {
+    "purpose": "קבלת מהירויות מותרות לרכב במקטעי כביש לפי מסלול GPS או מזהי הצמדה של Roads. נדרשת גישת Asset Tracking; הפעלת Roads בלבד אינה מספיקה.",
+    "parameters": {
+      "path": {
+        "description": "1–100 נקודות GPS; אינו משתלב עם roadPlaceIds. Google מצמידה לכביש לפני חיפוש המהירות.",
+        "default": "לא נשלח"
+      },
+      "path[].latitude": {
+        "description": "קו רוחב WGS84 במעלות, בין ‎-90 ל-90.",
+        "default": "נדרש לכל נקודת מסלול"
+      },
+      "path[].longitude": {
+        "description": "קו אורך WGS84 במעלות, בין ‎-180 ל-180.",
+        "default": "נדרש לכל נקודת מסלול"
+      },
+      "roadPlaceIds": {
+        "description": "1–100 מזהי מקטע מכלי הצמדת כבישים; למזהי עסקים רגילים עשוי שלא להיות מידע. אינו משתלב עם path.",
+        "default": "לא נשלח"
+      },
+      "units": {
+        "description": "יחידת מהירות: KPH לקמ״ש או MPH למייל לשעה.",
+        "default": "KPH"
+      }
+    },
+    "result": "תשובת Roads מלאה, לרבות speedLimits עם placeId, speedLimit, units, ‏snappedPoints אופציונליים למסלול, אזהרות ומטא-נתונים.",
+    "example": {
+      "roadPlaceIds": [
+        "ChIJs5ydyTiuEmsR0fRSlU0C7k0"
+      ],
+      "units": "KPH"
+    },
+    "notes": [
+      "Google דורשת רישיון Asset Tracking; פרויקטי Premium שהועברו עם יכולת זו עשויים לשמר גישה. חשבון חיוב רגיל או API פעיל אינם מוכיחים זכאות. כל רשומת speedLimits מחויבת, ובקשה אחת עשויה לחייב כמה רשומות; יש לצמצם אצוות.",
+      "במהירויות משתנות מוחזר המקסימום לרכב. המידע אינו בזמן אמת ועשוי להיות חסר, משוער או מיושן; יש לפעול לפי שילוט ודרישות בטיחות. שגיאת 403 שומרת סיבה מסוננת ומוסיפה הנחיית גישה, אך יכולה לנבוע גם מהפעלה, הגבלות מפתח או הרשאות; לא כל 403 הוא רישוי.",
+      "מקורות רשמיים ומגבלות: https://developers.google.com/maps/documentation/roads/speed-limits"
+    ],
+    "authentication": "נדרש מפתח API במימוש זה, גם במצב OAuth; יש להפעיל שירות, חיוב והגבלות מתאימות.",
+    "summary": "מהירויות מותרות עם הרשאת Asset Tracking."
+  },
+  "maps_autocomplete": {
+    "purpose": "חיזויי Places API New תוך כדי הקלדה, עם מקומות ושאילתות, העדפה או הגבלה גאוגרפית, מסנני סוגים ואזורים, מיקום סמן ואסימוני חיוב בניהול הקורא.",
+    "parameters": {
+      "input": {
+        "description": "טקסט חיפוש לא ריק, לרבות שם מקום או כתובת חלקיים.",
+        "default": "—"
+      },
+      "locationBias": {
+        "description": "העדפה סביב מעגל או מלבן יחיד; תוצאות עשויות לחרוג ממנו. אינו משתלב עם locationRestriction.",
+        "default": "העדפת Google לפי IP בהיעדר שתי האפשרויות הגאוגרפיות"
+      },
+      "locationRestriction": {
+        "description": "הגבלת תוצאות למעגל או מלבן יחיד; אינו משתלב עם locationBias.",
+        "default": "העדפת Google לפי IP בהיעדר שתי האפשרויות הגאוגרפיות"
+      },
+      "includedPrimaryTypes": {
+        "description": "עד חמישה סוגי מקומות ראשיים; (cities) או (regions) חייב להיות הערך היחיד בעת שימוש בו.",
+        "default": "כל הסוגים"
+      },
+      "includedRegionCodes": {
+        "description": "עד 15 קודי אזור CLDR בני שתי אותיות; בשילוב locationRestriction נלקח החיתוך. מערך ריק אינו מגביל.",
+        "default": "כל האזורים"
+      },
+      "languageCode": {
+        "description": "תג שפה IETF BCP-47 לטקסט הזמין; Google עשויה לבחור בשפה הנתמכת הקרובה.",
+        "default": "ערך GOOGLE_MAPS_LANGUAGE המוגדר"
+      },
+      "regionCode": {
+        "description": "קוד אזור CLDR בן שתי אותיות לעיצוב ודירוג; אינו מגביל תוצאות לאזור.",
+        "default": "לא נשלח"
+      },
+      "origin": {
+        "description": "קואורדינטות ייחוס לחישוב המרחק הגאודזי distanceMeters.",
+        "default": "המרחק מושמט"
+      },
+      "origin.latitude": {
+        "description": "קו רוחב WGS84 במעלות, בין ‎-90 ל-90.",
+        "default": "נדרש עם נקודת מוצא"
+      },
+      "origin.longitude": {
+        "description": "קו אורך WGS84 במעלות, בין ‎-180 ל-180.",
+        "default": "נדרש עם נקודת מוצא"
+      },
+      "inputOffset": {
+        "description": "מיקום סמן מאפס בתווי Unicode; אינו יכול לחרוג מאורך input.",
+        "default": "סוף הקלט"
+      },
+      "includeQueryPredictions": {
+        "description": "הכללת חיזויי שאילתה לצד חיזויי מקומות.",
+        "default": "false"
+      },
+      "sessionToken": {
+        "description": "אסימון בטוח ל-URL שנוצר בידי הקורא, עד 36 תווי ASCII; מומלץ UUID v4 חדש לכל מפגש. יש להעביר אותו גם ל-Place Details או Address Validation המסיים.",
+        "default": "ללא קיבוץ למפגש; חיוב לכל בקשה"
+      },
+      "includePureServiceAreaBusinesses": {
+        "description": "הכללת עסקים שמגיעים ללקוחות או מבצעים משלוחים ללא כתובת ציבורית.",
+        "default": "false"
+      },
+      "includeFutureOpeningBusinesses": {
+        "description": "הכללת עסקים שייפתחו בעתיד.",
+        "default": "false"
+      },
+      "locationBias.circle": {
+        "description": "אזור מעגלי; אינו משתלב עם rectangle.",
+        "default": "לא נשלח"
+      },
+      "locationBias.circle.center": {
+        "description": "מרכז המעגל בקואורדינטות WGS84.",
+        "default": "נדרש עם מעגל"
+      },
+      "locationBias.circle.center.latitude": {
+        "description": "קו רוחב WGS84 במעלות, בין ‎-90 ל-90.",
+        "default": "נדרש עם מרכז"
+      },
+      "locationBias.circle.center.longitude": {
+        "description": "קו אורך WGS84 במעלות, בין ‎-180 ל-180.",
+        "default": "נדרש עם מרכז"
+      },
+      "locationBias.circle.radius": {
+        "description": "רדיוס במטרים עד 50000; חייב להיות חיובי ב-locationRestriction.",
+        "default": "נדרש עם מעגל"
+      },
+      "locationBias.rectangle": {
+        "description": "מלבן סגור שאינו משתלב עם circle; גבולות האורך יכולים לחצות את קו התאריך.",
+        "default": "לא נשלח"
+      },
+      "locationBias.rectangle.low": {
+        "description": "הגבול הדרום-מערבי; קו הרוחב אינו עולה על high.latitude.",
+        "default": "נדרש עם מלבן"
+      },
+      "locationBias.rectangle.low.latitude": {
+        "description": "קו רוחב WGS84 במעלות, בין ‎-90 ל-90.",
+        "default": "נדרש עם גבול"
+      },
+      "locationBias.rectangle.low.longitude": {
+        "description": "קו אורך WGS84 במעלות, בין ‎-180 ל-180.",
+        "default": "נדרש עם גבול"
+      },
+      "locationBias.rectangle.high": {
+        "description": "הגבול הצפון-מזרחי; קו הרוחב אינו קטן מ-low.latitude.",
+        "default": "נדרש עם מלבן"
+      },
+      "locationBias.rectangle.high.latitude": {
+        "description": "קו רוחב WGS84 במעלות, בין ‎-90 ל-90.",
+        "default": "נדרש עם גבול"
+      },
+      "locationBias.rectangle.high.longitude": {
+        "description": "קו אורך WGS84 במעלות, בין ‎-180 ל-180.",
+        "default": "נדרש עם גבול"
+      },
+      "locationRestriction.circle": {
+        "description": "אזור מעגלי; אינו משתלב עם rectangle.",
+        "default": "לא נשלח"
+      },
+      "locationRestriction.circle.center": {
+        "description": "מרכז המעגל בקואורדינטות WGS84.",
+        "default": "נדרש עם מעגל"
+      },
+      "locationRestriction.circle.center.latitude": {
+        "description": "קו רוחב WGS84 במעלות, בין ‎-90 ל-90.",
+        "default": "נדרש עם מרכז"
+      },
+      "locationRestriction.circle.center.longitude": {
+        "description": "קו אורך WGS84 במעלות, בין ‎-180 ל-180.",
+        "default": "נדרש עם מרכז"
+      },
+      "locationRestriction.circle.radius": {
+        "description": "רדיוס במטרים עד 50000; חייב להיות חיובי ב-locationRestriction.",
+        "default": "נדרש עם מעגל"
+      },
+      "locationRestriction.rectangle": {
+        "description": "מלבן סגור שאינו משתלב עם circle; גבולות האורך יכולים לחצות את קו התאריך.",
+        "default": "לא נשלח"
+      },
+      "locationRestriction.rectangle.low": {
+        "description": "הגבול הדרום-מערבי; קו הרוחב אינו עולה על high.latitude.",
+        "default": "נדרש עם מלבן"
+      },
+      "locationRestriction.rectangle.low.latitude": {
+        "description": "קו רוחב WGS84 במעלות, בין ‎-90 ל-90.",
+        "default": "נדרש עם גבול"
+      },
+      "locationRestriction.rectangle.low.longitude": {
+        "description": "קו אורך WGS84 במעלות, בין ‎-180 ל-180.",
+        "default": "נדרש עם גבול"
+      },
+      "locationRestriction.rectangle.high": {
+        "description": "הגבול הצפון-מזרחי; קו הרוחב אינו קטן מ-low.latitude.",
+        "default": "נדרש עם מלבן"
+      },
+      "locationRestriction.rectangle.high.latitude": {
+        "description": "קו רוחב WGS84 במעלות, בין ‎-90 ל-90.",
+        "default": "נדרש עם גבול"
+      },
+      "locationRestriction.rectangle.high.longitude": {
+        "description": "קו אורך WGS84 במעלות, בין ‎-180 ל-180.",
+        "default": "נדרש עם גבול"
+      }
+    },
+    "result": "תשובת suggestions מלאה: placePrediction/queryPrediction, התאמות טקסט ועיצוב, מזהי מקומות, distanceMeters אופציונלי ומטא-נתונים; ללא מסכת שדות המסירה תוכן.",
+    "example": {
+      "input": "coffee near Paris",
+      "sessionToken": "550e8400-e29b-41d4-a716-446655440000",
+      "includedRegionCodes": [
+        "FR"
+      ],
+      "locationBias": {
+        "circle": {
+          "center": {
+            "latitude": 48.8566,
+            "longitude": 2.3522
+          },
+          "radius": 5000
+        }
+      },
+      "includeQueryPredictions": true
+    },
+    "notes": [
+      "הכלי אינו יוצר או מסיים מפגשים אוטומטית. כל מפגש משתמש בפרטי אימות מפרויקט Google Cloud אחד ומסתיים ב-Place Details או Address Validation מתאים. יש ליצור אסימון חדש למפגש הבא; היעדרו או שימוש חוזר עלולים לגרום לחיוב לכל בקשה.",
+      "רדיוס מעגל עד 50000 מ׳, וחיובי בהגבלה. גבולות רוחב המלבן חייבים להיות מסודרים; נתמכת חציית קו התאריך בקווי האורך. יש לשמר ייחוס Google Maps והספק; תנאי EEA וזמינות שדות עשויים להשתנות.",
+      "מקורות רשמיים ומגבלות: https://developers.google.com/maps/documentation/places/web-service/reference/rest/v1/places/autocomplete"
+    ],
+    "authentication": "מפתח API או OAuth ל-Places בהיקף Places/cloud-platform.",
+    "summary": "הצעות מקומות וכתובות תוך כדי הקלדה."
+  },
+  "maps_geolocate": {
+    "purpose": "הערכת מיקום מכשיר לפי אנטנות סלולריות או נקודות Wi-Fi עם גוף Geolocation JSON מקורי מלא.",
+    "parameters": {
+      "body": {
+        "description": "אובייקט Geolocation מקורי: homeMobileCountryCode, homeMobileNetworkCode, radioType ‏gsm/cdma/wcdma/lte/nr, carrier, considerIp, cellTowers, wifiAccessPoints. תומך ב-cellId/newRadioCellId ובאות. גוף ריק מאפשר גיבוי לפי IP השרת; Google מאמתת שדות פנימיים.",
+        "default": "—"
+      }
+    },
+    "result": "location.lat, location.lng ו-accuracy (רדיוס אי-ודאות במטרים), וכל שדה Google נוסף.",
+    "example": {
+      "body": {
+        "considerIp": false,
+        "wifiAccessPoints": [
+          {
+            "macAddress": "00:25:9c:cf:1c:ac",
+            "signalStrength": -43
+          },
+          {
+            "macAddress": "00:25:9c:cf:1c:ad",
+            "signalStrength": -55
+          }
+        ]
+      }
+    },
+    "notes": [
+      "ברירת המחדל של considerIp היא true. בהיעדר תצפיות רדיו תקינות, הגיבוי מאתר את IP היציאה של השרת, לא את המשתמש; יש להגדיר body.considerIp=false כדי לאסור זאת.",
+      "נדרשות לפחות שתי נקודות Wi-Fi קבועות ושונות פיזית. Google מוציאה כתובות MAC מקומיות ושמורות; נקודות ניידות ותצפיות לא תקינות עשויות להיכשל. Google מאמתת את פרטי הפרוטוקול; המעטפת דוחה פרמטרים חיצוניים לא מוכרים. ההערכה מקורבת ועשויה להיכשל ב-NOT_FOUND; יש לבדוק accuracy.",
+      "מקורות רשמיים ומגבלות: https://developers.google.com/maps/documentation/geolocation/requests-geolocation"
+    ],
+    "authentication": "נדרש מפתח API במימוש זה, גם במצב OAuth; יש להפעיל שירות, חיוב והגבלות מתאימות.",
+    "summary": "הערכת מיקום לפי אנטנות ו-Wi-Fi."
+  },
+  "maps_solar": {
+    "purpose": "שימוש בשלוש שיטות Solar הראשיות: מבנה קרוב, מטא-נתוני שכבות אזוריות והורדת GeoTIFF מוגבלת לפי מזהה נכס.",
+    "parameters": {
+      "operation": {
+        "description": "building_insights, data_layers או geo_tiff; מתקבלים רק הפרמטרים של הפעולה שנבחרה.",
+        "default": "—"
+      },
+      "location": {
+        "description": "מיקום חיפוש הבניין או מרכז שכבות האזור; נדרש עבור building_insights/data_layers.",
+        "default": "לא נשלח"
+      },
+      "location.latitude": {
+        "description": "קו רוחב WGS84 במעלות, בין ‎-90 ל-90.",
+        "default": "נדרש עם מיקום"
+      },
+      "location.longitude": {
+        "description": "קו אורך WGS84 במעלות, בין ‎-180 ל-180.",
+        "default": "נדרש עם מיקום"
+      },
+      "requiredQuality": {
+        "description": "איכות תמונה מינימלית HIGH, MEDIUM או BASE; ‏BASE משתמשת בתצלומי לוויין משופרים. הזמינות גאוגרפית.",
+        "default": "HIGH (ברירת המחדל של Google)"
+      },
+      "exactQualityRequired": {
+        "description": "דרישת האיכות המדויקת במקום קבלת איכות גבוהה יותר, לתובנות ולשכבות.",
+        "default": "false"
+      },
+      "experiments": {
+        "description": "ניסוי EXPANDED_COVERAGE אופציונלי לתובנות ולשכבות; מוגדר טרום זמינות כללית ב-Google.",
+        "default": "ללא ניסויים"
+      },
+      "additionalInsights": {
+        "description": "DETECTED_ARRAYS אופציונלי עבור building_insights לזיהוי מערכי גג קיימים.",
+        "default": "ללא תובנות נוספות"
+      },
+      "radiusMeters": {
+        "description": "רדיוס חיובי עבור data_layers, עד 1000 מ׳. מעל 100 אסור לחרוג מ-pixelSizeMeters×1000; מעל 175 נדרש מבט ללא שטף חודשי או צל שעתי.",
+        "default": "לא נשלח"
+      },
+      "view": {
+        "description": "בחירת שכבות: DSM_LAYER, IMAGERY_LAYERS, IMAGERY_AND_ANNUAL_FLUX_LAYERS, IMAGERY_AND_ALL_FLUX_LAYERS או FULL_LAYERS.",
+        "default": "FULL_LAYERS (ברירת המחדל של Google)"
+      },
+      "pixelSizeMeters": {
+        "description": "גודל פיקסל מינימלי: 0.1, 0.25, 0.5 או 1 מטר; לשכבות מסוימות רזולוציה מקורית גסה יותר.",
+        "default": "0.1"
+      },
+      "id": {
+        "description": "מזהה נכס אטום מפרמטר id ב-URL של שכבת Solar; עבור geo_tiff בלבד. יש לשלוח מזהה ולא כתובת.",
+        "default": "— עבור geo_tiff"
+      }
+    },
+    "result": "building_insights/data_layers מחזירים JSON מלא עם תאריכים, איכות, פוטנציאל סולרי וכתובות זמניות לאחר הסרת פרטי אימות. geo_tiff מחזיר בתים מוגבלים עם MIME אמיתי וכותרות מטמון; JSON ב-CLI משתמש ב-base64.",
+    "example": {
+      "operation": "data_layers",
+      "location": {
+        "latitude": 37.444,
+        "longitude": -122.16
+      },
+      "radiusMeters": 100,
+      "view": "IMAGERY_AND_ANNUAL_FLUX_LAYERS"
+    },
+    "notes": [
+      "כיסוי ואיכות משתנים לפי מיקום; החיפוש עשוי להחזיר NOT_FOUND אם אין מבנה בטווח כ-50 מ׳. הכתובות זמניות ומאומתות; מעתיקים רק id ל-geo_tiff, המוריד מ-solar.googleapis.com/v1/geoTiff:get ללא URL שרירותי.",
+      "מגבלת תשובה 16 MiB עם תקציב בקשות ומועד סיום; קבצים גדולים עשויים לדרוש רדיוס קטן או פיקסלים גסים. פענוח רסטר ותכנון התקנה אינם כלולים. EXPANDED_COVERAGE טרום זמינות כללית; תנאי EEA עשויים להשתנות ותוכן להישמט. חיוב ומכסות נפרדים לכל נתיב; יש לשמר ייחוס Google Maps.",
+      "מקורות רשמיים ומגבלות: https://developers.google.com/maps/comms/eea/solar ; https://developers.google.com/maps/documentation/solar/coverage ; https://developers.google.com/maps/documentation/solar/reference/rest/v1/buildingInsights/findClosest ; https://developers.google.com/maps/documentation/solar/reference/rest/v1/dataLayers/get ; https://developers.google.com/maps/documentation/solar/reference/rest/v1/geoTiff/get"
+    ],
+    "authentication": "מפתח API או אסימון OAuth2 בהיקף cloud-platform; יש להפעיל API וחיוב. למשתמש האימות בפרויקט המכסה נדרשת serviceusage.services.use.",
+    "summary": "תובנות מבנים ושכבות אנרגיה סולרית."
+  },
+  "maps_aerial_view": {
+    "purpose": "קבלת קישורי ניגון קצרי חיים או מטא-נתונים של סרטון Aerial View קיים, ללא הורדת הסרטון.",
+    "parameters": {
+      "operation": {
+        "description": "lookup מחזיר קישורי ניגון ומטא-נתונים (בחיוב); metadata מחזיר נתונים ללא קישורים (שיטת Google חינמית).",
+        "default": "lookup"
+      },
+      "address": {
+        "description": "כתובת דואר נתמכת בארה״ב; יש לבחור בדיוק אחד: address או videoId.",
+        "default": "לא נשלח"
+      },
+      "videoId": {
+        "description": "מזהה סרטון Aerial View קודם; אינו משתלב עם address.",
+        "default": "לא נשלח"
+      }
+    },
+    "result": "תשובת Google מקורית עם מצב עיבוד או פעילות ומטא-נתונים, וקישורים לפי פורמט ורזולוציה כשהסרטון פעיל. metadata אינו מחזיר קישורים.",
+    "example": {
+      "operation": "metadata",
+      "address": "600 Montgomery St, San Francisco, CA 94111"
+    },
+    "notes": [
+      "כתובות נתמכות בארה״ב בלבד ובכיסוי 3D. סרטון חסר מחזיר NOT_FOUND; מבקשים יצירה ב-maps_render_aerial_video. יש לבדוק מצב ב-metadata החינמי במרווח סביר, ולהשתמש ב-lookup המחויב כשצריך לנגן.",
+      "הקישורים פגים במהירות; יש לבקש קישור חדש לכל תצוגה. Google אוסרת הורדה, אחסון או מטמון של הסרטונים; הכלי מחזיר קישורים בלבד. ניתן לשמור מזהי סרטון לפי החריג המתועד. יש לשמר ייחוס בניגון; תנאי EEA ותפקוד עשויים להשתנות.",
+      "מקורות רשמיים ומגבלות: https://developers.google.com/maps/documentation/aerial-view/lookup-video ; https://developers.google.com/maps/documentation/aerial-view/policies\"]"
+    ],
+    "authentication": "נדרש מפתח API במימוש זה, גם במצב OAuth; יש להפעיל שירות, חיוב והגבלות מתאימות.",
+    "summary": "קישורי סרטוני Aerial View ומטא-נתונים."
+  },
+  "maps_render_aerial_video": {
+    "purpose": "הוספת בקשת יצירת סרטון Aerial View אסינכרונית לתור לכתובת אמריקאית נתמכת. מופרדת מקריאה כדי שהסוכן יזהה את השינוי.",
+    "parameters": {
+      "address": {
+        "description": "כתובת דואר נתמכת בארה״ב לבקשת יצירת הסרטון.",
+        "default": "—"
+      }
+    },
+    "result": "תשובת יצירה מקורית עם מצב ונתונים זמינים; PROCESSING מציין המתנה או עיבוד, וסרטון קיים עשוי להחזיר ACTIVE מיד.",
+    "example": {
+      "address": "600 Montgomery St, San Francisco, CA 94111"
+    },
+    "notes": [
+      "הבקשה משנה את התור של Google. אין ניסיון חוזר אוטומטי לאחר כשל זמני, אין המתנה לסיום ואין הורדת סרטון. בודקים התקדמות ב-maps_aerial_view metadata עם הכתובת או videoId; משתמשים ב-lookup רק לקישורי ניגון.",
+      "חלות מגבלות כיסוי ארה״ב/3D, מכסות ותנאי שירות; הפעלת API אינה מבטיחה אפשרות יצירה. אין להוריד, לאחסן או לשמור מטמון סרטונים; מציגים קישורים עדכניים עם ייחוס.",
+      "מקורות רשמיים ומגבלות: https://developers.google.com/maps/documentation/aerial-view/reference/rest/v1/videos/renderVideo"
+    ],
+    "authentication": "נדרש מפתח API במימוש זה, גם במצב OAuth; יש להפעיל שירות, חיוב והגבלות מתאימות.",
+    "summary": "בקשה מפורשת ליצירת סרטון אווירי."
+  },
+  "maps_map_tiles": {
+    "purpose": "יצירת מפגשי Map Tiles וקבלת משאבי 2D, ‏3D ו-Street View למציג מפות; הכלי אינו מציג. Google מתירה אריחים להמחשה בלבד ואוסרת פירוש מכונה, ניתוח תמונות, זיהוי עצמים, חילוץ נתונים גאוגרפיים ושימוש לא מקוון.",
+    "parameters": {
+      "operation": {
+        "description": "create_session, tile_2d, viewport, root_3d, resource_3d, streetview_pano_ids, streetview_metadata, streetview_thumbnail או streetview_tile; קובע את נקודת הקצה והשדות הנדרשים.",
+        "default": "—"
+      },
+      "sessionOptions": {
+        "description": "אפשרויות createSession המקוריות; mapType, language ו-region נדרשים עבור create_session.",
+        "default": "לא נשלח; נדרש לפעולות המתוארות"
+      },
+      "sessionOptions.mapType": {
+        "description": "roadmap, satellite, terrain או streetview; ‏terrain דורש layerRoadmap בתוך layerTypes.",
+        "default": "לא נשלח; נדרש לפעולות המתוארות"
+      },
+      "sessionOptions.language": {
+        "description": "תג שפה IETF כגון en-US.",
+        "default": "לא נשלח; נדרש לפעולות המתוארות"
+      },
+      "sessionOptions.region": {
+        "description": "קוד CLDR בשתי אותיות גדולות כגון US, המתאר את מיקום המשתמש בפועל.",
+        "default": "לא נשלח; נדרש לפעולות המתוארות"
+      },
+      "sessionOptions.imageFormat": {
+        "description": "פורמט jpeg או png; ‏JPEG אינו תומך בשכבות שקופות.",
+        "default": "Google בוחרת בפורמט המתאים"
+      },
+      "sessionOptions.scale": {
+        "description": "גודל רכיבי המפה: scaleFactor1x, scaleFactor2x או scaleFactor4x.",
+        "default": "scaleFactor1x"
+      },
+      "sessionOptions.highDpi": {
+        "description": "הגדלת ממדי פיקסלים בקנה מידה 2x או 4x; ללא השפעה ב-1x.",
+        "default": "false"
+      },
+      "sessionOptions.overlay": {
+        "description": "כאשר true, ‏layerTypes מוצגים ללא תמונת הבסיס.",
+        "default": "false"
+      },
+      "sessionOptions.layerTypes": {
+        "description": "שכבה אחת עד שלוש: layerRoadmap, layerStreetview, layerTraffic. ‏terrain דורש layerRoadmap.",
+        "default": "ללא שכבות נוספות"
+      },
+      "sessionOptions.styles": {
+        "description": "אובייקטי עיצוב מפה מקוריים של Google, עבור roadmap בלבד; התחביר מתועד ב-Google.",
+        "default": "עיצוב ברירת המחדל של Google"
+      },
+      "session": {
+        "description": "אסימון createSession; נדרש לבקשות 2D ו-Street View, לא ל-3D. יש לפעול לפי expiry בתשובה.",
+        "default": "לא נשלח; נדרש לפעולות המתוארות"
+      },
+      "zoom": {
+        "description": "זום שלם: 0–22 עבור tile_2d/viewport, ‏0–5 עבור streetview_tile. יש לבדוק זמינות דרך viewport.",
+        "default": "לא נשלח; נדרש לפעולות המתוארות"
+      },
+      "x": {
+        "description": "עמודת האריח; ב-2D קטנה מ-‎2^zoom. גבולות Street View תלויים בממדי הפנורמה במטא-נתונים.",
+        "default": "לא נשלח; נדרש לפעולות המתוארות"
+      },
+      "y": {
+        "description": "שורת האריח; ב-2D קטנה מ-‎2^zoom. גבולות Street View תלויים בממדי הפנורמה במטא-נתונים.",
+        "default": "לא נשלח; נדרש לפעולות המתוארות"
+      },
+      "north": {
+        "description": "קו הרוחב הצפוני הנדרש ל-viewport, וחייב לעלות על south.",
+        "default": "לא נשלח; נדרש לפעולות המתוארות"
+      },
+      "south": {
+        "description": "קו הרוחב הדרומי הנדרש ל-viewport.",
+        "default": "לא נשלח; נדרש לפעולות המתוארות"
+      },
+      "east": {
+        "description": "קו האורך המזרחי הנדרש; יכול להיות שלילי עם west חיובי לחציית קו התאריך.",
+        "default": "לא נשלח; נדרש לפעולות המתוארות"
+      },
+      "west": {
+        "description": "קו האורך המערבי הנדרש ל-viewport.",
+        "default": "לא נשלח; נדרש לפעולות המתוארות"
+      },
+      "resourceUrl": {
+        "description": "עבור resource_3d: כתובת Google מוחלטת https://tile.googleapis.com/v1/3dtiles/... ממערכת האריחים; ללא מארח אחר, יציאה מותאמת, פרטי משתמש, מקטע או נתיב מקודד. המפתח מהכתובת מוסר ונעשה שימוש באימות המוגדר.",
+        "default": "לא נשלח; נדרש לפעולות המתוארות"
+      },
+      "panoId": {
+        "description": "נדרש לאריח או תמונה ממוזערת של Street View, או חלופה לקואורדינטות במטא-נתונים. אין להסתמך עליו מעבר למפגש משתמש אחד.",
+        "default": "לא נשלח; נדרש לפעולות המתוארות"
+      },
+      "latitude": {
+        "description": "קו רוחב WGS84 במעלות, בין ‎-90 ל-90.",
+        "default": "לא נשלח; נדרש לפעולות המתוארות"
+      },
+      "longitude": {
+        "description": "קו אורך WGS84 במעלות, בין ‎-180 ל-180.",
+        "default": "לא נשלח; נדרש לפעולות המתוארות"
+      },
+      "locations": {
+        "description": "מיקום אחד עד 100 עבור streetview_pano_ids, כל אובייקט מכיל lat ו-lng.",
+        "default": "לא נשלח; נדרש לפעולות המתוארות"
+      },
+      "locations[].lat": {
+        "description": "קו רוחב WGS84 במעלות, בין ‎-90 ל-90.",
+        "default": "לא נשלח; נדרש לפעולות המתוארות"
+      },
+      "locations[].lng": {
+        "description": "קו אורך WGS84 במעלות, בין ‎-180 ל-180.",
+        "default": "לא נשלח; נדרש לפעולות המתוארות"
+      },
+      "radius": {
+        "description": "רדיוס חיפוש Street View במטרים, 0–100000, עבור pano_ids או metadata לפי קואורדינטות; אינו משתלב עם panoId.",
+        "default": "50 מטרים"
+      },
+      "width": {
+        "description": "רוחב תמונה ממוזערת, 16–600 פיקסלים.",
+        "default": "600"
+      },
+      "height": {
+        "description": "גובה תמונה ממוזערת, 16–250 פיקסלים.",
+        "default": "250"
+      },
+      "yaw": {
+        "description": "כיוון מצלמה אופקי לתמונה ממוזערת, בין ‎-360 ל-360 מעלות.",
+        "default": "0"
+      },
+      "pitch": {
+        "description": "זווית מצלמה אנכית במעלות, בין ‎-90 ל-90.",
+        "default": "0"
+      },
+      "fov": {
+        "description": "שדה ראייה אופקי לתמונה ממוזערת, 30–120 מעלות.",
+        "default": "90"
+      }
+    },
+    "result": "JSON מקורי למפגשים, תצוגה, פנורמות וקובצי מערכת 3D, עם ייחוס, זכויות, קישור דיווח ותוקף מפגש. תמונות ומשאבי 3D שאינם JSON מוחזרים כבתים עם MIME, ‏Cache-Control ו-ETag. ‏MCP מציג תמונות נתמכות והיתר ב-base64; ‏CLI --output כותב בתים.",
+    "example": {
+      "operation": "root_3d"
+    },
+    "notes": [
+      "create_session דורש sessionOptions; ‏tile_2d דורש session/zoom/x/y; ‏viewport דורש session/zoom/north/south/east/west; ‏root_3d ללא שדות נוספים; ‏resource_3d דורש resourceUrl; ‏pano_ids דורש session/locations; ‏metadata דורש session ומזהה פנורמה או זוג קואורדינטות; ‏thumbnail דורש session/panoId; ‏streetview_tile דורש session/panoId/zoom/x/y. שדות לא בשימוש נדחים.",
+      "יצירת מפגש אינה מנוסה שוב אוטומטית; חיפוש פנורמות הוא POST לקריאה בלבד. המציג בהמשך אחראי לחיבור ולרינדור. אין מטמון אריחים, הורדת אזורים גורפת, מפות לא מקוונות או ניתוח תמונה. אין לשלוח תמונות למודל ראייה לפירוש או חילוץ נתונים.",
+      "ההסכם אוסר שליפה מוקדמת, אינדוקס ואחסון לא מורשים; יש לכבד Cache-Control ו-ETag. יש להציג סמל Google Maps וייחוס ספקים. משתמשים בזכויות viewport ל-2D, בזכויות Street View ובקישור הדיווח, ובקרדיטים במציג 3D; אין לחתוך קרדיטים. כיסוי, חיוב, מכסות ותנאי EEA משתנים. פועלים לפי expiry; מזהי פנורמות זמניים.",
+      "מקורות רשמיים ומגבלות: https://developers.google.com/maps/documentation/tile/2d-tiles-overview ; https://developers.google.com/maps/documentation/tile/3d-tiles ; https://developers.google.com/maps/documentation/tile/get-api-key ; https://developers.google.com/maps/documentation/tile/policies ; https://developers.google.com/maps/documentation/tile/session_tokens ; https://developers.google.com/maps/documentation/tile/streetview ; https://developers.google.com/maps/documentation/tile/style-reference ; https://tile.googleapis.com/v1/3dtiles/"
+    ],
+    "authentication": "מפתח API או אסימון OAuth2 בהיקף cloud-platform; יש להפעיל API וחיוב. למשתמש האימות בפרויקט המכסה נדרשת serviceusage.services.use.",
+    "summary": "אריחי מפות 2D, ‏3D ו-Street View לתצוגה."
+  },
+  "maps_streetview": {
+    "purpose": "בדיקת מטא-נתוני פנורמת Street View או קבלת JPEG סטטי לפי מיקום או מזהה. אפשר לבדוק זמינות ב-metadata לפני תמונה מחויבת.",
+    "parameters": {
+      "operation": {
+        "description": "metadata למטא-נתוני JSON או image לבתי JPEG.",
+        "default": "—"
+      },
+      "location": {
+        "description": "כתובת, זוג קואורדינטות טקסטואלי כגון 48.8584,2.2945 או place_id:PLACE_ID; יש לבחור בדיוק אחד: location או panoId.",
+        "default": "לא נשלח; נדרש לפעולות המתוארות"
+      },
+      "panoId": {
+        "description": "מזהה פנורמת Street View; עשוי להשתנות ואין להסתמך עליו לאורך זמן.",
+        "default": "לא נשלח; נדרש לפעולות המתוארות"
+      },
+      "width": {
+        "description": "רוחב תמונה 1–640 פיקסלים, ל-image בלבד. גדלים מיוחדים גדולים יותר אינם נתמכים.",
+        "default": "640"
+      },
+      "height": {
+        "description": "גובה תמונה 1–640 פיקסלים, ל-image בלבד.",
+        "default": "400"
+      },
+      "heading": {
+        "description": "כיוון המצלמה במצפן, בין 0 ל-360 מעלות.",
+        "default": "Google מכוונת למיקום שנשלח"
+      },
+      "fov": {
+        "description": "שדה ראייה אופקי של התמונה, 1–120 מעלות.",
+        "default": "90"
+      },
+      "pitch": {
+        "description": "זווית מצלמה אנכית במעלות, בין ‎-90 ל-90.",
+        "default": "0"
+      },
+      "radius": {
+        "description": "רדיוס חיפוש במטרים; המימוש מקבל מספרים שלמים 0–100000.",
+        "default": "50"
+      },
+      "source": {
+        "description": "מקור החיפוש default, google או outdoor; הזמינות תלויה באוסף ובאזור.",
+        "default": "default"
+      },
+      "returnErrorCode": {
+        "description": "עבור image: החזרת שגיאת HTTP במקום תמונה אפורה בהיעדר תמונות.",
+        "default": "true במימוש זה"
+      },
+      "signature": {
+        "description": "חתימת URL אופציונלית המחושבת לבקשה המקודדת המדויקת; Google ממליצה עליה ולעיתים דורשת אותה. הכלי מעביר ואינו יוצר. בבקשות חתומות signature נוסף אחרון, אחרי מפתח ה־API. יש לחתום על הנתיב והמחרוזת המקודדים המדויקים, כולל ברירות המחדל שנוצרו. סדר תמונה: location, radius, source, pano, size, heading, fov, pitch, return_error_code, key; שדות אופציונליים חסרים מושמטים. בקשות מטא־נתונים משמיטות שדות תמונה. רווחים מקודדים כ־+. ברירות מחדל: size=640x400 ו־return_error_code=true.",
+        "default": "לא נשלח"
+      }
+    },
+    "result": "JSON metadata מקורי עם status, date, location, pano_id ו-copyright כאשר זמינים, או בתי JPEG עם MIME וכותרות מטמון בטוחות. תמונה חסרה היא שגיאה כברירת מחדל. CLI --output שומר בתים; MCP מציג תמונה ומטא-נתונים.",
+    "example": {
+      "operation": "metadata",
+      "location": "Eiffel Tower, Paris, France"
+    },
+    "notes": [
+      "בוחרים location או panoId בלבד. ממדים, heading, fov, pitch ו-returnErrorCode לתמונות בלבד; שדות לא בשימוש נדחים. metadata חינמי כעת ואינו צורך מכסת תמונות; התמונות מחויבות.",
+      "יש לשמור ייחוס מוטמע. אסור להשתמש ב-Street View להדפסה וחלות מגבלות אחסון מפות; הכלי אינו מעניק רישיון לשמירה, הפצה או ניתוח. חתימות מועברות בלבד ואינן נוצרות; גדלים מיוחדים אינם נתמכים. כיסוי ו-EEA משתנים, מזהים ותאריכים עשויים להשתנות או להיעדר.",
+      "מקורות רשמיים ומגבלות: https://about.google/brand-resource-center/products-and-services/geo-guidelines/ ; https://developers.google.com/maps/documentation/streetview/metadata ; https://developers.google.com/maps/documentation/streetview/policies ; https://developers.google.com/maps/documentation/streetview/request-streetview"
+    ],
+    "authentication": "נדרש מפתח API ל-Street View Static; ‏OAuth לבדו אינו מספיק. יש להפעיל Street View Static API. ‏Google ממליצה על חתימה דיגיטלית ובחלק מהחשבונות דורשת אותה.",
+    "summary": "מטא-נתוני Street View ותמונת JPEG."
+  },
+  "maps_streetview_publish": {
+    "purpose": "ניהול תמונות ורצפי Google של המשתמש שנתן הסכמה. תומך בכל שיטות REST v1 המתועדות ובהעלאת בתים מוגבלת. פרסום ומחיקה מפורשים וללא ניסיונות חוזרים אוטומטיים.",
+    "parameters": {
+      "operation": {
+        "description": "list/get/start_upload/upload/create/update/delete/batch_get/batch_update/batch_delete/list_sequences/get_sequence/start_sequence_upload/create_sequence/delete_sequence. פרסום, עדכון ומחיקה משנים תוכן ציבורי של המשתמש.",
+        "default": "—"
+      },
+      "photoId": {
+        "description": "מזהה תמונת Google עבור get/update/delete, ללא נתיב או פרמטרי URL.",
+        "default": "לא נשלח; נדרש לפעולות המתוארות"
+      },
+      "sequenceId": {
+        "description": "מזהה הרצף עבור get_sequence/delete_sequence; מתקבל בשם הפעולה שנוצרה.",
+        "default": "לא נשלח; נדרש לפעולות המתוארות"
+      },
+      "photoIds": {
+        "description": "אחד עד 100 מזהי תמונות עבור batch_get או batch_delete.",
+        "default": "לא נשלח; נדרש לפעולות המתוארות"
+      },
+      "view": {
+        "description": "BASIC או INCLUDE_DOWNLOAD_URL עבור list/get/batch_get/get_sequence. קישורי ההורדה רגישים והכלי אינו מוריד אותם.",
+        "default": "BASIC"
+      },
+      "languageCode": {
+        "description": "תג שפה IETF BCP-47 לטקסט הזמין; Google עשויה לבחור בשפה הנתמכת הקרובה.",
+        "default": "ברירת המחדל של Google"
+      },
+      "pageSize": {
+        "description": "גודל עמוד 1–100 עבור list או list_sequences; Google עשויה להחזיר פחות.",
+        "default": "ברירת המחדל של שירות Google"
+      },
+      "pageToken": {
+        "description": "אסימון העמוד הבא מהתשובה הקודמת; יתר הפרמטרים נשארים ללא שינוי. אין דפדוף אוטומטי.",
+        "default": "לא נשלח; נדרש לפעולות המתוארות"
+      },
+      "filter": {
+        "description": "ביטוי סינון מקורי של Google; התחביר תלוי בנקודת הקצה.",
+        "default": "לא נשלח; נדרש לפעולות המתוארות"
+      },
+      "updateMask": {
+        "description": "מסכת שדות Google נדרשת לעדכון ומופרדת בפסיקים, למשל pose.heading או pose.latLngPair.",
+        "default": "לא נשלח; נדרש לפעולות המתוארות"
+      },
+      "photo": {
+        "description": "אובייקט Photo מקורי עבור create/update. יצירה דורשת uploadReference.uploadUrl לאחר העלאת הבתים; עדכון דורש photoId ו-updateMask. ראו סכמת Photo הרשמית.",
+        "default": "לא נשלח; נדרש לפעולות המתוארות"
+      },
+      "photoSequence": {
+        "description": "אובייקט PhotoSequence מקורי עבור create_sequence; דורש uploadReference.uploadUrl ונתוני GPS/CAMM/IMU וצילום מתאימים.",
+        "default": "לא נשלח; נדרש לפעולות המתוארות"
+      },
+      "updatePhotoRequests": {
+        "description": "1–100 אובייקטי UpdatePhotoRequest מקוריים עבור batch_update; בכל אחד נדרשים photo.photoId.id ו-updateMask.",
+        "default": "לא נשלח; נדרש לפעולות המתוארות"
+      },
+      "inputType": {
+        "description": "נדרש עבור create_sequence: ‏VIDEO או XDM.",
+        "default": "לא נשלח; נדרש לפעולות המתוארות"
+      },
+      "uploadUrl": {
+        "description": "כתובת UploadRef המדויקת מ-start_upload/start_sequence_upload ב-HTTPS ב-streetviewpublish.googleapis.com ובנתיב /media/user/{account}/photo/{reference} או photoSequence; ללא הפניות, מקור אחר, פרטי משתמש, מקטע או נתיב מקודד.",
+        "default": "לא נשלח; נדרש לפעולות המתוארות"
+      },
+      "dataBase64": {
+        "description": "בתי מדיה ב-base64 תקני עם ריפוד. הגודל לאחר פענוח מבית אחד עד 8 MiB; זוהי מגבלת המימוש ולא מגבלת Google.",
+        "default": "לא נשלח; נדרש לפעולות המתוארות"
+      },
+      "mimeType": {
+        "description": "סוג המדיה להעלאה: image/jpeg, video/mp4 או application/octet-stream.",
+        "default": "image/jpeg"
+      }
+    },
+    "result": "Photo, רשימות, UploadRef, תוצאות אצווה או Operation מקוריים. תשובה ריקה להעלאה או מחיקה הופכת ל-{}. מצבי פרסום ובעלות נשמרים. רצף עשוי להישאר בעיבוד; בודקים ב-get_sequence. אין תשאול או פרסום אוטומטי.",
+    "example": {
+      "operation": "list",
+      "pageSize": 10,
+      "view": "BASIC"
+    },
+    "notes": [
+      "זרימת תמונה: start_upload ואז upload ממשי של בתים ואז create עם photo.uploadReference.uploadUrl ומטא-נתונים נדרשים. העלאת בתים לבדה אינה מפרסמת. נדרשות תמונות 360, מטא-נתוני Photo Sphere/XMP ועמידה בתנאי Google. עדכון משתמש ב-PUT וב-updateMask; Google אינה תומכת בשינוי פיקסלים. מחיקה מסירה תמונות שפורסמו. בדיקות doctor או live אינן כותבות.",
+      "זרימת רצף: start_sequence_upload ואז upload, ‏create_sequence עם inputType ו-photoSequence, ואז get_sequence. מגבלת 8 MiB שייכת למימוש; וידאו גדול דורש העלאה חיצונית נתמכת Google, וניתן להשתמש ב-UploadRef שלה. אין העלאה בחלקים או ניתנת לחידוש.",
+      "גופים מקוריים שומרים GPS, תנוחה, IMU, חיבורים ומקומות; Google מאמתת פרטים פנימיים. המעטפת דוחה פרמטרים לא מוכרים ובודקת שדות בסיס; כל עדכון אצווה דורש photo.photoId.id ו-updateMask. מימוש כל שיטות REST אינו אומר שכל שדה פנימי נבדק בשירות חי.",
+      "העלאה ממקור קבוע, מוגבלת וב-POST ללא ניסיונות חוזרים; כל שינוי מבטל ניסיונות חוזרים כדי למנוע פרסום כפול בכשל עמום. יש לבדוק תוצאות. חלים בעלות, פרטיות, זכויות, קריטריוני 360, עיבוד ומכסות. חשבון שירות אינו מחליף הסכמת משתמש. פרסום לא נבדק חי עם מפתח חשבון השירות שסופק; נדרש משתמש מסכים וכתיבות ציבוריות מוחרגות מהבדיקות.",
+      "מקורות רשמיים ומגבלות: https://developers.google.com/streetview/publish/authorizing ; https://developers.google.com/streetview/publish/first-app ; https://developers.google.com/streetview/publish/reference/rest ; https://developers.google.com/streetview/publish/reference/rest/v1/photo ; https://developers.google.com/streetview/publish/reference/rest/v1/photoSequence/create ; https://developers.google.com/streetview/publish/reference/rest/v1/photos/batchUpdate ; https://www.googleapis.com/auth/streetviewpublish"
+    ],
+    "authentication": "OAuth למשתמש קצה בלבד בהסכמה להיקף https://www.googleapis.com/auth/streetviewpublish. משתמשים בפרטי authorized_user מפורשים ב-GOOGLE_APPLICATION_CREDENTIALS ובמצב OAuth. מפתח חשבון שירות, ADC משתמע או מפתח API לבדו נדחים. הסכמת OAuth מוגדרת חיצונית; התוכנית מרעננת פרטי אימות ואינה מארחת callback לדפדפן.",
+    "summary": "ניהול ופרסום תמונות Street View של המשתמש."
   }
 }

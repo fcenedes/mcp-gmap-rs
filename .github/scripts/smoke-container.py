@@ -54,7 +54,7 @@ def check_stdio(image):
         assert response()["result"]["serverInfo"]["name"] == "mcp-gmap-rs"
         request({"jsonrpc": "2.0", "method": "notifications/initialized"})
         request({"jsonrpc": "2.0", "id": 2, "method": "tools/list"})
-        assert len(response()["result"]["tools"]) == 23
+        assert len(response()["result"]["tools"]) == 42
         process.stdin.close()
         assert process.wait(timeout=15) == 0, process.stderr.read()
     finally:
@@ -203,13 +203,13 @@ def main():
     docker("run", "--rm", *HARDENING, "--entrypoint", "/bin/sh", image, "-c",
            "test ! -e /app/.env && test -s /etc/ssl/certs/ca-certificates.crt")
     tools = json.loads(docker("run", "--rm", *HARDENING, image, "tools").stdout)
-    assert len(tools) == 23
+    assert len(tools) == 42
     oauth_tools = json.loads(docker(
         "run", "--rm", *HARDENING, "--env", "GOOGLE_MAPS_AUTH_MODE=oauth",
         "--env", "GOOGLE_APPLICATION_CREDENTIALS=/not-mounted/credentials.json",
         image, "tools",
     ).stdout)
-    assert len(oauth_tools) == 23
+    assert len(oauth_tools) == 42
     doctor = docker("run", "--rm", *HARDENING, "--env", "GOOGLE_MAPS_API_KEY=offline-fixture-key",
                     "--env", "MCP_HTTP_TOKEN=offline-fixture-token", image, "doctor").stdout
     assert json.loads(doctor)["ok"] and "offline-fixture-key" not in doctor

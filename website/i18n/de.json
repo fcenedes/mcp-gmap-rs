@@ -2,7 +2,7 @@
   "label": "Deutsch",
   "lang": "de",
   "dir": "ltr",
-  "description": "Das vollständige Handbuch für die eigenständige Rust-CLI und den Google-Maps-MCP-Server. Einrichtung, OAuth, 23 Werkzeuge, TLS und Kubernetes.",
+  "description": "Das vollständige Handbuch für die eigenständige Rust-CLI und den Google-Maps-MCP-Server. Einrichtung, OAuth, 42 Werkzeuge, TLS und Kubernetes.",
   "homeTitle": "Das Praxishandbuch",
   "sidebarIntro": "Ihr Atlas der Möglichkeiten.",
   "eyebrow": "DAS HANDBUCH",
@@ -61,7 +61,7 @@
     "Fehlerbehebung",
     "Agenten-Skill",
     "Entwicklung und Releases",
-    "Alle 23 Werkzeuge",
+    "Alle 42 Werkzeuge",
     "Alle Konfigurationseinstellungen"
   ],
   "landing": {
@@ -86,7 +86,7 @@
     "httpText": "Streamable HTTP, natives TLS und mTLS. Bereit für Container und Kubernetes.",
     "catalog": "02 / DER WERKZEUGKASTEN",
     "toolsTitle": "Eine Welt voller Antworten.",
-    "toolsIntro": "23 Werkzeuge. Von Details auf Straßenebene bis zu örtlichen Bedingungen. Jeder Parameter, Standardwert und jedes Beispiel ist dokumentiert.",
+    "toolsIntro": "42 Werkzeuge. Von Details auf Straßenebene bis zu örtlichen Bedingungen. Jeder Parameter, Standardwert und jedes Beispiel ist dokumentiert.",
     "search": "Werkzeuge filtern",
     "count": "Werkzeuge",
     "all": "Alle Werkzeuge",
@@ -118,7 +118,7 @@
   },
   "reference": {
     "title": "Werkzeugreferenz",
-    "intro": "Alle 23 Werkzeuge mit sämtlichen Parametern, Standardwerten, Grenzen und Beispielen. Dieselbe Schnittstelle steht über MCP und CLI bereit.",
+    "intro": "Alle 42 Werkzeuge mit sämtlichen Parametern, Standardwerten, Grenzen und Beispielen. Dieselbe Schnittstelle steht über MCP und CLI bereit.",
     "calling": "Aufrufkonventionen",
     "cli": "CLI-Befehl",
     "access": "Google-Zugriff",
@@ -142,8 +142,10 @@
       "Nur Parameter der obersten Ebene haben CLI-Optionen. Übergeben Sie verschachtelte Objekte und Arrays als JSON. Eine alleinstehende boolesche Option bedeutet `true`; `--flag false` setzt `false`. Unbekannte Eigenschaften werden abgewiesen. Prüfen Sie die installierte Version mit `tools` oder `schema TOOL`.",
       "Google-Authentifizierung und Sprache sind Prozesskonfiguration, keine Werkzeugparameter. Exakte Routenkoordinaten vermeiden die Adressauflösung; benannte Orte können zusätzlich einen API-Schlüssel für Geocoding benötigen. Siehe [Authentifizierung](../guide/authentication) und [Konfiguration](../guide/configuration).",
       "Aufrufe können Google-Kosten verursachen. Zusammengesetzte und Matrixergebnisse können trotz erfolgreichem Werkzeugaufruf Fehler pro Element enthalten. Erhalten Sie Google-Quelllinks, Bewertungs-/Fotoautoren und KI-Zusammenfassungshinweise. Beispiele zeigen Eingaben, keine garantierten aktuellen Ergebnisse oder Abdeckungen.",
-      "Typen, Pflichtfelder und Schema-Grenzen stammen aus der schemabasierten Programmreferenz. Standardwerte, Ergebnisbeschreibungen und feldübergreifende Einschränkungen werden anhand der Implementierung geprüft. Google kann zusätzliche Abdeckungs- und Kontingentgrenzen setzen."
-    ]
+      "Typen, Pflichtfelder und Schema-Grenzen stammen aus der schemabasierten Programmreferenz. Standardwerte, Ergebnisbeschreibungen und feldübergreifende Einschränkungen werden anhand der Implementierung geprüft. Google kann zusätzliche Abdeckungs- und Kontingentgrenzen setzen.",
+      "Unbekannte Eigenschaften auf oberster Ebene werden abgelehnt; native API-Objekte akzeptieren Google-Felder, die Google validiert. Ändernde Operationen werden nicht automatisch wiederholt."
+    ],
+    "sources": "Primärquellen"
   },
   "typeTranslations": {
     "array of string": "Array von Zeichenketten",

@@ -1,6 +1,6 @@
 # mcp-gmap-rs
 
-Las 23 herramientas, con cada parámetro, valor predeterminado, restricción y ejemplo. La misma interfaz está disponible mediante MCP y CLI.
+Las 42 herramientas, con cada parámetro, valor predeterminado, restricción y ejemplo. La misma interfaz está disponible mediante MCP y CLI.
 
 ## Herramientas
 

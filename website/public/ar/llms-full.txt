@@ -178,6 +178,26 @@ cargo test --locked --test live live_oauth_ -- --ignored --test-threads=1
 | HTTP `401` من خادم MCP هذا | أرسل `MCP_HTTP_TOKEN` الخاص به؛ تُصادق رموز حساب خدمة Google اتصالًا صادرًا مستقلًا. |
 
 
+## الخدمات الإضافية والقيود {#expanded-services}
+
+يدعم Solar وMap Tiles أيضًا OAuth. يتطلب Datasets وRoute Optimization استخدام OAuth وأذونات IAM لكل عملية. يتطلب Street View Publish ملف authorized_user محددًا صراحةً وموافقة المستخدم على النطاق streetviewpublish.
+
+| الخدمة | API | المصادقة |
+| --- | --- | --- |
+| Geolocation API | `geolocation.googleapis.com` | مفتاح API |
+| Solar API | `solar.googleapis.com` | مفتاح API / OAuth |
+| Aerial View API | `aerialview.googleapis.com` | مفتاح API |
+| Map Tiles API | `tile.googleapis.com` | مفتاح API / OAuth |
+| Street View Static API | `street-view-image-backend.googleapis.com` | مفتاح API |
+| Maps Platform Datasets API | `mapsplatformdatasets.googleapis.com` | OAuth / IAM |
+| Route Optimization API | `routeoptimization.googleapis.com` | OAuth / IAM |
+| Street View Publish API | `streetviewpublish.googleapis.com` | OAuth لمستخدم موافق؛ تُرفض حسابات الخدمة |
+
+يتطلب Speed Limits أهلية Asset Tracking المقيّدة. يقتصر Aerial View على العناوين الأمريكية المدعومة ويمنع تنزيل الفيديو أو تخزينه مؤقتًا. Map Tiles مخصص للعرض فقط؛ يُمنع التحليل الآلي واستخراج البيانات. أدوات Weather للدقائق والخرائط تجريبية، مع تخزين مؤقت أقصاه ساعة وقيود استخدام إضافية. توضح مراجع الأدوات الشروط والإسناد والحدود بالتفصيل.
+
+[Google: Speed Limits](https://developers.google.com/maps/documentation/roads/speed-limits), [Map Tiles](https://developers.google.com/maps/documentation/tile/policies), [Aerial View](https://developers.google.com/maps/documentation/aerial-view/policies), [Street View Publish](https://developers.google.com/streetview/publish/authorizing).
+
+
 <!-- https://fcenedes.github.io/mcp-gmap-rs/ar/guide/cli -->
 
 # واجهة سطر الأوامر
@@ -420,7 +440,13 @@ python3 .github/scripts/tool-reference.py --binary /path/to/mcp-gmap-rs --check 
 
 # البداية
 
-ثبّت ملفًا تنفيذيًا واحدًا واضبط الوصول إلى Google، ثم استخدم الأدوات الـ 23 نفسها من الطرفية أو عميل MCP. يصف هذا الدليل الإصدار v0.3.1.
+يشمل هذا الدليل 42 أداة في الشفرة الحالية. تحتوي الحزمة المنشورة v0.3.1 على 23 أداة. ابنِ نسخة المستودع الحالية لاستخدام الإضافات؛ تثبيت v0.3.1 لا يتضمنها.
+
+من دليل نسخة المستودع المحلية:
+
+```sh
+cargo install --path . --locked
+```
 
 ## التثبيت {#install}
 
@@ -533,6 +559,26 @@ mcp-gmap-rs geocode --address 'Paris, France'
 لـ JSON حساب الخدمة وADC والانتحال المحلي وهوية GKE، اتبع [المصادقة](./authentication). ثم اختر [CLI](./cli) أو [MCP](./mcp). يحدد [مرجع الأدوات](../reference/tools) متطلبات بيانات اعتماد كل أداة.
 
 
+## الخدمات الإضافية والقيود {#expanded-services}
+
+يدعم Solar وMap Tiles أيضًا OAuth. يتطلب Datasets وRoute Optimization استخدام OAuth وأذونات IAM لكل عملية. يتطلب Street View Publish ملف authorized_user محددًا صراحةً وموافقة المستخدم على النطاق streetviewpublish.
+
+| الخدمة | API | المصادقة |
+| --- | --- | --- |
+| Geolocation API | `geolocation.googleapis.com` | مفتاح API |
+| Solar API | `solar.googleapis.com` | مفتاح API / OAuth |
+| Aerial View API | `aerialview.googleapis.com` | مفتاح API |
+| Map Tiles API | `tile.googleapis.com` | مفتاح API / OAuth |
+| Street View Static API | `street-view-image-backend.googleapis.com` | مفتاح API |
+| Maps Platform Datasets API | `mapsplatformdatasets.googleapis.com` | OAuth / IAM |
+| Route Optimization API | `routeoptimization.googleapis.com` | OAuth / IAM |
+| Street View Publish API | `streetviewpublish.googleapis.com` | OAuth لمستخدم موافق؛ تُرفض حسابات الخدمة |
+
+يتطلب Speed Limits أهلية Asset Tracking المقيّدة. يقتصر Aerial View على العناوين الأمريكية المدعومة ويمنع تنزيل الفيديو أو تخزينه مؤقتًا. Map Tiles مخصص للعرض فقط؛ يُمنع التحليل الآلي واستخراج البيانات. أدوات Weather للدقائق والخرائط تجريبية، مع تخزين مؤقت أقصاه ساعة وقيود استخدام إضافية. توضح مراجع الأدوات الشروط والإسناد والحدود بالتفصيل.
+
+[Google: Speed Limits](https://developers.google.com/maps/documentation/roads/speed-limits), [Map Tiles](https://developers.google.com/maps/documentation/tile/policies), [Aerial View](https://developers.google.com/maps/documentation/aerial-view/policies), [Street View Publish](https://developers.google.com/streetview/publish/authorizing).
+
+
 <!-- https://fcenedes.github.io/mcp-gmap-rs/ar/guide/mcp -->
 
 # تكامل MCP
@@ -591,7 +637,7 @@ mcp-gmap-rs serve http --listen 0.0.0.0:3000 \
   --allowed-origin https://app.example.com:443
 ```
 
-يرفض الإعداد الافتراضي ترويسات Origin الموجودة ما لم تكن في قائمة السماح. الحد الأقصى لجسم الطلب 1 MiB. يفحص `/health` حياة العملية دون استدعاء Google. للوصول العام، اضبط [TLS/mTLS الأصلي أو بوابة](./production). يجب أن تحافظ الوكلاء على التفويض وترويسات بروتوكول MCP والجلسة وتسمح بالبث دون تخزين مؤقت. الجلسات وهوية Google محليتان للعملية؛ راجع [النشر](./deployment) قبل إضافة نسخ.
+يرفض الإعداد الافتراضي ترويسات Origin الموجودة ما لم تكن في قائمة السماح. الحد الأقصى لجسم الطلب 12 MiB. يفحص `/health` حياة العملية دون استدعاء Google. للوصول العام، اضبط [TLS/mTLS الأصلي أو بوابة](./production). يجب أن تحافظ الوكلاء على التفويض وترويسات بروتوكول MCP والجلسة وتسمح بالبث دون تخزين مؤقت. الجلسات وهوية Google محليتان للعملية؛ راجع [النشر](./deployment) قبل إضافة نسخ.
 
 
 <!-- https://fcenedes.github.io/mcp-gmap-rs/ar/guide/production -->
@@ -861,7 +907,7 @@ mcp-gmap-rs --enabled-tools maps_weather doctor --live
 | `MCP_TLS_KEY` | غير مضبوط | `--tls-key` | مسار مفتاح خادم PEM الخاص. أبقه قابلًا للقراءة بهوية التشغيل وخارج المصدر والصور. |
 | `MCP_TLS_CLIENT_CA` | غير مضبوط | `--tls-client-ca` | حزمة CA للعملاء بصيغة PEM لتفعيل شهادات عميل إلزامية في كل مسارات المستمع. لا تحل محل رمز bearer. |
 
-دلو رموز HTTP عام للعملية وليس لكل مستخدم أو IP. لا تستهلك الطلبات غير المخولة سعته؛ وتُستثنى الصحة والمقاييس. يُرجع الرفض 429 مع `Retry-After`. حد جسم الطلب 1 MiB. راجع [وصول MCP](../guide/mcp#bind-addresses-and-access) و[تشغيل TLS](../guide/production#native-tls-and-mutual-tls).
+دلو رموز HTTP عام للعملية وليس لكل مستخدم أو IP. لا تستهلك الطلبات غير المخولة سعته؛ وتُستثنى الصحة والمقاييس. يُرجع الرفض 429 مع `Retry-After`. حد جسم الطلب 12 MiB. راجع [وصول MCP](../guide/mcp#bind-addresses-and-access) و[تشغيل TLS](../guide/production#native-tls-and-mutual-tls).
 
 ## أحداث التشخيص {#diagnostic-events}
 
@@ -888,7 +934,7 @@ mcp-gmap-rs --enabled-tools maps_weather doctor --live
 
 # مرجع الأدوات
 
-كل الأدوات الـ23، مع كل معامل وقيمة افتراضية وقيد ومثال. تتوفر الواجهة نفسها عبر MCP وCLI.
+كل الأدوات الـ42، مع كل معامل وقيمة افتراضية وقيد ومثال. تتوفر الواجهة نفسها عبر MCP وCLI.
 
 ## قواعد الاستدعاء
 
@@ -901,6 +947,8 @@ mcp-gmap-rs --enabled-tools maps_weather doctor --live
 قد تترتب رسوم Google على الاستدعاءات. قد تتضمن نتائج الأدوات المركبة والمصفوفات أخطاء لكل عنصر حتى مع نجاح الأداة. احتفظ بروابط Google وأسماء مؤلفي المراجعات والصور وإفصاحات ملخصات الذكاء الاصطناعي. توضح الأمثلة المدخلات، لا التغطية أو النتائج الحالية.
 
 تأتي الأنواع والحقول المطلوبة وحدود المخطط من المرجع المشتق من مخططات الملف التنفيذي. تُراجع القيم الافتراضية وأوصاف النتائج والقيود بين الحقول مقابل التنفيذ. قد تفرض Google حدود تغطية وحصص إضافية.
+
+تُرفض الخصائص غير المعروفة في المستوى الأعلى؛ تقبل أجسام API الأصلية حقول Google التي تتحقق Google من صحتها. لا تُعاد محاولات عمليات التعديل تلقائيًا.
 
 ## الأدوات
 
@@ -927,6 +975,25 @@ mcp-gmap-rs --enabled-tools maps_weather doctor --live
 - [`maps_compare_places`](#maps_compare_places)
 - [`maps_search_along_route`](#maps_search_along_route)
 - [`maps_local_rank_tracker`](#maps_local_rank_tracker)
+- [`maps_speed_limits`](#maps_speed_limits)
+- [`maps_autocomplete`](#maps_autocomplete)
+- [`maps_geolocate`](#maps_geolocate)
+- [`maps_solar`](#maps_solar)
+- [`maps_aerial_view`](#maps_aerial_view)
+- [`maps_render_aerial_video`](#maps_render_aerial_video)
+- [`maps_map_tiles`](#maps_map_tiles)
+- [`maps_streetview`](#maps_streetview)
+- [`maps_streetview_publish`](#maps_streetview_publish)
+- [`maps_datasets`](#maps_datasets)
+- [`maps_route_optimization`](#maps_route_optimization)
+- [`maps_air_quality_forecast`](#maps_air_quality_forecast)
+- [`maps_air_quality_history`](#maps_air_quality_history)
+- [`maps_air_quality_heatmap`](#maps_air_quality_heatmap)
+- [`maps_pollen_heatmap`](#maps_pollen_heatmap)
+- [`maps_weather_history`](#maps_weather_history)
+- [`maps_weather_alerts`](#maps_weather_alerts)
+- [`maps_weather_minute_forecast`](#maps_weather_minute_forecast)
+- [`maps_weather_map`](#maps_weather_map)
 
 ## maps_geocode {#maps_geocode}
 
@@ -986,6 +1053,7 @@ mcp-gmap-rs call maps_geocode --args '{"address":"Eiffel Tower, Paris, France"}'
 | `locality` / `--locality` | نص; على الأقل 1 محرف | لا | <bdi dir="auto">غير مزوّد</bdi> | المدينة أو البلدة. |
 | `postalCode` / `--postal-code` | نص; على الأقل 1 محرف | لا | <bdi dir="auto">غير مزوّد</bdi> | الرمز البريدي أو ZIP. |
 | `regionCode` / `--region-code` | نص; النمط: `^[A-Z]{2}$` | لا | <bdi dir="auto">غير مزوّد؛ قد تستنتجه Google</bdi> | رمز بلد أو منطقة من حرفين كبيرين؛ يوصى به لتمييز العنوان. |
+| `sessionToken` / `--session-token` | نص; على الأقل 1 محرف | لا | <bdi dir="auto">بلا تجميع جلسات؛ فوترة كل طلب</bdi> | رمز آمن لعناوين URL ينشئه المستدعي، حتى 36 حرف ASCII؛ يُنصح بـ UUID v4 جديد لكل جلسة. أرسل الرمز نفسه إلى Place Details أو Address Validation الختامي. |
 
 ### السلوك والقيود
 
@@ -1395,6 +1463,7 @@ mcp-gmap-rs call maps_search_nearby --args '{"center":{"value":"48.8584,2.2945",
 | --- | --- | --- | --- | --- |
 | `maxPhotos` / `--max-photos` | عدد صحيح; `0–10` | لا | <bdi dir="auto">0</bdi> | الحد الأقصى لعمليات جلب روابط وسائط الصور. |
 | `placeId` / `--place-id` | نص; على الأقل 1 محرف | نعم | <bdi dir="auto">—</bdi> | معرّف مكان Google، مع بادئة places/ اختياريًا. |
+| `sessionToken` / `--session-token` | نص; على الأقل 1 محرف | لا | <bdi dir="auto">بلا تجميع جلسات؛ فوترة كل طلب</bdi> | رمز آمن لعناوين URL ينشئه المستدعي، حتى 36 حرف ASCII؛ يُنصح بـ UUID v4 جديد لكل جلسة. أرسل الرمز نفسه إلى Place Details أو Address Validation الختامي. |
 
 ### السلوك والقيود
 
@@ -2056,4 +2125,1092 @@ mcp-gmap-rs call maps_search_along_route --args '{"textQuery":"cafes","origin":"
 
 ```sh
 mcp-gmap-rs call maps_local_rank_tracker --args '{"keyword":"cafe","placeId":"ChIJLU7jZClu5kcR4PcOOO6p3I0","center":{"latitude":48.8584,"longitude":2.2945},"gridSize":3,"gridSpacing":500}'
+```
+
+
+## maps_speed_limits {#maps_speed_limits}
+
+حدود السرعة بصلاحية Asset Tracking.
+
+جلب حدود سرعة السيارات لمقاطع الطرق عبر مسار GPS أو معرّفات مطابقة Roads. الميزة مقيدة وتتطلب Asset Tracking؛ تفعيل Roads وحده لا يكفي.
+
+**أمر CLI:** `speed-limits`. **الوصول إلى Google:** يلزم مفتاح API في هذا التنفيذ، حتى مع وضع OAuth؛ فعّل الخدمة والفوترة والقيود المناسبة.
+
+### المعاملات
+
+| المعامل / خيار CLI | النوع وحدود المخطط | مطلوب | القيمة عند الإغفال | الوصف |
+| --- | --- | --- | --- | --- |
+| `path` / `--path` | مصفوفة كائنات; `1–100` عناصر | لا | <bdi dir="auto">غير مُرسل</bdi> | من 1 إلى 100 نقطة GPS؛ لا يجتمع مع roadPlaceIds. تجري Google مطابقة للطريق قبل جلب الحد. |
+| `path[].latitude` | رقم; `-90.0–90.0` | عند توفير الكائن الأب | <bdi dir="auto">مطلوب لكل نقطة مسار</bdi> | خط العرض WGS84 بالدرجات، من ‎-90 إلى 90. |
+| `path[].longitude` | رقم; `-180.0–180.0` | عند توفير الكائن الأب | <bdi dir="auto">مطلوب لكل نقطة مسار</bdi> | خط الطول WGS84 بالدرجات، من ‎-180 إلى 180. |
+| `roadPlaceIds` / `--road-place-ids` | مصفوفة نصوص; `1–100` عناصر; كل عنصر لا يقل عن 1 محرف | لا | <bdi dir="auto">غير مُرسل</bdi> | من 1 إلى 100 معرّف مقطع من أدوات مطابقة الطرق؛ معرّفات الأنشطة العادية قد لا تملك بيانات. لا يجتمع مع path. |
+| `units` / `--units` | نص; القيم: `KPH`, `MPH` | لا | <bdi dir="auto">KPH</bdi> | وحدة حد السرعة: KPH للكم/ساعة أو MPH للميل/ساعة. |
+
+### السلوك والقيود
+
+- تطلب Google ترخيص Asset Tracking؛ قد تحتفظ به مشاريع Premium المنقولة بهذه القدرة. حساب فوترة عادي أو API مفعلة لا يثبت الاستحقاق. كل عنصر speedLimits مفوتر، وقد يُفوتر الطلب الواحد عدة عناصر؛ اطلب أقل دفعة مفيدة.
+- للحدود المتغيرة تعاد السرعة القصوى للسيارات. البيانات ليست فورية وقد تكون مفقودة أو مقدرة أو قديمة؛ اتبع اللافتات ومتطلبات السلامة. يحتفظ خطأ 403 بسبب Google المنقح ويضيف إرشاد وصول، لكنه قد ينتج أيضًا عن التفعيل أو قيود المفتاح أو الأذونات؛ ليس كل 403 مشكلة ترخيص.
+- المراجع الرسمية والقيود: <https://developers.google.com/maps/documentation/roads/speed-limits>
+
+**المصادر الأصلية:** <https://developers.google.com/maps/documentation/roads/speed-limits>
+
+### النتيجة
+
+استجابة Roads كاملة، بما فيها speedLimits مع placeId وspeedLimit وunits، وsnappedPoints الاختيارية للمسار والتحذيرات والبيانات الوصفية.
+
+### مثال
+
+معاملات MCP:
+
+```json
+{
+  "roadPlaceIds": [
+    "ChIJs5ydyTiuEmsR0fRSlU0C7k0"
+  ],
+  "units": "KPH"
+}
+```
+
+استدعاء CLI مكافئ:
+
+```sh
+mcp-gmap-rs call maps_speed_limits --args '{"roadPlaceIds":["ChIJs5ydyTiuEmsR0fRSlU0C7k0"],"units":"KPH"}'
+```
+
+
+## maps_autocomplete {#maps_autocomplete}
+
+اقتراح أماكن وعناوين أثناء الكتابة.
+
+توقعات Places API New أثناء الكتابة، مع أماكن واستعلامات وترجيح أو قيد جغرافي وفلاتر الأنواع والمناطق وموضع المؤشر ورموز جلسة الفوترة التي يديرها المستدعي.
+
+**أمر CLI:** `autocomplete`. **الوصول إلى Google:** مفتاح API أو OAuth لـ Places بنطاق Places/cloud-platform.
+
+### المعاملات
+
+| المعامل / خيار CLI | النوع وحدود المخطط | مطلوب | القيمة عند الإغفال | الوصف |
+| --- | --- | --- | --- | --- |
+| `includeFutureOpeningBusinesses` / `--include-future-opening-businesses` | منطقي | لا | <bdi dir="auto">false</bdi> | تضمين الأنشطة التي ستفتح مستقبلًا. |
+| `includePureServiceAreaBusinesses` / `--include-pure-service-area-businesses` | منطقي | لا | <bdi dir="auto">false</bdi> | تضمين الأنشطة التي تزور العملاء أو توصل إليهم دون موقع عام. |
+| `includeQueryPredictions` / `--include-query-predictions` | منطقي | لا | <bdi dir="auto">false</bdi> | تضمين توقعات الاستعلام إضافة إلى توقعات الأماكن. |
+| `includedPrimaryTypes` / `--included-primary-types` | مصفوفة نصوص; `0–5` عناصر; كل عنصر لا يقل عن 1 محرف | لا | <bdi dir="auto">جميع الأنواع</bdi> | حتى خمسة أنواع أماكن أساسية؛ يجب أن تكون (cities) أو (regions) القيمة الوحيدة عند استخدامها. |
+| `includedRegionCodes` / `--included-region-codes` | مصفوفة نصوص; `0–15` عناصر | لا | <bdi dir="auto">جميع المناطق</bdi> | حتى 15 رمز منطقة CLDR من حرفين؛ يُتقاطع مع locationRestriction. المصفوفة الفارغة لا تقيد النتائج. |
+| `input` / `--input` | نص; على الأقل 1 محرف | نعم | <bdi dir="auto">—</bdi> | نص بحث غير فارغ، ولو اسم مكان أو عنوان جزئي. |
+| `inputOffset` / `--input-offset` | عدد صحيح; `0–4294967295` | لا | <bdi dir="auto">نهاية الإدخال</bdi> | موضع مؤشر يبدأ من الصفر بأحرف Unicode؛ لا يتجاوز طول input. |
+| `languageCode` / `--language-code` | نص; على الأقل 1 محرف | لا | <bdi dir="auto">قيمة GOOGLE_MAPS_LANGUAGE المُهيأة</bdi> | وسم لغة IETF BCP-47 للنص المتاح؛ قد تختار Google أقرب لغة مدعومة. |
+| `locationBias` / `--location-bias` | كائن | لا | <bdi dir="auto">ترجيح Google بحسب IP عند غياب الخيارين الجغرافيين</bdi> | ترجيح حول دائرة أو مستطيل واحد؛ قد تظهر نتائج خارجه. لا يجتمع مع locationRestriction. |
+| `locationBias.circle` | كائن | لا | <bdi dir="auto">غير مُرسل</bdi> | منطقة دائرية؛ لا تجتمع مع rectangle. |
+| `locationBias.circle.center` | كائن | عند توفير الكائن الأب | <bdi dir="auto">مطلوب مع الدائرة</bdi> | مركز الدائرة بإحداثيات WGS84. |
+| `locationBias.circle.center.latitude` | رقم; `-90.0–90.0` | عند توفير الكائن الأب | <bdi dir="auto">مطلوب مع المركز</bdi> | خط العرض WGS84 بالدرجات، من ‎-90 إلى 90. |
+| `locationBias.circle.center.longitude` | رقم; `-180.0–180.0` | عند توفير الكائن الأب | <bdi dir="auto">مطلوب مع المركز</bdi> | خط الطول WGS84 بالدرجات، من ‎-180 إلى 180. |
+| `locationBias.circle.radius` | رقم; `0.0–50000.0` | عند توفير الكائن الأب | <bdi dir="auto">مطلوب مع الدائرة</bdi> | نصف قطر بالمتر حتى 50000؛ يجب أن يكون موجبًا في locationRestriction. |
+| `locationBias.rectangle` | كائن | لا | <bdi dir="auto">غير مُرسل</bdi> | مستطيل مغلق لا يجتمع مع circle؛ قد تعبر حدود الطول خط التاريخ. |
+| `locationBias.rectangle.high` | كائن | عند توفير الكائن الأب | <bdi dir="auto">مطلوب مع المستطيل</bdi> | الحد الشمالي الشرقي؛ خط عرضه لا يقل عن low.latitude. |
+| `locationBias.rectangle.high.latitude` | رقم; `-90.0–90.0` | عند توفير الكائن الأب | <bdi dir="auto">مطلوب مع الحد</bdi> | خط العرض WGS84 بالدرجات، من ‎-90 إلى 90. |
+| `locationBias.rectangle.high.longitude` | رقم; `-180.0–180.0` | عند توفير الكائن الأب | <bdi dir="auto">مطلوب مع الحد</bdi> | خط الطول WGS84 بالدرجات، من ‎-180 إلى 180. |
+| `locationBias.rectangle.low` | كائن | عند توفير الكائن الأب | <bdi dir="auto">مطلوب مع المستطيل</bdi> | الحد الجنوبي الغربي؛ خط عرضه لا يتجاوز high.latitude. |
+| `locationBias.rectangle.low.latitude` | رقم; `-90.0–90.0` | عند توفير الكائن الأب | <bdi dir="auto">مطلوب مع الحد</bdi> | خط العرض WGS84 بالدرجات، من ‎-90 إلى 90. |
+| `locationBias.rectangle.low.longitude` | رقم; `-180.0–180.0` | عند توفير الكائن الأب | <bdi dir="auto">مطلوب مع الحد</bdi> | خط الطول WGS84 بالدرجات، من ‎-180 إلى 180. |
+| `locationRestriction` / `--location-restriction` | كائن | لا | <bdi dir="auto">ترجيح Google بحسب IP عند غياب الخيارين الجغرافيين</bdi> | قصر النتائج على دائرة أو مستطيل واحد؛ لا يجتمع مع locationBias. |
+| `locationRestriction.circle` | كائن | لا | <bdi dir="auto">غير مُرسل</bdi> | منطقة دائرية؛ لا تجتمع مع rectangle. |
+| `locationRestriction.circle.center` | كائن | عند توفير الكائن الأب | <bdi dir="auto">مطلوب مع الدائرة</bdi> | مركز الدائرة بإحداثيات WGS84. |
+| `locationRestriction.circle.center.latitude` | رقم; `-90.0–90.0` | عند توفير الكائن الأب | <bdi dir="auto">مطلوب مع المركز</bdi> | خط العرض WGS84 بالدرجات، من ‎-90 إلى 90. |
+| `locationRestriction.circle.center.longitude` | رقم; `-180.0–180.0` | عند توفير الكائن الأب | <bdi dir="auto">مطلوب مع المركز</bdi> | خط الطول WGS84 بالدرجات، من ‎-180 إلى 180. |
+| `locationRestriction.circle.radius` | رقم; `0.0–50000.0` | عند توفير الكائن الأب | <bdi dir="auto">مطلوب مع الدائرة</bdi> | نصف قطر بالمتر حتى 50000؛ يجب أن يكون موجبًا في locationRestriction. |
+| `locationRestriction.rectangle` | كائن | لا | <bdi dir="auto">غير مُرسل</bdi> | مستطيل مغلق لا يجتمع مع circle؛ قد تعبر حدود الطول خط التاريخ. |
+| `locationRestriction.rectangle.high` | كائن | عند توفير الكائن الأب | <bdi dir="auto">مطلوب مع المستطيل</bdi> | الحد الشمالي الشرقي؛ خط عرضه لا يقل عن low.latitude. |
+| `locationRestriction.rectangle.high.latitude` | رقم; `-90.0–90.0` | عند توفير الكائن الأب | <bdi dir="auto">مطلوب مع الحد</bdi> | خط العرض WGS84 بالدرجات، من ‎-90 إلى 90. |
+| `locationRestriction.rectangle.high.longitude` | رقم; `-180.0–180.0` | عند توفير الكائن الأب | <bdi dir="auto">مطلوب مع الحد</bdi> | خط الطول WGS84 بالدرجات، من ‎-180 إلى 180. |
+| `locationRestriction.rectangle.low` | كائن | عند توفير الكائن الأب | <bdi dir="auto">مطلوب مع المستطيل</bdi> | الحد الجنوبي الغربي؛ خط عرضه لا يتجاوز high.latitude. |
+| `locationRestriction.rectangle.low.latitude` | رقم; `-90.0–90.0` | عند توفير الكائن الأب | <bdi dir="auto">مطلوب مع الحد</bdi> | خط العرض WGS84 بالدرجات، من ‎-90 إلى 90. |
+| `locationRestriction.rectangle.low.longitude` | رقم; `-180.0–180.0` | عند توفير الكائن الأب | <bdi dir="auto">مطلوب مع الحد</bdi> | خط الطول WGS84 بالدرجات، من ‎-180 إلى 180. |
+| `origin` / `--origin` | كائن | لا | <bdi dir="auto">المسافة محذوفة</bdi> | إحداثيات مرجعية لحساب distanceMeters الجيوديسية. |
+| `origin.latitude` | رقم; `-90.0–90.0` | عند توفير الكائن الأب | <bdi dir="auto">مطلوب مع نقطة المرجع</bdi> | خط العرض WGS84 بالدرجات، من ‎-90 إلى 90. |
+| `origin.longitude` | رقم; `-180.0–180.0` | عند توفير الكائن الأب | <bdi dir="auto">مطلوب مع نقطة المرجع</bdi> | خط الطول WGS84 بالدرجات، من ‎-180 إلى 180. |
+| `regionCode` / `--region-code` | نص; النمط: `^[A-Za-z]{2}$` | لا | <bdi dir="auto">غير مُرسل</bdi> | رمز منطقة CLDR من حرفين للتنسيق والترتيب؛ لا يقصر النتائج عليها. |
+| `sessionToken` / `--session-token` | نص; على الأقل 1 محرف; النمط: `^[A-Za-z0-9_-]+$` | لا | <bdi dir="auto">بلا تجميع جلسات؛ فوترة كل طلب</bdi> | رمز آمن لعناوين URL ينشئه المستدعي، حتى 36 حرف ASCII؛ يُنصح بـ UUID v4 جديد لكل جلسة. أرسل الرمز نفسه إلى Place Details أو Address Validation الختامي. |
+
+### السلوك والقيود
+
+- لا تنشئ الأداة الجلسات أو تنهيها تلقائيًا. يجب أن تستخدم الجلسة بيانات اعتماد مشروع Google Cloud واحد، وتنتهي بـ Place Details أو Address Validation مؤهل. أنشئ رمزًا جديدًا للجلسة التالية؛ غيابه أو إعادة استخدامه قد يؤدي لفوترة كل طلب.
+- نصف قطر الدائرة حتى 50000م، وموجب للقيد. يجب ترتيب حدود العرض بالمستطيل، مع دعم عبور خط التاريخ بالطول. احفظ إسناد Google Maps والمزود؛ قد تختلف شروط EEA وتوفر الحقول.
+- المراجع الرسمية والقيود: <https://developers.google.com/maps/documentation/places/web-service/reference/rest/v1/places/autocomplete>
+
+**المصادر الأصلية:** <https://developers.google.com/maps/documentation/places/web-service/reference/rest/v1/places/autocomplete>
+
+### النتيجة
+
+استجابة suggestions كاملة: placePrediction/queryPrediction وتطابقات النص والتنسيق ومعرّفات الأماكن وdistanceMeters الاختيارية وكل البيانات الوصفية؛ لا قناع حقول يحذف المحتوى.
+
+### مثال
+
+معاملات MCP:
+
+```json
+{
+  "input": "coffee near Paris",
+  "sessionToken": "550e8400-e29b-41d4-a716-446655440000",
+  "includedRegionCodes": [
+    "FR"
+  ],
+  "locationBias": {
+    "circle": {
+      "center": {
+        "latitude": 48.8566,
+        "longitude": 2.3522
+      },
+      "radius": 5000
+    }
+  },
+  "includeQueryPredictions": true
+}
+```
+
+استدعاء CLI مكافئ:
+
+```sh
+mcp-gmap-rs call maps_autocomplete --args '{"input":"coffee near Paris","sessionToken":"550e8400-e29b-41d4-a716-446655440000","includedRegionCodes":["FR"],"locationBias":{"circle":{"center":{"latitude":48.8566,"longitude":2.3522},"radius":5000}},"includeQueryPredictions":true}'
+```
+
+
+## maps_geolocate {#maps_geolocate}
+
+تقدير الموقع من أبراج الهاتف وWi-Fi.
+
+تقدير موقع جهاز من رصد أبراج الهاتف أو نقاط Wi-Fi باستخدام جسم Geolocation JSON الأصلي كاملًا.
+
+**أمر CLI:** `geolocate`. **الوصول إلى Google:** يلزم مفتاح API في هذا التنفيذ، حتى مع وضع OAuth؛ فعّل الخدمة والفوترة والقيود المناسبة.
+
+### المعاملات
+
+| المعامل / خيار CLI | النوع وحدود المخطط | مطلوب | القيمة عند الإغفال | الوصف |
+| --- | --- | --- | --- | --- |
+| `body` / `--body` | كائن | نعم | <bdi dir="auto">—</bdi> | كائن Geolocation الأصلي: homeMobileCountryCode وhomeMobileNetworkCode وradioType ‏gsm/cdma/wcdma/lte/nr وcarrier وconsiderIp وcellTowers وwifiAccessPoints. يدعم cellId/newRadioCellId والإشارة. الجسم الفارغ يسمح بالرجوع إلى IP الخادم؛ Google تتحقق من الحقول الداخلية. |
+
+### السلوك والقيود
+
+- افتراضي considerIp هو true. دون مشاهدات لاسلكية صالحة يحدد الرجوع موقع IP خروج الخادم، لا الشخص الذي يستخدم الوكيل؛ ضع body.considerIp=false لمنعه.
+- تحتاج Wi-Fi نقطتي وصول ثابتتين مختلفتين فعليًا على الأقل. تستبعد Google نطاقات MAC المحلية والمحجوزة؛ قد تفشل نقاط الاتصال المتنقلة والمشاهدات غير الصالحة. تتحقق Google من تفاصيل البروتوكول؛ يرفض الغلاف المعلمات الخارجية المجهولة. النتيجة تقريبية وقد تفشل بـ NOT_FOUND؛ افحص accuracy.
+- المراجع الرسمية والقيود: <https://developers.google.com/maps/documentation/geolocation/requests-geolocation>
+
+**المصادر الأصلية:** <https://developers.google.com/maps/documentation/geolocation/requests-geolocation>
+
+### النتيجة
+
+حقول location.lat وlocation.lng وaccuracy (نصف قطر عدم اليقين بالمتر)، وأي حقول Google إضافية.
+
+### مثال
+
+معاملات MCP:
+
+```json
+{
+  "body": {
+    "considerIp": false,
+    "wifiAccessPoints": [
+      {
+        "macAddress": "00:25:9c:cf:1c:ac",
+        "signalStrength": -43
+      },
+      {
+        "macAddress": "00:25:9c:cf:1c:ad",
+        "signalStrength": -55
+      }
+    ]
+  }
+}
+```
+
+استدعاء CLI مكافئ:
+
+```sh
+mcp-gmap-rs call maps_geolocate --args '{"body":{"considerIp":false,"wifiAccessPoints":[{"macAddress":"00:25:9c:cf:1c:ac","signalStrength":-43},{"macAddress":"00:25:9c:cf:1c:ad","signalStrength":-55}]}}'
+```
+
+
+## maps_solar {#maps_solar}
+
+معلومات المباني وطبقات الطاقة الشمسية.
+
+استخدام طرق Solar الرئيسية الثلاث: أقرب مبنى وبيانات طبقات المنطقة وتنزيل GeoTIFF محدود بمعرّف الأصل.
+
+**أمر CLI:** `solar`. **الوصول إلى Google:** مفتاح API أو رمز OAuth2 بنطاق cloud-platform؛ فعّل API والفوترة. يحتاج صاحب اعتماد مشروع الحصة صلاحية serviceusage.services.use.
+
+### المعاملات
+
+| المعامل / خيار CLI | النوع وحدود المخطط | مطلوب | القيمة عند الإغفال | الوصف |
+| --- | --- | --- | --- | --- |
+| `additionalInsights` / `--additional-insights` | مصفوفة نصوص; `0–1` عناصر; القيم: `DETECTED_ARRAYS` | لا | <bdi dir="auto">بلا معلومات إضافية</bdi> | القيمة DETECTED_ARRAYS الاختيارية لـ building_insights لكشف الألواح الموجودة على السطح. |
+| `exactQualityRequired` / `--exact-quality-required` | منطقي | لا | <bdi dir="auto">false</bdi> | اشتراط الجودة المختارة تمامًا بدل قبول جودة أعلى، للرؤى والطبقات. |
+| `experiments` / `--experiments` | مصفوفة نصوص; `0–1` عناصر; القيم: `EXPANDED_COVERAGE` | لا | <bdi dir="auto">بلا تجارب</bdi> | تجربة EXPANDED_COVERAGE الاختيارية للرؤى والطبقات؛ تصنفها Google قبل الإتاحة العامة. |
+| `id` / `--id` | نص; على الأقل 1 محرف | لا | <bdi dir="auto">— لـ geo_tiff</bdi> | معرّف أصل معتم من معلمة id في URL طبقة Solar؛ مطلوب لـ geo_tiff فقط. أرسل المعرّف لا الرابط. |
+| `location` / `--location` | كائن | لا | <bdi dir="auto">غير مُرسل</bdi> | موقع البحث عن المبنى أو مركز طبقات المنطقة؛ مطلوب لـ building_insights/data_layers. |
+| `location.latitude` | رقم; `-90.0–90.0` | عند توفير الكائن الأب | <bdi dir="auto">مطلوب مع الموقع</bdi> | خط العرض WGS84 بالدرجات، من ‎-90 إلى 90. |
+| `location.longitude` | رقم; `-180.0–180.0` | عند توفير الكائن الأب | <bdi dir="auto">مطلوب مع الموقع</bdi> | خط الطول WGS84 بالدرجات، من ‎-180 إلى 180. |
+| `operation` / `--operation` | نص; القيم: `building_insights`, `data_layers`, `geo_tiff` | نعم | <bdi dir="auto">—</bdi> | building_insights أو data_layers أو geo_tiff؛ تُقبل معلمات العملية المختارة فقط. |
+| `pixelSizeMeters` / `--pixel-size-meters` | رقم; القيم: `0.1`, `0.25`, `0.5`, `1.0` | لا | <bdi dir="auto">0.1</bdi> | حجم بكسل الطبقة الأدنى: 0.1 أو 0.25 أو 0.5 أو 1 متر؛ قد تكون الدقة الأصلية لبعض الطبقات أخشن. |
+| `radiusMeters` / `--radius-meters` | رقم; دون حد–1000 | لا | <bdi dir="auto">غير مُرسل</bdi> | نصف قطر موجب لـ data_layers، حتى 1000م. فوق 100 يجب ألا يتجاوز pixelSizeMeters×1000؛ وفوق 175 يلزم عرض بلا تدفق شهري أو ظل ساعي. |
+| `requiredQuality` / `--required-quality` | نص; القيم: `HIGH`, `MEDIUM`, `BASE` | لا | <bdi dir="auto">HIGH (افتراضي Google)</bdi> | أقل جودة صور HIGH أو MEDIUM أو BASE؛ تستخدم BASE صور أقمار محسنة. يختلف التوفر جغرافيًا. |
+| `view` / `--view` | نص; القيم: `DSM_LAYER`, `IMAGERY_LAYERS`, `IMAGERY_AND_ANNUAL_FLUX_LAYERS`, `IMAGERY_AND_ALL_FLUX_LAYERS`, `FULL_LAYERS` | لا | <bdi dir="auto">FULL_LAYERS (افتراضي Google)</bdi> | مجموعة الطبقات: DSM_LAYER أو IMAGERY_LAYERS أو IMAGERY_AND_ANNUAL_FLUX_LAYERS أو IMAGERY_AND_ALL_FLUX_LAYERS أو FULL_LAYERS. |
+
+### السلوك والقيود
+
+- التغطية والجودة تختلفان حسب الموقع؛ قد يفشل البحث بـ NOT_FOUND إن لم يوجد مبنى خلال نحو 50م. الروابط مؤقتة ومحمية؛ انسخ id فقط إلى geo_tiff، والتنزيل ثابت من solar.googleapis.com/v1/geoTiff:get دون جلب URL تعسفي.
+- حد الاستجابة 16 MiB مع ميزانية الطلبات والمهلة؛ قد تحتاج البيانات الكبيرة نصف قطر أصغر أو بكسلات أخشن. فك الراستر وتصميم التركيب خارج الأداة. EXPANDED_COVERAGE قبل الإتاحة العامة؛ قد تختلف شروط EEA ويحذف محتوى. لكل مسار فوترة وحصص منفصلة؛ احفظ إسناد Google Maps.
+- المراجع الرسمية والقيود: <https://developers.google.com/maps/comms/eea/solar> ; <https://developers.google.com/maps/documentation/solar/coverage> ; <https://developers.google.com/maps/documentation/solar/reference/rest/v1/buildingInsights/findClosest> ; <https://developers.google.com/maps/documentation/solar/reference/rest/v1/dataLayers/get> ; <https://developers.google.com/maps/documentation/solar/reference/rest/v1/geoTiff/get>
+
+**المصادر الأصلية:** <https://developers.google.com/maps/comms/eea/solar>, <https://developers.google.com/maps/documentation/solar/coverage>, <https://developers.google.com/maps/documentation/solar/reference/rest/v1/buildingInsights/findClosest>, <https://developers.google.com/maps/documentation/solar/reference/rest/v1/dataLayers/get>, <https://developers.google.com/maps/documentation/solar/reference/rest/v1/geoTiff/get>
+
+### النتيجة
+
+building_insights/data_layers تعيدان JSON كاملًا بالتواريخ والجودة والقدرة الشمسية والروابط المؤقتة بعد حذف بيانات الاعتماد. geo_tiff يعيد بايتات محدودة بالنوع الحقيقي وترويسات التخزين؛ JSON في CLI يستخدم base64.
+
+### مثال
+
+معاملات MCP:
+
+```json
+{
+  "operation": "data_layers",
+  "location": {
+    "latitude": 37.444,
+    "longitude": -122.16
+  },
+  "radiusMeters": 100,
+  "view": "IMAGERY_AND_ANNUAL_FLUX_LAYERS"
+}
+```
+
+استدعاء CLI مكافئ:
+
+```sh
+mcp-gmap-rs call maps_solar --args '{"operation":"data_layers","location":{"latitude":37.444,"longitude":-122.16},"radiusMeters":100,"view":"IMAGERY_AND_ANNUAL_FLUX_LAYERS"}'
+```
+
+
+## maps_aerial_view {#maps_aerial_view}
+
+روابط فيديو Aerial View وبياناته.
+
+جلب روابط تشغيل قصيرة العمر أو بيانات فيديو Aerial View موجود، دون تنزيل الفيديو.
+
+**أمر CLI:** `aerial-view`. **الوصول إلى Google:** يلزم مفتاح API في هذا التنفيذ، حتى مع وضع OAuth؛ فعّل الخدمة والفوترة والقيود المناسبة.
+
+### المعاملات
+
+| المعامل / خيار CLI | النوع وحدود المخطط | مطلوب | القيمة عند الإغفال | الوصف |
+| --- | --- | --- | --- | --- |
+| `address` / `--address` | نص; على الأقل 1 محرف | لا | <bdi dir="auto">غير مُرسل</bdi> | عنوان بريدي مدعوم بالولايات المتحدة؛ اختر واحدًا فقط من address وvideoId. |
+| `operation` / `--operation` | نص; القيم: `lookup`, `metadata` | لا | <bdi dir="auto">lookup</bdi> | lookup يعيد روابط التشغيل والبيانات (بفوترة)؛ metadata يعيد البيانات بلا روابط (طريقة Google مجانية). |
+| `videoId` / `--video-id` | نص; على الأقل 1 محرف | لا | <bdi dir="auto">غير مُرسل</bdi> | معرّف فيديو Aerial View سابق؛ لا يجتمع مع address. |
+
+### السلوك والقيود
+
+- العناوين المدعومة أميركية فقط وضمن تغطية 3D. تعيد الفيديوهات المفقودة NOT_FOUND؛ اطلب الإنشاء عبر maps_render_aerial_video. افحص الحالة باستخدام metadata المجاني بفواصل معقولة، واطلب lookup المفوتر عند الحاجة للتشغيل.
+- الروابط تنتهي سريعًا؛ اطلب رابطًا جديدًا لكل عرض. تمنع Google تنزيل الفيديوهات أو تخزينها أو حفظها مؤقتًا؛ الأداة تعيد روابط فقط. يجوز حفظ معرّفات الفيديو وفق الاستثناء الموثق. حافظ على الإسناد أثناء التشغيل؛ قد تختلف شروط EEA والوظائف.
+- المراجع الرسمية والقيود: <https://developers.google.com/maps/documentation/aerial-view/lookup-video> ; <https://developers.google.com/maps/documentation/aerial-view/policies"]>
+
+**المصادر الأصلية:** <https://developers.google.com/maps/documentation/aerial-view/lookup-video>, <https://developers.google.com/maps/documentation/aerial-view/policies>
+
+### النتيجة
+
+استجابة Google الأصلية بحالة المعالجة أو النشاط والبيانات، وروابط التشغيل للتنسيقات والدقات عند النشاط. metadata لا يعيد روابط تشغيل.
+
+### مثال
+
+معاملات MCP:
+
+```json
+{
+  "operation": "metadata",
+  "address": "600 Montgomery St, San Francisco, CA 94111"
+}
+```
+
+استدعاء CLI مكافئ:
+
+```sh
+mcp-gmap-rs call maps_aerial_view --args '{"operation":"metadata","address":"600 Montgomery St, San Francisco, CA 94111"}'
+```
+
+
+## maps_render_aerial_video {#maps_render_aerial_video}
+
+طلب إنشاء فيديو جوي صراحةً.
+
+وضع طلب إنشاء فيديو Aerial View غير متزامن في الطابور لعنوان أميركي مدعوم. منفصل عن القراءة كي يميز الوكيل العملية المُغيرة.
+
+**أمر CLI:** `render-aerial-video`. **الوصول إلى Google:** يلزم مفتاح API في هذا التنفيذ، حتى مع وضع OAuth؛ فعّل الخدمة والفوترة والقيود المناسبة.
+
+### المعاملات
+
+| المعامل / خيار CLI | النوع وحدود المخطط | مطلوب | القيمة عند الإغفال | الوصف |
+| --- | --- | --- | --- | --- |
+| `address` / `--address` | نص; على الأقل 1 محرف | نعم | <bdi dir="auto">—</bdi> | عنوان بريدي مدعوم بالولايات المتحدة لطلب إنشاء الفيديو. |
+
+### السلوك والقيود
+
+- يغير الطلب طابور Google. لا تُعاد محاولته تلقائيًا بعد فشل عابر، ولا ينتظر الإكمال ولا ينزل الفيديو. افحص التقدم عبر maps_aerial_view metadata بالعنوان أو videoId؛ استخدم lookup لروابط التشغيل فقط.
+- تسري تغطية أميركا و3D والحصص وشروط الخدمة؛ تفعيل API لا يضمن إمكان الإنشاء. لا تنزل الفيديوهات أو تخزنها أو تحفظها مؤقتًا؛ اعرض روابط حديثة مع الإسناد.
+- المراجع الرسمية والقيود: <https://developers.google.com/maps/documentation/aerial-view/reference/rest/v1/videos/renderVideo>
+
+**المصادر الأصلية:** <https://developers.google.com/maps/documentation/aerial-view/reference/rest/v1/videos/renderVideo>
+
+### النتيجة
+
+استجابة الإنشاء الأصلية بحالة وبيانات متاحة؛ PROCESSING يعني انتظارًا أو معالجة، وقد يعيد فيديو موجود بيانات ACTIVE مباشرة.
+
+### مثال
+
+معاملات MCP:
+
+```json
+{
+  "address": "600 Montgomery St, San Francisco, CA 94111"
+}
+```
+
+استدعاء CLI مكافئ:
+
+```sh
+mcp-gmap-rs call maps_render_aerial_video --args '{"address":"600 Montgomery St, San Francisco, CA 94111"}'
+```
+
+
+## maps_map_tiles {#maps_map_tiles}
+
+بلاطات خرائط 2D و3D وStreet View للعرض.
+
+إنشاء جلسات Map Tiles واسترجاع موارد 2D و3D وStreet View لعارض خرائط؛ الأداة ليست عارضًا. ترخّص Google البلاطات للتصور فقط وتحظر التفسير الآلي وتحليل الصور وكشف الأشياء واستخراج البيانات الجغرافية والاستخدام دون اتصال.
+
+**أمر CLI:** `map-tiles`. **الوصول إلى Google:** مفتاح API أو رمز OAuth2 بنطاق cloud-platform؛ فعّل API والفوترة. يحتاج صاحب اعتماد مشروع الحصة صلاحية serviceusage.services.use.
+
+### المعاملات
+
+| المعامل / خيار CLI | النوع وحدود المخطط | مطلوب | القيمة عند الإغفال | الوصف |
+| --- | --- | --- | --- | --- |
+| `east` / `--east` | رقم; `-180.0–180.0` | لا | <bdi dir="auto">غير مُرسل؛ مطلوب للعمليات الموضحة</bdi> | خط الطول الشرقي المطلوب؛ قد يكون سالبًا مع west موجب لعبور خط التاريخ. |
+| `fov` / `--fov` | رقم; `30.0–120.0` | لا | <bdi dir="auto">90</bdi> | مجال الرؤية الأفقي للصورة المصغرة، 30–120 درجة. |
+| `height` / `--height` | عدد صحيح; `16–250` | لا | <bdi dir="auto">250</bdi> | ارتفاع الصورة المصغرة، 16–250 بكسل. |
+| `latitude` / `--latitude` | رقم; `-90.0–90.0` | لا | <bdi dir="auto">غير مُرسل؛ مطلوب للعمليات الموضحة</bdi> | خط العرض WGS84 بالدرجات، من ‎-90 إلى 90. |
+| `locations` / `--locations` | مصفوفة كائنات; `1–100` عناصر | لا | <bdi dir="auto">غير مُرسل؛ مطلوب للعمليات الموضحة</bdi> | من موقع واحد إلى 100 لـ streetview_pano_ids، وكل كائن يحتوي lat وlng. |
+| `locations[].lat` | رقم; `-90.0–90.0` | عند توفير الكائن الأب | <bdi dir="auto">غير مُرسل؛ مطلوب للعمليات الموضحة</bdi> | خط العرض WGS84 بالدرجات، من ‎-90 إلى 90. |
+| `locations[].lng` | رقم; `-180.0–180.0` | عند توفير الكائن الأب | <bdi dir="auto">غير مُرسل؛ مطلوب للعمليات الموضحة</bdi> | خط الطول WGS84 بالدرجات، من ‎-180 إلى 180. |
+| `longitude` / `--longitude` | رقم; `-180.0–180.0` | لا | <bdi dir="auto">غير مُرسل؛ مطلوب للعمليات الموضحة</bdi> | خط الطول WGS84 بالدرجات، من ‎-180 إلى 180. |
+| `north` / `--north` | رقم; `-90.0–90.0` | لا | <bdi dir="auto">غير مُرسل؛ مطلوب للعمليات الموضحة</bdi> | خط العرض الشمالي المطلوب لـ viewport، ويجب أن يتجاوز south. |
+| `operation` / `--operation` | نص; القيم: `create_session`, `tile_2d`, `viewport`, `root_3d`, `resource_3d`, `streetview_pano_ids`, `streetview_metadata`, `streetview_thumbnail`, `streetview_tile` | نعم | <bdi dir="auto">—</bdi> | create_session، tile_2d، viewport، root_3d، resource_3d، streetview_pano_ids، streetview_metadata، streetview_thumbnail أو streetview_tile؛ تحدد العملية نقطة النهاية والحقول المطلوبة. |
+| `panoId` / `--pano-id` | نص; على الأقل 1 محرف | لا | <bdi dir="auto">غير مُرسل؛ مطلوب للعمليات الموضحة</bdi> | مطلوب لبلاطة أو صورة Street View المصغرة، أو بديل الإحداثيات للبيانات الوصفية. لا تعتمد عليه بعد جلسة مستخدم واحدة. |
+| `pitch` / `--pitch` | رقم; `-90.0–90.0` | لا | <bdi dir="auto">0</bdi> | زاوية الكاميرا الرأسية بالدرجات، من ‎-90 إلى 90. |
+| `radius` / `--radius` | رقم; `0.0–100000.0` | لا | <bdi dir="auto">50 مترًا</bdi> | نصف قطر بحث Street View بالمتر، 0–100000، لـ pano_ids أو بحث metadata بالإحداثيات؛ لا يجتمع مع panoId. |
+| `resourceUrl` / `--resource-url` | نص; على الأقل 1 محرف | لا | <bdi dir="auto">غير مُرسل؛ مطلوب للعمليات الموضحة</bdi> | لـ resource_3d: رابط Google مطلق <https://tile.googleapis.com/v1/3dtiles/>... من مجموعة البلاطات؛ بلا مضيف آخر أو منفذ مخصص أو بيانات مستخدم أو جزء أو مسار مشفر. يُحذف مفتاح الرابط وتستخدم بيانات الاعتماد المُهيأة. |
+| `session` / `--session` | نص; على الأقل 1 محرف | لا | <bdi dir="auto">غير مُرسل؛ مطلوب للعمليات الموضحة</bdi> | رمز createSession؛ مطلوب لطلبات 2D وStreet View وليس 3D. اتبع expiry في الاستجابة. |
+| `sessionOptions` / `--session-options` | كائن | لا | <bdi dir="auto">غير مُرسل؛ مطلوب للعمليات الموضحة</bdi> | خيارات createSession الأصلية؛ mapType وlanguage وregion مطلوبة لـ create_session. |
+| `sessionOptions.highDpi` | منطقي | لا | <bdi dir="auto">false</bdi> | زيادة أبعاد البكسل بمقياس 2x أو 4x؛ لا تأثير مع 1x. |
+| `sessionOptions.imageFormat` | نص; القيم: `jpeg`, `png` | لا | <bdi dir="auto">تختار Google التنسيق الأنسب</bdi> | تنسيق jpeg أو png؛ لا يدعم JPEG الطبقات الشفافة. |
+| `sessionOptions.language` | نص; على الأقل 1 محرف | عند توفير الكائن الأب | <bdi dir="auto">غير مُرسل؛ مطلوب للعمليات الموضحة</bdi> | وسم لغة IETF مثل en-US. |
+| `sessionOptions.layerTypes` | مصفوفة نصوص; `1–3` عناصر; القيم: `layerRoadmap`, `layerStreetview`, `layerTraffic` | لا | <bdi dir="auto">بلا طبقات إضافية</bdi> | من طبقة واحدة إلى ثلاث: layerRoadmap وlayerStreetview وlayerTraffic. تحتاج terrain إلى layerRoadmap. |
+| `sessionOptions.mapType` | نص; القيم: `roadmap`, `satellite`, `terrain`, `streetview` | عند توفير الكائن الأب | <bdi dir="auto">غير مُرسل؛ مطلوب للعمليات الموضحة</bdi> | roadmap أو satellite أو terrain أو streetview؛ تحتاج terrain إلى layerRoadmap ضمن layerTypes. |
+| `sessionOptions.overlay` | منطقي | لا | <bdi dir="auto">false</bdi> | عند true تُعرض layerTypes دون الصورة الأساسية. |
+| `sessionOptions.region` | نص; النمط: `^[A-Z]{2}$` | عند توفير الكائن الأب | <bdi dir="auto">غير مُرسل؛ مطلوب للعمليات الموضحة</bdi> | رمز CLDR بحرفين كبيرين مثل US يصف الموقع الفعلي للمستخدم. |
+| `sessionOptions.scale` | نص; القيم: `scaleFactor1x`, `scaleFactor2x`, `scaleFactor4x` | لا | <bdi dir="auto">scaleFactor1x</bdi> | حجم عناصر الخريطة: scaleFactor1x أو scaleFactor2x أو scaleFactor4x. |
+| `sessionOptions.styles` | مصفوفة كائنات; `1–100` عناصر | لا | <bdi dir="auto">نمط Google الافتراضي</bdi> | كائنات تنسيق خريطة Google الأصلية، لـ roadmap فقط؛ الصيغة موثقة في مرجع Google. |
+| `south` / `--south` | رقم; `-90.0–90.0` | لا | <bdi dir="auto">غير مُرسل؛ مطلوب للعمليات الموضحة</bdi> | خط العرض الجنوبي المطلوب لـ viewport. |
+| `west` / `--west` | رقم; `-180.0–180.0` | لا | <bdi dir="auto">غير مُرسل؛ مطلوب للعمليات الموضحة</bdi> | خط الطول الغربي المطلوب لـ viewport. |
+| `width` / `--width` | عدد صحيح; `16–600` | لا | <bdi dir="auto">600</bdi> | عرض الصورة المصغرة، 16–600 بكسل. |
+| `x` / `--x` | عدد صحيح; `0–4194303` | لا | <bdi dir="auto">غير مُرسل؛ مطلوب للعمليات الموضحة</bdi> | عمود البلاطة؛ في 2D يجب أن يقل عن ‎2^zoom. حدود Street View تعتمد على أبعاد البانوراما الوصفية. |
+| `y` / `--y` | عدد صحيح; `0–4194303` | لا | <bdi dir="auto">غير مُرسل؛ مطلوب للعمليات الموضحة</bdi> | صف البلاطة؛ في 2D يجب أن يقل عن ‎2^zoom. حدود Street View تعتمد على أبعاد البانوراما الوصفية. |
+| `yaw` / `--yaw` | رقم; `-360.0–360.0` | لا | <bdi dir="auto">0</bdi> | اتجاه الكاميرا الأفقي للصورة المصغرة، من ‎-360 إلى 360 درجة. |
+| `zoom` / `--zoom` | عدد صحيح; `0–22` | لا | <bdi dir="auto">غير مُرسل؛ مطلوب للعمليات الموضحة</bdi> | تكبير صحيح: 0–22 لـ tile_2d/viewport و0–5 لـ streetview_tile. تحقق من توفر المستوى عبر viewport. |
+
+### السلوك والقيود
+
+- create_session يحتاج sessionOptions؛ tile_2d يحتاج session/zoom/x/y؛ viewport يحتاج session/zoom/north/south/east/west؛ root_3d بلا حقول إضافية؛ resource_3d يحتاج resourceUrl؛ pano_ids يحتاج session/locations؛ metadata يحتاج session ومعرّف بانوراما أو زوج إحداثيات؛ thumbnail يحتاج session/panoId؛ streetview_tile يحتاج session/panoId/zoom/x/y. ترفض الحقول غير المستخدمة.
+- إنشاء الجلسة لا يعاد تلقائيًا؛ بحث البانوراما POST للقراءة فقط. العارض اللاحق مسؤول عن تجميع الصور والرسم. لا يوجد تخزين بلاطات أو تنزيل مناطق بالجملة أو خرائط دون اتصال أو تحليل صور. لا ترسل الصور إلى نموذج بصري للتفسير أو استخراج البيانات.
+- تحظر الاتفاقية الجلب المسبق والفهرسة والتخزين غير المصرح بها؛ احترم Cache-Control وETag. اعرض شعار Google Maps وإسناد المزود. استخدم حقوق viewport لـ2D، وحقوق Street View ورابط الإبلاغ، وإسناد البلاطات في عارض3D؛ لا تقص الاعتمادات. تختلف التغطية والفوترة والحصص وشروط EEA. اتبع expiry؛ معرّفات البانوراما عابرة.
+- المراجع الرسمية والقيود: <https://developers.google.com/maps/documentation/tile/2d-tiles-overview> ; <https://developers.google.com/maps/documentation/tile/3d-tiles> ; <https://developers.google.com/maps/documentation/tile/get-api-key> ; <https://developers.google.com/maps/documentation/tile/policies> ; <https://developers.google.com/maps/documentation/tile/session_tokens> ; <https://developers.google.com/maps/documentation/tile/streetview> ; <https://developers.google.com/maps/documentation/tile/style-reference> ; <https://tile.googleapis.com/v1/3dtiles/>
+
+**المصادر الأصلية:** <https://developers.google.com/maps/documentation/tile/2d-tiles-overview>, <https://developers.google.com/maps/documentation/tile/3d-tiles>, <https://developers.google.com/maps/documentation/tile/get-api-key>, <https://developers.google.com/maps/documentation/tile/policies>, <https://developers.google.com/maps/documentation/tile/session_tokens>, <https://developers.google.com/maps/documentation/tile/streetview>, <https://developers.google.com/maps/documentation/tile/style-reference>
+
+### النتيجة
+
+JSON Google أصلي للجلسات والمنظور والبانوراما وملفات مجموعات 3D، مع الإسناد وحقوق النشر ورابط الإبلاغ وانتهاء الجلسة. الصور وموارد 3D غير JSON تعاد بايتات مع MIME وCache-Control وETag. يعرض MCP الصور المدعومة والباقي base64؛ يكتب CLI --output البايتات.
+
+### مثال
+
+معاملات MCP:
+
+```json
+{
+  "operation": "root_3d"
+}
+```
+
+استدعاء CLI مكافئ:
+
+```sh
+mcp-gmap-rs call maps_map_tiles --args '{"operation":"root_3d"}'
+```
+
+
+## maps_streetview {#maps_streetview}
+
+بيانات Street View وصورة JPEG.
+
+فحص بيانات بانوراما Street View أو جلب JPEG ثابت حسب الموقع أو المعرّف. يمكن فحص التوفر عبر metadata قبل الصورة المفوترة.
+
+**أمر CLI:** `streetview`. **الوصول إلى Google:** مفتاح API مطلوب لـ Street View Static؛ OAuth وحده لا يكفي. فعّل Street View Static API. توصي Google بتوقيع رقمي وتشترطه بعض إعدادات الحساب.
+
+### المعاملات
+
+| المعامل / خيار CLI | النوع وحدود المخطط | مطلوب | القيمة عند الإغفال | الوصف |
+| --- | --- | --- | --- | --- |
+| `fov` / `--fov` | رقم; `1.0–120.0` | لا | <bdi dir="auto">90</bdi> | مجال الرؤية الأفقي للصورة، 1–120 درجة. |
+| `heading` / `--heading` | رقم; `0.0–360.0` | لا | <bdi dir="auto">توجه Google الكاميرا نحو الموقع المُرسل</bdi> | اتجاه الكاميرا بالبوصلة، من 0 إلى 360 درجة. |
+| `height` / `--height` | عدد صحيح; `1–640` | لا | <bdi dir="auto">400</bdi> | ارتفاع الصورة 1–640 بكسل، لـ image فقط. |
+| `location` / `--location` | نص; على الأقل 1 محرف | لا | <bdi dir="auto">غير مُرسل؛ مطلوب للعمليات الموضحة</bdi> | عنوان أو زوج إحداثيات نصي مثل 48.8584,2.2945 أو place_id:PLACE_ID؛ اختر واحدًا فقط من location وpanoId. |
+| `operation` / `--operation` | نص; القيم: `metadata`, `image` | نعم | <bdi dir="auto">—</bdi> | metadata لبيانات JSON أو image لبايتات JPEG. |
+| `panoId` / `--pano-id` | نص; على الأقل 1 محرف | لا | <bdi dir="auto">غير مُرسل؛ مطلوب للعمليات الموضحة</bdi> | معرّف بانوراما Street View؛ قد يتغير ويجب عدم الاعتماد عليه طويلًا. |
+| `pitch` / `--pitch` | رقم; `-90.0–90.0` | لا | <bdi dir="auto">0</bdi> | زاوية الكاميرا الرأسية بالدرجات، من ‎-90 إلى 90. |
+| `radius` / `--radius` | عدد صحيح; `0–100000` | لا | <bdi dir="auto">50</bdi> | نصف قطر البحث بالمتر؛ يقبل التنفيذ أعدادًا صحيحة 0–100000. |
+| `returnErrorCode` / `--return-error-code` | منطقي | لا | <bdi dir="auto">true في هذا التنفيذ</bdi> | لـ image: إرجاع خطأ HTTP بدل الصورة الرمادية عند غياب الصور. |
+| `signature` / `--signature` | نص; على الأقل 1 محرف | لا | <bdi dir="auto">غير مُرسل</bdi> | توقيع URL اختياري محسوب للطلب المشفر نفسه؛ توصي به Google وقد تشترطه. تمرره الأداة ولا تنشئه. في الطلبات الموقّعة يُضاف signature أخيرًا بعد مفتاح API. وقّع المسار والاستعلام المرمّزين بدقة مع القيم الافتراضية المولّدة. ترتيب الصورة: location، radius، source، pano، size، heading، fov، pitch، return_error_code، key؛ تُحذف الخيارات غير المقدمة. تُحذف حقول الصورة من طلبات البيانات الوصفية. تُرمّز المسافات بعلامة +. القيم الافتراضية: size=640x400 وreturn_error_code=true. |
+| `source` / `--source` | نص; القيم: `default`, `google`, `outdoor` | لا | <bdi dir="auto">default</bdi> | مصدر البحث default أو google أو outdoor؛ يختلف التوفر حسب المجموعة والمنطقة. |
+| `width` / `--width` | عدد صحيح; `1–640` | لا | <bdi dir="auto">640</bdi> | عرض الصورة 1–640 بكسل، لـ image فقط. الأحجام الخاصة الأكبر غير مدعومة. |
+
+### السلوك والقيود
+
+- اختر location أو panoId فقط. الأبعاد وheading وfov وpitch وreturnErrorCode للصور فقط؛ ترفض الحقول غير المستخدمة. metadata مجاني حاليًا ولا يستهلك حصة الصور؛ الصور مفوترة.
+- حافظ على الإسناد المدمج. يمنع استخدام Street View للطباعة وتسري قيود حفظ محتوى الخرائط؛ هذه الأداة لا تمنح ترخيص احتفاظ أو إعادة توزيع أو تحليل. تُمرر التواقيع فقط دون توليدها، ولا تُدعم الأحجام الخاصة. تختلف التغطية وEEA، وقد تتغير المعرّفات والتواريخ أو تغيب.
+- المراجع الرسمية والقيود: <https://about.google/brand-resource-center/products-and-services/geo-guidelines/> ; <https://developers.google.com/maps/documentation/streetview/metadata> ; <https://developers.google.com/maps/documentation/streetview/policies> ; <https://developers.google.com/maps/documentation/streetview/request-streetview>
+
+**المصادر الأصلية:** <https://developers.google.com/maps/documentation/streetview/metadata>, <https://developers.google.com/maps/documentation/streetview/policies>, <https://developers.google.com/maps/documentation/streetview/request-streetview>
+
+### النتيجة
+
+JSON metadata الأصلي مع status وdate وlocation وpano_id وcopyright عند توفرها، أو بايتات JPEG مع MIME وترويسات تخزين آمنة. غياب الصور خطأ افتراضيًا. CLI --output يحفظ البايتات؛ MCP يعرض صورة وبياناتها.
+
+### مثال
+
+معاملات MCP:
+
+```json
+{
+  "operation": "metadata",
+  "location": "Eiffel Tower, Paris, France"
+}
+```
+
+استدعاء CLI مكافئ:
+
+```sh
+mcp-gmap-rs call maps_streetview --args '{"operation":"metadata","location":"Eiffel Tower, Paris, France"}'
+```
+
+
+## maps_streetview_publish {#maps_streetview_publish}
+
+إدارة ونشر صور Street View للمستخدم.
+
+إدارة صور وتسلسلات Google للمستخدم الموافق. يدعم كل طرق REST v1 الموثقة ورفع البايتات المحدود. النشر والحذف اختياران صريحان ولا يعادان تلقائيًا.
+
+**أمر CLI:** `streetview-publish`. **الوصول إلى Google:** OAuth للمستخدم النهائي فقط بموافقة على <https://www.googleapis.com/auth/streetviewpublish>. استخدم بيانات authorized_user صريحة في GOOGLE_APPLICATION_CREDENTIALS ووضع OAuth. مفتاح حساب خدمة أو ADC ضمني أو API key منفرد مرفوض. تُجرى موافقة عميل OAuth خارجيًا؛ يجدّد البرنامج البيانات ولا يستضيف callback للمتصفح.
+
+### المعاملات
+
+| المعامل / خيار CLI | النوع وحدود المخطط | مطلوب | القيمة عند الإغفال | الوصف |
+| --- | --- | --- | --- | --- |
+| `dataBase64` / `--data-base64` | نص; على الأقل 4 محرف | لا | <bdi dir="auto">غير مُرسل؛ مطلوب للعمليات الموضحة</bdi> | بايتات وسائط بترميز base64 القياسي مع الحشو. الحجم بعد الفك من بايت واحد إلى 8 MiB؛ هذا حد التنفيذ وليس حد Google. |
+| `filter` / `--filter` | نص; على الأقل 1 محرف | لا | <bdi dir="auto">غير مُرسل؛ مطلوب للعمليات الموضحة</bdi> | تعبير تصفية Google أصلي؛ تختلف القواعد حسب نقطة النهاية. |
+| `inputType` / `--input-type` | نص; القيم: `VIDEO`, `XDM` | لا | <bdi dir="auto">غير مُرسل؛ مطلوب للعمليات الموضحة</bdi> | مطلوب لـ create_sequence: ‏VIDEO أو XDM. |
+| `languageCode` / `--language-code` | نص; على الأقل 1 محرف | لا | <bdi dir="auto">افتراضي Google</bdi> | وسم لغة IETF BCP-47 للنص المتاح؛ قد تختار Google أقرب لغة مدعومة. |
+| `mimeType` / `--mime-type` | نص; القيم: `image/jpeg`, `application/octet-stream`, `video/mp4` | لا | <bdi dir="auto">image/jpeg</bdi> | نوع الوسائط للرفع: image/jpeg أو video/mp4 أو application/octet-stream. |
+| `operation` / `--operation` | نص; القيم: `list`, `get`, `start_upload`, `upload`, `create`, `update`, `delete`, `batch_get`, `batch_update`, `batch_delete`, `list_sequences`, `get_sequence`, `start_sequence_upload`, `create_sequence`, `delete_sequence` | نعم | <bdi dir="auto">—</bdi> | list/get/start_upload/upload/create/update/delete/batch_get/batch_update/batch_delete/list_sequences/get_sequence/start_sequence_upload/create_sequence/delete_sequence. عمليات النشر والتحديث والحذف تغير محتوى المستخدم العام. |
+| `pageSize` / `--page-size` | عدد صحيح; `1–100` | لا | <bdi dir="auto">افتراضي خدمة Google</bdi> | حجم الصفحة 1–100 لـ list أو list_sequences؛ قد تعيد Google عددًا أقل. |
+| `pageToken` / `--page-token` | نص; على الأقل 1 محرف | لا | <bdi dir="auto">غير مُرسل؛ مطلوب للعمليات الموضحة</bdi> | رمز الصفحة التالية من الاستجابة السابقة؛ أبقِ بقية المعلمات دون تغيير. لا يوجد ترقيم تلقائي. |
+| `photo` / `--photo` | كائن | لا | <bdi dir="auto">غير مُرسل؛ مطلوب للعمليات الموضحة</bdi> | كائن Photo أصلي لـ create/update. الإنشاء يحتاج uploadReference.uploadUrl بعد رفع البايتات؛ التحديث يحتاج photoId وupdateMask. راجع مخطط Photo الرسمي. |
+| `photoId` / `--photo-id` | نص; على الأقل 1 محرف | لا | <bdi dir="auto">غير مُرسل؛ مطلوب للعمليات الموضحة</bdi> | معرّف صورة Google لـ get/update/delete فقط، بلا مسار أو معلمات URL. |
+| `photoIds` / `--photo-ids` | مصفوفة نصوص; `1–100` عناصر; كل عنصر لا يقل عن 1 محرف | لا | <bdi dir="auto">غير مُرسل؛ مطلوب للعمليات الموضحة</bdi> | من معرّف صورة واحد إلى 100 لـ batch_get أو batch_delete. |
+| `photoSequence` / `--photo-sequence` | كائن | لا | <bdi dir="auto">غير مُرسل؛ مطلوب للعمليات الموضحة</bdi> | كائن PhotoSequence أصلي لـ create_sequence؛ يتطلب uploadReference.uploadUrl وبيانات GPS/CAMM/IMU والالتقاط الملائمة. |
+| `sequenceId` / `--sequence-id` | نص; على الأقل 1 محرف | لا | <bdi dir="auto">غير مُرسل؛ مطلوب للعمليات الموضحة</bdi> | معرّف التسلسل لـ get_sequence/delete_sequence؛ يأتي من اسم العملية المنشأة. |
+| `updateMask` / `--update-mask` | نص; على الأقل 1 محرف | لا | <bdi dir="auto">غير مُرسل؛ مطلوب للعمليات الموضحة</bdi> | قناع حقول Google مطلوب للتحديث ومفصول بفواصل، مثل pose.heading أو pose.latLngPair. |
+| `updatePhotoRequests` / `--update-photo-requests` | مصفوفة كائنات; `1–100` عناصر | لا | <bdi dir="auto">غير مُرسل؛ مطلوب للعمليات الموضحة</bdi> | من 1 إلى 100 كائن UpdatePhotoRequest أصلي لـ batch_update؛ كل عنصر يتطلب photo.photoId.id وupdateMask. |
+| `uploadUrl` / `--upload-url` | نص; على الأقل 1 محرف | لا | <bdi dir="auto">غير مُرسل؛ مطلوب للعمليات الموضحة</bdi> | رابط UploadRef الدقيق من start_upload/start_sequence_upload على HTTPS بالنطاق streetviewpublish.googleapis.com والمسار /media/user/{account}/photo/{reference} أو photoSequence؛ بلا إعادة توجيه أو أصل آخر أو بيانات مستخدم أو جزء أو مسار مشفر. |
+| `view` / `--view` | نص; القيم: `BASIC`, `INCLUDE_DOWNLOAD_URL` | لا | <bdi dir="auto">BASIC</bdi> | BASIC أو INCLUDE_DOWNLOAD_URL لـ list/get/batch_get/get_sequence. روابط التنزيل حساسة ولا تجلبها الأداة. |
+
+### السلوك والقيود
+
+- مسار الصورة: start_upload ثم upload فعلي بالبايتات ثم create مع photo.uploadReference.uploadUrl والبيانات المطلوبة. رفع البايتات وحده لا ينشرها. تلزم صور360 وبيانات Photo Sphere/XMP ومعايير قبول Google. يستخدم update أسلوب PUT وupdateMask؛ تعديل البكسلات غير مدعوم من Google. الحذف يزيل صور المستخدم المنشورة. لا تنفذ فحوص doctor أو live أي كتابة.
+- مسار التسلسل: start_sequence_upload ثم upload ثم create_sequence مع inputType وphotoSequence ثم get_sequence. حد 8 MiB خاص بالتنفيذ؛ الفيديو الأكبر يحتاج رفعًا خارجيًا مدعومًا من Google ويمكن استخدام UploadRef الناتج. لا رفع مجزأ أو قابل للاستئناف.
+- تحافظ الأجسام الأصلية على GPS والوضعية وIMU والاتصالات والأماكن؛ Google تتحقق من التفاصيل الداخلية. الغلاف يرفض المعلمات المجهولة ويتحقق من الحقول الأساسية، وكل تحديث دفعة يحتاج photo.photoId.id وupdateMask. تنفيذ جميع طرق REST لا يعني اختبار كل حقل داخلي حيًا.
+- الرفع ثابت الأصل ومحدود وPOST بلا إعادة محاولات؛ تعطّل الإعادة لكل التغييرات لتجنب النشر المكرر عند فشل ملتبس. راجع النتائج صراحة. تسري الملكية والخصوصية وحقوق النشر ومعايير360 والمعالجة والحصص. حساب الخدمة لا يعوض موافقة المستخدم. لم يختبر النشر حيًا بمفتاح حساب الخدمة المقدم؛ يلزم مستخدم موافق، وتستبعد الفحوص الكتابات العامة.
+- المراجع الرسمية والقيود: <https://developers.google.com/streetview/publish/authorizing> ; <https://developers.google.com/streetview/publish/first-app> ; <https://developers.google.com/streetview/publish/reference/rest> ; <https://developers.google.com/streetview/publish/reference/rest/v1/photo> ; <https://developers.google.com/streetview/publish/reference/rest/v1/photoSequence/create> ; <https://developers.google.com/streetview/publish/reference/rest/v1/photos/batchUpdate> ; <https://www.googleapis.com/auth/streetviewpublish>
+
+**المصادر الأصلية:** <https://developers.google.com/streetview/publish/authorizing>, <https://developers.google.com/streetview/publish/first-app>, <https://developers.google.com/streetview/publish/reference/rest>, <https://developers.google.com/streetview/publish/reference/rest/v1/photo>, <https://developers.google.com/streetview/publish/reference/rest/v1/photoSequence/create>, <https://developers.google.com/streetview/publish/reference/rest/v1/photos/batchUpdate>
+
+### النتيجة
+
+Photo أو قوائم أو UploadRef أو نتائج دفعات أو Operation أصلية. استجابة الرفع أو الحذف الفارغة تصبح {}. تحفظ حالة النشر والملكية. قد يبقى التسلسل قيد المعالجة؛ افحصه عبر get_sequence. لا انتظار أو نشر تلقائي.
+
+### مثال
+
+معاملات MCP:
+
+```json
+{
+  "operation": "list",
+  "pageSize": 10,
+  "view": "BASIC"
+}
+```
+
+استدعاء CLI مكافئ:
+
+```sh
+mcp-gmap-rs call maps_streetview_publish --args '{"operation":"list","pageSize":10,"view":"BASIC"}'
+```
+
+
+## maps_datasets {#maps_datasets}
+
+إدارة مجموعات بيانات الخرائط.
+
+إدارة مجموعات بيانات جغرافية لتنسيق Google Maps المعتمد على البيانات، مع استيراد غير متزامن من كائن Cloud Storage موجود.
+
+**أمر CLI:** `datasets`. **الوصول إلى Google:** OAuth2 فقط بحساب خدمة أو ADC ونطاق <https://www.googleapis.com/auth/cloud-platform؛> لا تقبل مفاتيح API. اضبط مشروع المورد وصلاحيات مشروع الحصة بصورة منفصلة.
+
+### المعاملات
+
+| المعامل / خيار CLI | النوع وحدود المخطط | مطلوب | القيمة عند الإغفال | الوصف |
+| --- | --- | --- | --- | --- |
+| `dataset` / `--dataset` | كائن | لا | <bdi dir="auto">مطلوب لـ create/update</bdi> | كائن Dataset الأصلي لـ create/update. الإنشاء يتطلب displayName فريدًا وusage:["USAGE_DATA_DRIVEN_STYLING"]. يُضاف اسم المورد المتوافق عند التحديث. |
+| `gcsSource` / `--gcs-source` | كائن | لا | <bdi dir="auto">مطلوب للاستيراد</bdi> | مصدر Cloud Storage موجود للاستيراد؛ يلزم حق الوصول. لا تُقرأ ملفات محلية. |
+| `gcsSource.fileFormat` | نص; القيم: `FILE_FORMAT_GEOJSON`, `FILE_FORMAT_KML`, `FILE_FORMAT_CSV` | عند توفير الكائن الأب | <bdi dir="auto">مطلوب عند إرسال gcsSource</bdi> | ترميز المصدر FILE_FORMAT_GEOJSON أو FILE_FORMAT_KML أو FILE_FORMAT_CSV. |
+| `gcsSource.inputUri` | نص; على الأقل 1 محرف | عند توفير الكائن الأب | <bdi dir="auto">مطلوب عند إرسال gcsSource</bdi> | عنوان gs://bucket/object موجود؛ يلزم storage.objects.get، مثل دور Storage Object Viewer. |
+| `name` / `--name` | نص; النمط: `^projects/[A-Za-z0-9][A-Za-z0-9._:-]*/datasets/[A-Za-z0-9_-]+(@active)?$` | لا | <bdi dir="auto">مطلوب لعمليات الموارد</bdi> | projects/{project}/datasets/{dataset}؛ مطلوب عدا list/create. تقبل get اللاحقة @active لأحدث إصدار مكتمل. |
+| `operation` / `--operation` | نص; القيم: `list`, `get`, `create`, `update`, `delete`, `import`, `download`, `fetch_errors` | نعم | <bdi dir="auto">مطلوب</bdi> | اختر list/get/create/update/delete/import/download/fetch_errors؛ عمليات create/update/delete/import تغير موارد السحابة. |
+| `pageSize` / `--page-size` | عدد صحيح; `1–500` | لا | <bdi dir="auto">list: 100؛ fetch_errors: افتراضي Google هو 50</bdi> | أقصى مجموعات بيانات أو أخطاء بالصفحة؛ يقبل الغلاف 1–500. |
+| `pageToken` / `--page-token` | نص; على الأقل 1 محرف | لا | <bdi dir="auto">الصفحة الأولى</bdi> | رمز الصفحة التالية من الاستجابة السابقة؛ أبقِ بقية المعلمات دون تغيير. لا يوجد ترقيم تلقائي. |
+| `parent` / `--parent` | نص; النمط: `^projects/[A-Za-z0-9][A-Za-z0-9._:-]*$` | لا | <bdi dir="auto">مطلوب لـ list/create</bdi> | projects/{project}؛ مطلوب لـ list/create. |
+| `tag` / `--tag` | نص; القيم: `active` | لا | <bdi dir="auto">أحدث إصدار بغض النظر عن حالة المعالجة</bdi> | لـ list: القيمة active تختار أحدث إصدار مكتمل وتتجاوز مجموعات البيانات التي لا تملك إصدارًا مكتملًا. |
+| `updateMask` / `--update-mask` | نص; على الأقل 1 محرف | لا | <bdi dir="auto">افتراضي Google هو * (استبدال كامل للبيانات الوصفية)</bdi> | حقول البيانات الوصفية المفصولة بفواصل، مثل description,displayName؛ الإغفال يعني استبدال جميع البيانات الوصفية. |
+| `versionDescription` / `--version-description` | نص; على الأقل 1 محرف | لا | <bdi dir="auto">محذوف</bdi> | وصف إصدار البيانات الجديد؛ للاستيراد فقط. |
+
+### السلوك والقيود
+
+- تحتاج العملية صلاحيات mapsplatformdatasets.datasets.list/get/create/update/delete/import/export المناسبة. استيراد GCS ينشئ إصدارًا جديدًا بصورة غير متزامنة؛ افحص الحالة عبر get والأخطاء عبر fetch_errors. لا يوجد انتظار تلقائي.
+- لا توثق واجهة v1 العامة listVersions؛ استخدم get للأحدث أو @active للمكتمل وversionId، دون ادعاء سرد كل التاريخ. التنزيل يحتاج صلاحية export ويكتب CLI --output البايتات.
+- لا تفرض Maps Datasets API رسوم استخدام، لكن يلزم مشروع مُهيأ وقد تُفوتر خرائط Google وCloud Storage وفق شروطهما. الاستخدام المدعوم تنسيق الخرائط بالبيانات؛ لا رفع محلي متعدد الأجزاء، بل كائن GCS موجود.
+- المراجع الرسمية والقيود: <https://developers.google.com/maps/documentation/datasets/create> ; <https://developers.google.com/maps/documentation/datasets/overview> ; <https://developers.google.com/maps/documentation/datasets/reference/rest/v1/media/download> ; <https://developers.google.com/maps/documentation/datasets/reference/rest/v1/projects.datasets> ; <https://www.googleapis.com/auth/cloud-platform>
+
+**المصادر الأصلية:** <https://developers.google.com/maps/documentation/datasets/create>, <https://developers.google.com/maps/documentation/datasets/overview>, <https://developers.google.com/maps/documentation/datasets/reference/rest/v1/media/download>, <https://developers.google.com/maps/documentation/datasets/reference/rest/v1/projects.datasets>
+
+### النتيجة
+
+استجابة Dataset أو قائمة أو أخطاء Google الأصلية، أو اسم إصدار الاستيراد، أو بايتات المصدر ونوعها وترويسات التخزين. تحفظ get حقول status.state وstatus.errorMessage وversionId؛ بدء الاستيراد لا يعني اكتمال المعالجة.
+
+### مثال
+
+معاملات MCP:
+
+```json
+{
+  "operation": "list",
+  "parent": "projects/my-project",
+  "pageSize": 20
+}
+```
+
+استدعاء CLI مكافئ:
+
+```sh
+mcp-gmap-rs call maps_datasets --args '{"operation":"list","parent":"projects/my-project","pageSize":20}'
+```
+
+
+## maps_route_optimization {#maps_route_optimization}
+
+تحسين مسارات أسطول كامل.
+
+تحسين أساطيل التوصيل والخدمة عبر Route Optimization API باستخدام ShipmentModel الأصلي كاملًا، بما فيه السعات والنوافذ الزمنية والتكاليف.
+
+**أمر CLI:** `route-optimization`. **الوصول إلى Google:** OAuth2 فقط بحساب خدمة أو ADC ونطاق <https://www.googleapis.com/auth/cloud-platform؛> لا تقبل مفاتيح API. اضبط مشروع المورد وصلاحيات مشروع الحصة بصورة منفصلة.
+
+### المعاملات
+
+| المعامل / خيار CLI | النوع وحدود المخطط | مطلوب | القيمة عند الإغفال | الوصف |
+| --- | --- | --- | --- | --- |
+| `name` / `--name` | نص; النمط: `^projects/[A-Za-z0-9][A-Za-z0-9._:-]*(/locations/[A-Za-z0-9_-]+)?/operations/[A-Za-z0-9_-]+$` | لا | <bdi dir="auto">مطلوب لـ get_operation</bdi> | اسم projects/{project}[/locations/{location}]/operations/{ID} الدقيق من Google؛ لـ get_operation فقط. |
+| `operation` / `--operation` | نص; القيم: `optimize`, `validate`, `batch`, `optimize_long_running`, `optimize_uri`, `get_operation` | نعم | <bdi dir="auto">مطلوب</bdi> | optimize للحل المتزامن؛ validate يرسل VALIDATE_ONLY؛ batch لوظيفة GCS؛ optimize_long_running وoptimize_uri تجريبيتان؛ get_operation للحالة. |
+| `parent` / `--parent` | نص; النمط: `^projects/[A-Za-z0-9][A-Za-z0-9._:-]*(/locations/[A-Za-z0-9_-]+)?$` | لا | <bdi dir="auto">مطلوب عدا get_operation</bdi> | projects/{project}، اختياريًا /locations/-. الحل المتزامن والطويل يرفضان المواقع الإقليمية؛ batch/URI يقبلان الصيغة الأصلية. |
+| `request` / `--request` | كائن | لا | <bdi dir="auto">مطلوب عدا get_operation</bdi> | طلب Google كامل دون parent. الحل والتحقق يحتاجان model بالشحنات والمركبات والقيود. batch: من 1 إلى 100 modelConfigs بمصدر GCS ووجهة وJSON/PROTO_TEXT. ‏URI: ‏input.uri/output.uri بصيغة gs:// وتنتهي .json أو .txtpb. |
+
+### السلوك والقيود
+
+- validate يستدعي Google مع VALIDATE_ONLY ولا يحل نموذج الأسطول. فعّل الخدمة؛ يتيح roles/routeoptimization.viewer الحل وقراءة العمليات، ويضيف editor الوظائف المجمعة. تشمل الصلاحيات locations.use وoperations.create/get.
+- وظائف batch تقرأ وتكتب GCS بصلاحيات تخزين صريحة، وقد تستمر بعد انتهاء الطلب. لا رفع ملفات أو انتظار تلقائي. نسخ long-running وURI تجريبية وقد تتغير؛ نقطة URI حساسة للحروف :OptimizeToursUri. لا تدعم Google حاليًا إلغاء العمليات أو حذفها أو سردها؛ يتوفر get_operation فقط.
+- تعتمد الفوترة على الشحنات وفئة Single Vehicle Routing أو Fleet Routing. هذه خدمة منفصلة عن تحسين نقاط Routes API؛ انتهاء مهلة النقل لا يلغي الوظيفة.
+- المراجع الرسمية والقيود: <https://developers.google.com/maps/documentation/route-optimization/cloud-setup> ; <https://developers.google.com/maps/documentation/route-optimization/reference/rest/v1/operations> ; <https://developers.google.com/maps/documentation/route-optimization/reference/rest/v1/projects/batchOptimizeTours> ; <https://developers.google.com/maps/documentation/route-optimization/reference/rest/v1/projects/optimizeTours> ; <https://developers.google.com/maps/documentation/route-optimization/usage-and-billing> ; <https://github.com/googleapis/googleapis/blob/master/google/maps/routeoptimization/v1/route_optimization_service.proto> ; <https://www.googleapis.com/auth/cloud-platform>
+
+**المصادر الأصلية:** <https://developers.google.com/maps/documentation/route-optimization/cloud-setup>, <https://developers.google.com/maps/documentation/route-optimization/reference/rest/v1/operations>, <https://developers.google.com/maps/documentation/route-optimization/reference/rest/v1/projects/batchOptimizeTours>, <https://developers.google.com/maps/documentation/route-optimization/reference/rest/v1/projects/optimizeTours>, <https://developers.google.com/maps/documentation/route-optimization/usage-and-billing>, <https://github.com/googleapis/googleapis/blob/master/google/maps/routeoptimization/v1/route_optimization_service.proto>
+
+### النتيجة
+
+OptimizeToursResponse أو Operation أصلية؛ فحص الحالة يحفظ done:false والبيانات الوصفية وresponse/error عند الإكمال، دون إخفاء فشل العملية.
+
+### مثال
+
+معاملات MCP:
+
+```json
+{
+  "operation": "validate",
+  "parent": "projects/my-project",
+  "request": {
+    "model": {
+      "shipments": [],
+      "vehicles": [
+        {
+          "startLocation": {
+            "latitude": 48.85,
+            "longitude": 2.35
+          }
+        }
+      ]
+    },
+    "maxValidationErrors": 10
+  }
+}
+```
+
+استدعاء CLI مكافئ:
+
+```sh
+mcp-gmap-rs call maps_route_optimization --args '{"operation":"validate","parent":"projects/my-project","request":{"model":{"shipments":[],"vehicles":[{"startLocation":{"latitude":48.85,"longitude":2.35}}]},"maxValidationErrors":10}}'
+```
+
+
+## maps_air_quality_forecast {#maps_air_quality_forecast}
+
+توقع جودة الهواء ساعة بساعة.
+
+جلب توقعات جودة الهواء لوقت أو فترة صريحة حتى 96 ساعة مستقبلًا.
+
+**أمر CLI:** `air-quality-forecast`. **الوصول إلى Google:** مفتاح API أو رمز OAuth2 بنطاق cloud-platform؛ فعّل API والفوترة. يحتاج صاحب اعتماد مشروع الحصة صلاحية serviceusage.services.use.
+
+### المعاملات
+
+| المعامل / خيار CLI | النوع وحدود المخطط | مطلوب | القيمة عند الإغفال | الوصف |
+| --- | --- | --- | --- | --- |
+| `customLocalAqis` / `--custom-local-aqis` | مصفوفة كائنات; `1–250` عناصر | لا | <bdi dir="auto">تختار Google المؤشرات المحلية</bdi> | تجاوز المؤشر المحلي لبلدان أو مناطق محددة. |
+| `customLocalAqis[].aqi` | نص; على الأقل 1 محرف | عند توفير الكائن الأب | <bdi dir="auto">مطلوب لكل تجاوز</bdi> | رمز مؤشر محلي مدعوم مثل us_epa؛ تتحقق Google من التركيبة. |
+| `customLocalAqis[].regionCode` | نص; النمط: `^[A-Za-z]{2}$` | عند توفير الكائن الأب | <bdi dir="auto">مطلوب لكل تجاوز</bdi> | رمز بلد أو منطقة من حرفين لتطبيق التجاوز. |
+| `dateTime` / `--date-time` | نص; على الأقل 20 محرف | لا | <bdi dir="auto">اختر محددًا زمنيًا</bdi> | وقت UTC منفرد بتنسيق RFC3339 وينتهي بـ Z؛ تقرّبه Google للساعة السابقة. لا يجتمع مع period أو hours. |
+| `extraComputations` / `--extra-computations` | مصفوفة نصوص; `1–5` عناصر; القيم: `LOCAL_AQI`, `HEALTH_RECOMMENDATIONS`, `POLLUTANT_ADDITIONAL_INFO`, `DOMINANT_POLLUTANT_CONCENTRATION`, `POLLUTANT_CONCENTRATION` | لا | <bdi dir="auto">بلا حسابات إضافية</bdi> | حسابات إضافية: LOCAL_AQI وHEALTH_RECOMMENDATIONS وPOLLUTANT_ADDITIONAL_INFO وDOMINANT_POLLUTANT_CONCENTRATION وPOLLUTANT_CONCENTRATION. |
+| `languageCode` / `--language-code` | نص; على الأقل 1 محرف | لا | <bdi dir="auto">Google: en</bdi> | وسم لغة IETF BCP-47 للنص المتاح؛ قد تختار Google أقرب لغة مدعومة. |
+| `location` / `--location` | كائن | نعم | <bdi dir="auto">مطلوب</bdi> | إحداثيات الموقع المطلوب؛ الحقول الداخلية مطلوبة. |
+| `location.latitude` | رقم; `-90.0–90.0` | عند توفير الكائن الأب | <bdi dir="auto">مطلوب عند إرسال الموقع</bdi> | خط العرض WGS84 بالدرجات، من ‎-90 إلى 90. |
+| `location.longitude` | رقم; `-180.0–180.0` | عند توفير الكائن الأب | <bdi dir="auto">مطلوب عند إرسال الموقع</bdi> | خط الطول WGS84 بالدرجات، من ‎-180 إلى 180. |
+| `pageSize` / `--page-size` | عدد صحيح; `1–96` | لا | <bdi dir="auto">Google: التوقعات 24؛ السجل 72</bdi> | عدد السجلات الساعية: حتى 96 للتوقع وحتى 168 للسجل. |
+| `pageToken` / `--page-token` | نص; على الأقل 1 محرف | لا | <bdi dir="auto">الصفحة الأولى</bdi> | رمز الصفحة التالية من الاستجابة السابقة؛ أبقِ بقية المعلمات دون تغيير. لا يوجد ترقيم تلقائي. |
+| `period` / `--period` | كائن | لا | <bdi dir="auto">اختر محددًا زمنيًا</bdi> | فترة ساعية شاملة مرتبة: حتى 96 ساعة توقع أو 720 ساعة سجل. لا تجتمع مع dateTime أو hours. |
+| `period.endTime` | نص; على الأقل 20 محرف | عند توفير الكائن الأب | <bdi dir="auto">مطلوب عند إرسال الفترة</bdi> | نهاية الفترة الشاملة بتنسيق RFC3339 UTC وتنتهي بـ Z. |
+| `period.startTime` | نص; على الأقل 20 محرف | عند توفير الكائن الأب | <bdi dir="auto">مطلوب عند إرسال الفترة</bdi> | بداية الفترة بتنسيق RFC3339 UTC وتنتهي بـ Z. |
+| `uaqiColorPalette` / `--uaqi-color-palette` | نص; القيم: `RED_GREEN`, `INDIGO_PERSIAN_DARK`, `INDIGO_PERSIAN_LIGHT` | لا | <bdi dir="auto">لوحة Google الافتراضية</bdi> | لوحة UAQI: ‏RED_GREEN أو INDIGO_PERSIAN_DARK أو INDIGO_PERSIAN_LIGHT. لوحات المؤشرات المحلية ثابتة. |
+| `universalAqi` / `--universal-aqi` | منطقي | لا | <bdi dir="auto">Google: true</bdi> | إدراج مؤشر جودة الهواء العالمي. |
+
+### السلوك والقيود
+
+- اختر محددًا زمنيًا واحدًا بالضبط؛ تُفحص الصيغة وترتيب الفترة وطولها محليًا، وتتحقق Google من التوفر الحالي والتغطية. تعاد صفحة واحدة؛ اتبع nextPageToken صراحة. تحفظ المؤشرات والتركيزات والتوصيات. تخضع النتائج لسياسات Air Quality والإسناد والعرض والتخزين، والتغطية تختلف حسب البلد.
+- المراجع الرسمية والقيود: <https://developers.google.com/maps/documentation/air-quality/policies> ; <https://developers.google.com/maps/documentation/air-quality/reference/rest/v1/forecast/lookup>
+
+**المصادر الأصلية:** <https://developers.google.com/maps/documentation/air-quality/policies>, <https://developers.google.com/maps/documentation/air-quality/reference/rest/v1/forecast/lookup>
+
+### النتيجة
+
+حقول hourlyForecasts وregionCode وnextPageToken الأصلية، مع بيانات الملوثات والصحة الاختيارية.
+
+### مثال
+
+معاملات MCP:
+
+```json
+{
+  "location": {
+    "latitude": 48.85,
+    "longitude": 2.35
+  },
+  "dateTime": "2026-11-01T12:00:00Z",
+  "pageSize": 24
+}
+```
+
+استدعاء CLI مكافئ:
+
+```sh
+mcp-gmap-rs call maps_air_quality_forecast --args '{"location":{"latitude":48.85,"longitude":2.35},"dateTime":"2026-11-01T12:00:00Z","pageSize":24}'
+```
+
+
+## maps_air_quality_history {#maps_air_quality_history}
+
+سجل جودة الهواء حتى 30 يومًا.
+
+جلب معلومات جودة الهواء التاريخية خلال الثلاثين يومًا السابقة.
+
+**أمر CLI:** `air-quality-history`. **الوصول إلى Google:** مفتاح API أو رمز OAuth2 بنطاق cloud-platform؛ فعّل API والفوترة. يحتاج صاحب اعتماد مشروع الحصة صلاحية serviceusage.services.use.
+
+### المعاملات
+
+| المعامل / خيار CLI | النوع وحدود المخطط | مطلوب | القيمة عند الإغفال | الوصف |
+| --- | --- | --- | --- | --- |
+| `customLocalAqis` / `--custom-local-aqis` | مصفوفة كائنات; `1–250` عناصر | لا | <bdi dir="auto">تختار Google المؤشرات المحلية</bdi> | تجاوز المؤشر المحلي لبلدان أو مناطق محددة. |
+| `customLocalAqis[].aqi` | نص; على الأقل 1 محرف | عند توفير الكائن الأب | <bdi dir="auto">مطلوب لكل تجاوز</bdi> | رمز مؤشر محلي مدعوم مثل us_epa؛ تتحقق Google من التركيبة. |
+| `customLocalAqis[].regionCode` | نص; النمط: `^[A-Za-z]{2}$` | عند توفير الكائن الأب | <bdi dir="auto">مطلوب لكل تجاوز</bdi> | رمز بلد أو منطقة من حرفين لتطبيق التجاوز. |
+| `dateTime` / `--date-time` | نص; على الأقل 20 محرف | لا | <bdi dir="auto">اختر محددًا زمنيًا</bdi> | وقت UTC منفرد بتنسيق RFC3339 وينتهي بـ Z؛ تقرّبه Google للساعة السابقة. لا يجتمع مع period أو hours. |
+| `extraComputations` / `--extra-computations` | مصفوفة نصوص; `1–5` عناصر; القيم: `LOCAL_AQI`, `HEALTH_RECOMMENDATIONS`, `POLLUTANT_ADDITIONAL_INFO`, `DOMINANT_POLLUTANT_CONCENTRATION`, `POLLUTANT_CONCENTRATION` | لا | <bdi dir="auto">بلا حسابات إضافية</bdi> | حسابات إضافية: LOCAL_AQI وHEALTH_RECOMMENDATIONS وPOLLUTANT_ADDITIONAL_INFO وDOMINANT_POLLUTANT_CONCENTRATION وPOLLUTANT_CONCENTRATION. |
+| `hours` / `--hours` | عدد صحيح; `1–720` | لا | <bdi dir="auto">اختر واحدًا فقط من hours/dateTime/period</bdi> | عدد الساعات السابقة من 1 إلى 720 (30 يومًا)؛ لا يجتمع مع dateTime أو period. |
+| `languageCode` / `--language-code` | نص; على الأقل 1 محرف | لا | <bdi dir="auto">Google: en</bdi> | وسم لغة IETF BCP-47 للنص المتاح؛ قد تختار Google أقرب لغة مدعومة. |
+| `location` / `--location` | كائن | نعم | <bdi dir="auto">مطلوب</bdi> | إحداثيات الموقع المطلوب؛ الحقول الداخلية مطلوبة. |
+| `location.latitude` | رقم; `-90.0–90.0` | عند توفير الكائن الأب | <bdi dir="auto">مطلوب عند إرسال الموقع</bdi> | خط العرض WGS84 بالدرجات، من ‎-90 إلى 90. |
+| `location.longitude` | رقم; `-180.0–180.0` | عند توفير الكائن الأب | <bdi dir="auto">مطلوب عند إرسال الموقع</bdi> | خط الطول WGS84 بالدرجات، من ‎-180 إلى 180. |
+| `pageSize` / `--page-size` | عدد صحيح; `1–168` | لا | <bdi dir="auto">Google: التوقعات 24؛ السجل 72</bdi> | عدد السجلات الساعية: حتى 96 للتوقع وحتى 168 للسجل. |
+| `pageToken` / `--page-token` | نص; على الأقل 1 محرف | لا | <bdi dir="auto">الصفحة الأولى</bdi> | رمز الصفحة التالية من الاستجابة السابقة؛ أبقِ بقية المعلمات دون تغيير. لا يوجد ترقيم تلقائي. |
+| `period` / `--period` | كائن | لا | <bdi dir="auto">اختر محددًا زمنيًا</bdi> | فترة ساعية شاملة مرتبة: حتى 96 ساعة توقع أو 720 ساعة سجل. لا تجتمع مع dateTime أو hours. |
+| `period.endTime` | نص; على الأقل 20 محرف | عند توفير الكائن الأب | <bdi dir="auto">مطلوب عند إرسال الفترة</bdi> | نهاية الفترة الشاملة بتنسيق RFC3339 UTC وتنتهي بـ Z. |
+| `period.startTime` | نص; على الأقل 20 محرف | عند توفير الكائن الأب | <bdi dir="auto">مطلوب عند إرسال الفترة</bdi> | بداية الفترة بتنسيق RFC3339 UTC وتنتهي بـ Z. |
+| `uaqiColorPalette` / `--uaqi-color-palette` | نص; القيم: `RED_GREEN`, `INDIGO_PERSIAN_DARK`, `INDIGO_PERSIAN_LIGHT` | لا | <bdi dir="auto">لوحة Google الافتراضية</bdi> | لوحة UAQI: ‏RED_GREEN أو INDIGO_PERSIAN_DARK أو INDIGO_PERSIAN_LIGHT. لوحات المؤشرات المحلية ثابتة. |
+| `universalAqi` / `--universal-aqi` | منطقي | لا | <bdi dir="auto">Google: true</bdi> | إدراج مؤشر جودة الهواء العالمي. |
+
+### السلوك والقيود
+
+- اختر محددًا زمنيًا واحدًا بالضبط؛ تُفحص الصيغة وترتيب الفترة وطولها محليًا، وتتحقق Google من التوفر الحالي والتغطية. تعاد صفحة واحدة؛ اتبع nextPageToken صراحة. تحفظ المؤشرات والتركيزات والتوصيات. تخضع النتائج لسياسات Air Quality والإسناد والعرض والتخزين، والتغطية تختلف حسب البلد.
+- المراجع الرسمية والقيود: <https://developers.google.com/maps/documentation/air-quality/policies> ; <https://developers.google.com/maps/documentation/air-quality/reference/rest/v1/history/lookup>
+
+**المصادر الأصلية:** <https://developers.google.com/maps/documentation/air-quality/policies>, <https://developers.google.com/maps/documentation/air-quality/reference/rest/v1/history/lookup>
+
+### النتيجة
+
+حقول hoursInfo وregionCode وnextPageToken الأصلية، مع بيانات الملوثات والصحة الاختيارية.
+
+### مثال
+
+معاملات MCP:
+
+```json
+{
+  "location": {
+    "latitude": 48.85,
+    "longitude": 2.35
+  },
+  "hours": 24,
+  "pageSize": 12
+}
+```
+
+استدعاء CLI مكافئ:
+
+```sh
+mcp-gmap-rs call maps_air_quality_history --args '{"location":{"latitude":48.85,"longitude":2.35},"hours":24,"pageSize":12}'
+```
+
+
+## maps_air_quality_heatmap {#maps_air_quality_heatmap}
+
+بلاطات خريطة جودة الهواء.
+
+تنزيل بلاطة خريطة حرارية حقيقية لمؤشر جودة هواء أو ملوث.
+
+**أمر CLI:** `air-quality-heatmap`. **الوصول إلى Google:** مفتاح API أو رمز OAuth2 بنطاق cloud-platform؛ فعّل API والفوترة. يحتاج صاحب اعتماد مشروع الحصة صلاحية serviceusage.services.use.
+
+### المعاملات
+
+| المعامل / خيار CLI | النوع وحدود المخطط | مطلوب | القيمة عند الإغفال | الوصف |
+| --- | --- | --- | --- | --- |
+| `mapType` / `--map-type` | نص; القيم: `UAQI_RED_GREEN`, `UAQI_INDIGO_PERSIAN`, `PM25_INDIGO_PERSIAN`, `GBR_DEFRA`, `DEU_UBA`, `CAN_EC`, `FRA_ATMO`, `US_AQI` | نعم | <bdi dir="auto">مطلوب</bdi> | نوع المؤشر: UAQI_RED_GREEN، UAQI_INDIGO_PERSIAN، PM25_INDIGO_PERSIAN، GBR_DEFRA، DEU_UBA، CAN_EC، FRA_ATMO أو US_AQI. |
+| `x` / `--x` | عدد صحيح; `0–65535` | نعم | <bdi dir="auto">مطلوب</bdi> | عمود البلاطة من 0 إلى ‎2^zoom−1؛ تُفحص الحدود قبل الاتصال. |
+| `y` / `--y` | عدد صحيح; `0–65535` | نعم | <bdi dir="auto">مطلوب</bdi> | صف البلاطة من 0 إلى ‎2^zoom−1؛ تُفحص الحدود قبل الاتصال. |
+| `zoom` / `--zoom` | عدد صحيح; `0–16` | نعم | <bdi dir="auto">مطلوب</bdi> | مستوى تكبير Web Mercator من 0 إلى 16؛ المستوى صفر بلاطة واحدة. |
+
+### السلوك والقيود
+
+- التوفر يعتمد على تغطية المؤشر والبلد. سياسات Air Quality تتطلب الإسناد وتحد التخزين والعرض؛ احفظ ترويسات التخزين. الغلاف لا يمنح ترخيص محتوى.
+- المراجع الرسمية والقيود: <https://developers.google.com/maps/documentation/air-quality/policies> ; <https://developers.google.com/maps/documentation/air-quality/reference/rest/v1/mapTypes.heatmapTiles/lookupHeatmapTile>
+
+**المصادر الأصلية:** <https://developers.google.com/maps/documentation/air-quality/policies>, <https://developers.google.com/maps/documentation/air-quality/reference/rest/v1/mapTypes.heatmapTiles/lookupHeatmapTile>
+
+### النتيجة
+
+بايتات بلاطة فعلية مع MIME وترويسات التخزين الأصلية؛ يعرض MCP صورة ويمكن لـ CLI --output حفظ البايتات.
+
+### مثال
+
+معاملات MCP:
+
+```json
+{
+  "mapType": "UAQI_RED_GREEN",
+  "zoom": 2,
+  "x": 2,
+  "y": 1
+}
+```
+
+استدعاء CLI مكافئ:
+
+```sh
+mcp-gmap-rs call maps_air_quality_heatmap --args '{"mapType":"UAQI_RED_GREEN","zoom":2,"x":2,"y":1}'
+```
+
+
+## maps_pollen_heatmap {#maps_pollen_heatmap}
+
+بلاطات خرائط حبوب اللقاح.
+
+تنزيل بلاطة PNG حقيقية لمؤشر لقاح الأشجار أو العشب أو الأعشاب الضارة.
+
+**أمر CLI:** `pollen-heatmap`. **الوصول إلى Google:** يلزم مفتاح API في هذا التنفيذ، حتى مع وضع OAuth؛ فعّل الخدمة والفوترة والقيود المناسبة.
+
+### المعاملات
+
+| المعامل / خيار CLI | النوع وحدود المخطط | مطلوب | القيمة عند الإغفال | الوصف |
+| --- | --- | --- | --- | --- |
+| `mapType` / `--map-type` | نص; القيم: `TREE_UPI`, `GRASS_UPI`, `WEED_UPI` | نعم | <bdi dir="auto">مطلوب</bdi> | مؤشر لقاح TREE_UPI أو GRASS_UPI أو WEED_UPI. |
+| `x` / `--x` | عدد صحيح; `0–65535` | نعم | <bdi dir="auto">مطلوب</bdi> | عمود البلاطة من 0 إلى ‎2^zoom−1؛ تُفحص الحدود قبل الاتصال. |
+| `y` / `--y` | عدد صحيح; `0–65535` | نعم | <bdi dir="auto">مطلوب</bdi> | صف البلاطة من 0 إلى ‎2^zoom−1؛ تُفحص الحدود قبل الاتصال. |
+| `zoom` / `--zoom` | عدد صحيح; `0–16` | نعم | <bdi dir="auto">مطلوب</bdi> | مستوى تكبير Web Mercator من 0 إلى 16؛ المستوى صفر بلاطة واحدة. |
+
+### السلوك والقيود
+
+- يتغير التوفر حسب البلدان المدعومة والموسم. تحكم سياسات Pollen الإسناد والعرض على Google Maps والتخزين المؤقت؛ تفعيل API لا يزيل قيود الترخيص.
+- المراجع الرسمية والقيود: <https://developers.google.com/maps/documentation/pollen/policies> ; <https://developers.google.com/maps/documentation/pollen/reference/rest/v1/mapTypes.heatmapTiles/lookupHeatmapTile>
+
+**المصادر الأصلية:** <https://developers.google.com/maps/documentation/pollen/policies>, <https://developers.google.com/maps/documentation/pollen/reference/rest/v1/mapTypes.heatmapTiles/lookupHeatmapTile>
+
+### النتيجة
+
+بايتات بلاطة فعلية مع MIME وترويسات التخزين الأصلية؛ يعرض MCP صورة ويمكن لـ CLI --output حفظ البايتات.
+
+### مثال
+
+معاملات MCP:
+
+```json
+{
+  "mapType": "TREE_UPI",
+  "zoom": 2,
+  "x": 2,
+  "y": 1
+}
+```
+
+استدعاء CLI مكافئ:
+
+```sh
+mcp-gmap-rs call maps_pollen_heatmap --args '{"mapType":"TREE_UPI","zoom":2,"x":2,"y":1}'
+```
+
+
+## maps_weather_history {#maps_weather_history}
+
+سجل الطقس الساعي لليوم السابق.
+
+استرجاع حتى 24 ساعة سابقة من الطقس مع ترقيم صفحات صريح.
+
+**أمر CLI:** `weather-history`. **الوصول إلى Google:** مفتاح API أو رمز OAuth2 بنطاق cloud-platform؛ فعّل API والفوترة. يحتاج صاحب اعتماد مشروع الحصة صلاحية serviceusage.services.use.
+
+### المعاملات
+
+| المعامل / خيار CLI | النوع وحدود المخطط | مطلوب | القيمة عند الإغفال | الوصف |
+| --- | --- | --- | --- | --- |
+| `hours` / `--hours` | عدد صحيح; `1–24` | لا | <bdi dir="auto">Google: 24</bdi> | عدد الساعات السابقة بدءًا من الساعة الماضية، من 1 إلى 24. |
+| `languageCode` / `--language-code` | نص; على الأقل 1 محرف | لا | <bdi dir="auto">Google: en</bdi> | وسم لغة IETF BCP-47 للنص المتاح؛ قد تختار Google أقرب لغة مدعومة. |
+| `location` / `--location` | كائن | نعم | <bdi dir="auto">مطلوب</bdi> | إحداثيات الموقع المطلوب؛ الحقول الداخلية مطلوبة. |
+| `location.latitude` | رقم; `-90.0–90.0` | عند توفير الكائن الأب | <bdi dir="auto">مطلوب عند إرسال الموقع</bdi> | خط العرض WGS84 بالدرجات، من ‎-90 إلى 90. |
+| `location.longitude` | رقم; `-180.0–180.0` | عند توفير الكائن الأب | <bdi dir="auto">مطلوب عند إرسال الموقع</bdi> | خط الطول WGS84 بالدرجات، من ‎-180 إلى 180. |
+| `pageSize` / `--page-size` | عدد صحيح; `1–24` | لا | <bdi dir="auto">السجل: Google 24؛ غيره: افتراضي Google</bdi> | أقصى عدد سجلات بالصفحة: 1–24 للسجل، و1–1000 للتنبيهات وتوقع الدقائق. |
+| `pageToken` / `--page-token` | نص; على الأقل 1 محرف | لا | <bdi dir="auto">الصفحة الأولى</bdi> | رمز الصفحة التالية من الاستجابة السابقة؛ أبقِ بقية المعلمات دون تغيير. لا يوجد ترقيم تلقائي. |
+| `unitsSystem` / `--units-system` | نص; القيم: `METRIC`, `IMPERIAL` | لا | <bdi dir="auto">Google: METRIC</bdi> | نظام الوحدات METRIC أو IMPERIAL. |
+
+### السلوك والقيود
+
+- يغطي هذا المسار الساعات الـ24 السابقة فقط، لا التواريخ القديمة التعسفية. تسري سياسات Weather وحدود التغطية؛ لا تُجلب الصفحات تلقائيًا.
+- المراجع الرسمية والقيود: <https://developers.google.com/maps/documentation/weather/policies> ; <https://developers.google.com/maps/documentation/weather/reference/rest/v1/history.hours/lookup>
+
+**المصادر الأصلية:** <https://developers.google.com/maps/documentation/weather/policies>, <https://developers.google.com/maps/documentation/weather/reference/rest/v1/history.hours/lookup>
+
+### النتيجة
+
+حقول historyHours وtimeZone وnextPageToken الأصلية وكامل الأحوال الساعية.
+
+### مثال
+
+معاملات MCP:
+
+```json
+{
+  "location": {
+    "latitude": 48.85,
+    "longitude": 2.35
+  },
+  "hours": 12,
+  "pageSize": 6
+}
+```
+
+استدعاء CLI مكافئ:
+
+```sh
+mcp-gmap-rs call maps_weather_history --args '{"location":{"latitude":48.85,"longitude":2.35},"hours":12,"pageSize":6}'
+```
+
+
+## maps_weather_alerts {#maps_weather_alerts}
+
+تنبيهات الطقس العامة المحلية.
+
+استرجاع تنبيهات الطقس المتقاطعة مع موقع، مع شدة التحذير ومعلومات الجهة المُصدرة الأصلية.
+
+**أمر CLI:** `weather-alerts`. **الوصول إلى Google:** مفتاح API أو رمز OAuth2 بنطاق cloud-platform؛ فعّل API والفوترة. يحتاج صاحب اعتماد مشروع الحصة صلاحية serviceusage.services.use.
+
+### المعاملات
+
+| المعامل / خيار CLI | النوع وحدود المخطط | مطلوب | القيمة عند الإغفال | الوصف |
+| --- | --- | --- | --- | --- |
+| `languageCode` / `--language-code` | نص; على الأقل 1 محرف | لا | <bdi dir="auto">Google: en</bdi> | وسم لغة IETF BCP-47 للنص المتاح؛ قد تختار Google أقرب لغة مدعومة. |
+| `location` / `--location` | كائن | نعم | <bdi dir="auto">مطلوب</bdi> | إحداثيات الموقع المطلوب؛ الحقول الداخلية مطلوبة. |
+| `location.latitude` | رقم; `-90.0–90.0` | عند توفير الكائن الأب | <bdi dir="auto">مطلوب عند إرسال الموقع</bdi> | خط العرض WGS84 بالدرجات، من ‎-90 إلى 90. |
+| `location.longitude` | رقم; `-180.0–180.0` | عند توفير الكائن الأب | <bdi dir="auto">مطلوب عند إرسال الموقع</bdi> | خط الطول WGS84 بالدرجات، من ‎-180 إلى 180. |
+| `pageSize` / `--page-size` | عدد صحيح; `1–1000` | لا | <bdi dir="auto">السجل: Google 24؛ غيره: افتراضي Google</bdi> | أقصى عدد سجلات بالصفحة: 1–24 للسجل، و1–1000 للتنبيهات وتوقع الدقائق. |
+| `pageToken` / `--page-token` | نص; على الأقل 1 محرف | لا | <bdi dir="auto">الصفحة الأولى</bdi> | رمز الصفحة التالية من الاستجابة السابقة؛ أبقِ بقية المعلمات دون تغيير. لا يوجد ترقيم تلقائي. |
+
+### السلوك والقيود
+
+- تعتمد التغطية والتأخير والحقول على الجهة المُصدرة. احفظ إسناد مقدم التنبيه واتبع سياسات Weather؛ غياب تنبيه في النتيجة ليس ضمان سلامة.
+- المراجع الرسمية والقيود: <https://developers.google.com/maps/documentation/weather/policies> ; <https://developers.google.com/maps/documentation/weather/reference/rest/v1/publicAlerts/lookup>
+
+**المصادر الأصلية:** <https://developers.google.com/maps/documentation/weather/policies>, <https://developers.google.com/maps/documentation/weather/reference/rest/v1/publicAlerts/lookup>
+
+### النتيجة
+
+مجموعة weatherAlerts الأصلية وتفاصيل الجهة والمنطقة وnextPageToken عند توفره.
+
+### مثال
+
+معاملات MCP:
+
+```json
+{
+  "location": {
+    "latitude": 48.85,
+    "longitude": 2.35
+  },
+  "pageSize": 5
+}
+```
+
+استدعاء CLI مكافئ:
+
+```sh
+mcp-gmap-rs call maps_weather_alerts --args '{"location":{"latitude":48.85,"longitude":2.35},"pageSize":5}'
+```
+
+
+## maps_weather_minute_forecast {#maps_weather_minute_forecast}
+
+توقع هطول بالدقائق، تجريبي.
+
+تجريبي: توقعات هطول عالية الدقة ضمن إطار ست ساعات.
+
+**أمر CLI:** `weather-minute-forecast`. **الوصول إلى Google:** مفتاح API أو رمز OAuth2 بنطاق cloud-platform؛ فعّل API والفوترة. يحتاج صاحب اعتماد مشروع الحصة صلاحية serviceusage.services.use.
+
+### المعاملات
+
+| المعامل / خيار CLI | النوع وحدود المخطط | مطلوب | القيمة عند الإغفال | الوصف |
+| --- | --- | --- | --- | --- |
+| `location` / `--location` | كائن | نعم | <bdi dir="auto">مطلوب</bdi> | إحداثيات الموقع المطلوب؛ الحقول الداخلية مطلوبة. |
+| `location.latitude` | رقم; `-90.0–90.0` | عند توفير الكائن الأب | <bdi dir="auto">مطلوب عند إرسال الموقع</bdi> | خط العرض WGS84 بالدرجات، من ‎-90 إلى 90. |
+| `location.longitude` | رقم; `-180.0–180.0` | عند توفير الكائن الأب | <bdi dir="auto">مطلوب عند إرسال الموقع</bdi> | خط الطول WGS84 بالدرجات، من ‎-180 إلى 180. |
+| `pageSize` / `--page-size` | عدد صحيح; `1–1000` | لا | <bdi dir="auto">السجل: Google 24؛ غيره: افتراضي Google</bdi> | أقصى عدد سجلات بالصفحة: 1–24 للسجل، و1–1000 للتنبيهات وتوقع الدقائق. |
+| `pageToken` / `--page-token` | نص; على الأقل 1 محرف | لا | <bdi dir="auto">الصفحة الأولى</bdi> | رمز الصفحة التالية من الاستجابة السابقة؛ أبقِ بقية المعلمات دون تغيير. لا يوجد ترقيم تلقائي. |
+| `unitsSystem` / `--units-system` | نص; القيم: `METRIC`, `IMPERIAL` | لا | <bdi dir="auto">Google: METRIC</bdi> | نظام الوحدات METRIC أو IMPERIAL. |
+
+### السلوك والقيود
+
+- تجريبي قبل الإتاحة العامة: قد يكون الدعم محدودًا والتغييرات غير متوافقة. يلزم الإسناد؛ الحد الأقصى لتخزين توقع الدقائق وبلاطات الطقس ساعة واحدة ثم يجب حذف النسخة. تمنع Google استخدام هذا المحتوى لإعادة إنشاء خدمة أو منتج Google، بما فيه تطبيق أو نموذج غرضه الأساسي معلومات الطقس. تسري القيود على المستهلكين اللاحقين.
+- قد لا تتزامن توقعات الدقائق مع البلاطات. صفحة واحدة في كل استدعاء؛ التوفر يعتمد على الموقع والوصول إلى الخدمة.
+- المراجع الرسمية والقيود: <https://developers.google.com/maps/documentation/weather/minute-forecast> ; <https://developers.google.com/maps/documentation/weather/weather-map>
+
+**المصادر الأصلية:** <https://developers.google.com/maps/documentation/weather/minute-forecast>, <https://developers.google.com/maps/documentation/weather/weather-map>
+
+### النتيجة
+
+حقول overallPredictionTimeframe وtimeZone وsegments وnextPageToken؛ تحفظ المقاطع النوع والاحتمال والكميات والشدة.
+
+### مثال
+
+معاملات MCP:
+
+```json
+{
+  "location": {
+    "latitude": 37.60451,
+    "longitude": -80.59044
+  },
+  "pageSize": 5
+}
+```
+
+استدعاء CLI مكافئ:
+
+```sh
+mcp-gmap-rs call maps_weather_minute_forecast --args '{"location":{"latitude":37.60451,"longitude":-80.59044},"pageSize":5}'
+```
+
+
+## maps_weather_map {#maps_weather_map}
+
+خريطة الهطول الآني، تجريبية.
+
+تجريبي: تنزيل بلاطة هطول آني للولايات المتحدة أو أوروبا.
+
+**أمر CLI:** `weather-map`. **الوصول إلى Google:** مفتاح API أو رمز OAuth2 بنطاق cloud-platform؛ فعّل API والفوترة. يحتاج صاحب اعتماد مشروع الحصة صلاحية serviceusage.services.use.
+
+### المعاملات
+
+| المعامل / خيار CLI | النوع وحدود المخطط | مطلوب | القيمة عند الإغفال | الوصف |
+| --- | --- | --- | --- | --- |
+| `mapType` / `--map-type` | نص; القيم: `US_PRECIPITATION_CURRENT`, `EU_PRECIPITATION_CURRENT` | نعم | <bdi dir="auto">مطلوب</bdi> | US_PRECIPITATION_CURRENT أو EU_PRECIPITATION_CURRENT؛ تغطية آنية محدودة جغرافيًا. |
+| `x` / `--x` | عدد صحيح; `0–65535` | نعم | <bdi dir="auto">مطلوب</bdi> | عمود البلاطة من 0 إلى ‎2^zoom−1؛ تُفحص الحدود قبل الاتصال. |
+| `y` / `--y` | عدد صحيح; `0–65535` | نعم | <bdi dir="auto">مطلوب</bdi> | صف البلاطة من 0 إلى ‎2^zoom−1؛ تُفحص الحدود قبل الاتصال. |
+| `zoom` / `--zoom` | عدد صحيح; `0–16` | نعم | <bdi dir="auto">مطلوب</bdi> | مستوى تكبير Web Mercator من 0 إلى 16؛ المستوى صفر بلاطة واحدة. |
+
+### السلوك والقيود
+
+- تجريبي قبل الإتاحة العامة: قد يكون الدعم محدودًا والتغييرات غير متوافقة. يلزم الإسناد؛ الحد الأقصى لتخزين توقع الدقائق وبلاطات الطقس ساعة واحدة ثم يجب حذف النسخة. تمنع Google استخدام هذا المحتوى لإعادة إنشاء خدمة أو منتج Google، بما فيه تطبيق أو نموذج غرضه الأساسي معلومات الطقس. تسري القيود على المستهلكين اللاحقين.
+- تقتصر التغطية على المناطق الأميركية والأوروبية الموضحة في دليل Google. صحة إحداثيات البلاطة لا تعني وجود بيانات للموقع.
+- المراجع الرسمية والقيود: <https://developers.google.com/maps/documentation/weather/minute-forecast> ; <https://developers.google.com/maps/documentation/weather/weather-map>
+
+**المصادر الأصلية:** <https://developers.google.com/maps/documentation/weather/minute-forecast>, <https://developers.google.com/maps/documentation/weather/weather-map>
+
+### النتيجة
+
+بايتات بلاطة فعلية مع MIME وترويسات التخزين الأصلية؛ يعرض MCP صورة ويمكن لـ CLI --output حفظ البايتات.
+
+### مثال
+
+معاملات MCP:
+
+```json
+{
+  "mapType": "US_PRECIPITATION_CURRENT",
+  "zoom": 12,
+  "x": 1025,
+  "y": 1688
+}
+```
+
+استدعاء CLI مكافئ:
+
+```sh
+mcp-gmap-rs call maps_weather_map --args '{"mapType":"US_PRECIPITATION_CURRENT","zoom":12,"x":1025,"y":1688}'
 ```

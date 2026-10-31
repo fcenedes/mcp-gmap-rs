@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- Expand the shared CLI/MCP catalog from 23 to 42 tools across all 20 server-side API families in the coverage matrix. Add restricted Roads Speed Limits, Places Autocomplete with concluding session tokens, Geolocation, Solar, Aerial View lookup/render, Map Tiles, Street View Static/Publish, Datasets and Route Optimization.
+- Add air quality forecast/history/heatmaps, pollen heatmaps, weather history/public alerts and explicitly experimental minute forecasts/map tiles.
+- Support OAuth for Solar and Map Tiles, OAuth-only cloud resource APIs and scoped end-user OAuth for Street View Publish; preserve credential redaction and prohibit silent key fallback.
+- Advertise mutating/destructive operations conservatively, disable automatic retries for writes and bound actual media uploads to 8 MiB. Preserve binary MIME/cache metadata; support raw CLI output and native MCP images.
+- Document licensing, attribution/caching, US/EEA coverage, preview access, IAM and upload limits. Expand schema-derived tool documentation and examples across nine manual languages.
+
 ## 0.3.1 - 2026-10-31
 
 - Add the complete 23-tool reference to the README navigation, bundled guides and docs.rs landing page, including every parameter, nested field, required status, default, constraint, result shape and MCP/CLI example.

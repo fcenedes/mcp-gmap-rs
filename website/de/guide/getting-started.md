@@ -1,6 +1,12 @@
 # Erste Schritte
 
-Installieren Sie eine ausführbare Datei, konfigurieren Sie den Google-Zugriff und verwenden Sie dieselben 23 Werkzeuge im Terminal oder mit einem MCP-Client. Dieses Handbuch beschreibt v0.3.1.
+Dieses Handbuch beschreibt die 42 Werkzeuge des aktuellen Quellstands. Das veröffentlichte Paket v0.3.1 enthält 23 Werkzeuge. Bauen Sie diesen Checkout, um die Erweiterungen zu nutzen; die Installation von v0.3.1 enthält sie nicht.
+
+Im lokalen Repository:
+
+```sh
+cargo install --path . --locked
+```
 
 ## Installation
 

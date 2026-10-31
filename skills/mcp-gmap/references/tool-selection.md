@@ -18,7 +18,15 @@ versions. Avoid loading full schemas for unrelated tools.
 | Find a stop along a trip | `maps_search_along_route` searches using the route polyline. Avoid approximating a long route with one midpoint/radius. |
 | Local conditions | `maps_weather` for current/daily/hourly weather, `maps_air_quality` for indices and optional pollutants, `maps_pollen` for 1–5 days of pollen. Keep coverage/date distinctions visible; health recommendations are Google's returned guidance. |
 | Geography and local time | `maps_elevation` for height in metres; `maps_timezone` for UTC/DST offsets and local time. Its optional `timestamp` is Unix milliseconds. |
-| Match GPS points to roads | `maps_snap_to_roads` for 2–100 ordered trace points; `maps_nearest_roads` for 1–100 independent points. Preserve `originalIndex`; interpolated points may not have it. These tools do not return speed limits. |
+| Match GPS points to roads | `maps_snap_to_roads` for 2–100 ordered trace points; `maps_nearest_roads` for 1–100 independent points. Preserve `originalIndex`; interpolated points may not have it. Use `maps_speed_limits` separately for restricted Asset Tracking speed-limit access. |
+| Predict a place query | `maps_autocomplete`; the caller owns a fresh session token. Conclude with `maps_place_details` or `maps_validate_address` using the same token/project. |
+| Locate from device radio signals | `maps_geolocate` with the native `body`. IP fallback locates the server egress; set `considerIp:false` when that is unsuitable. |
+| Assess rooftop solar | `maps_solar` for building insights/data layers/GeoTIFF by ID. Coverage and imagery quality vary; raster size is bounded. |
+| Inspect imagery for display | `maps_streetview` metadata or JPEG; `maps_aerial_view` metadata/playback URLs; `maps_map_tiles` for visualization only. Read service limits first. |
+| Publish user-owned panorama imagery | `maps_streetview_publish`, explicit operation and authorized-user OAuth. Actual upload is bounded to 8 MiB decoded; larger media needs Google's external supported flow. |
+| Manage map datasets | `maps_datasets`, OAuth/IAM. List/get are read operations; create/update/import/delete require explicit task authorization and can alter cloud resources. |
+| Optimize a fleet | `maps_route_optimization`, native `request.model` with shipments, vehicles and constraints. Use `validate` for a validation-only request; batch/long-running jobs are explicit and polling is one call at a time. |
+| Environmental history/forecast/tiles | `maps_air_quality_forecast`, `maps_air_quality_history`, `maps_air_quality_heatmap`, `maps_pollen_heatmap`, `maps_weather_history`, `maps_weather_alerts`; minute forecast and weather map tools are experimental with additional terms. |
 | Show a map | `maps_static_map` with center, markers or path. MCP returns image content; CLI can save a PNG. Preserve attribution. |
 | Measure geographic search visibility | `maps_local_rank_tracker` for an explicitly requested keyword/place/grid analysis. A search rank is not a place's user rating. Start with a 3×3 grid and one keyword; inspect failed points before interpreting ARP/ATRP/SoLV. |
 

@@ -3,7 +3,8 @@
 A standalone Rust executable for Google Maps: 
 **CLI**, **MCP stdio**, and **MCP Streamable HTTP**. 
 
-- 23 tools for places, routing, address validation, local conditions and road data.
+- 42 tools across 20 server-side Google API families, including fleet optimization, datasets, imagery and environmental data.
+- Explicit license, geographic, preview and credential restrictions in tool discovery and the manual.
 - API keys or service-account/ADC OAuth for supported APIs.
 - Native TLS/mTLS, request limits, Prometheus metrics and access diagnostics.
 - Docker/Kubernetes examples and a portable agent skill for MCP or CLI use.
@@ -32,6 +33,10 @@ Prebuilt executables for Linux and macOS (Apple Silicon and Intel) are
 published on the [Releases page](https://github.com/fcenedes/mcp-gmap-rs/releases).
 Each archive includes documentation and licenses; use `SHA256SUMS` to verify it.
 See [release automation](docs/releases.md) for the CI and publishing process.
+
+The 42-tool catalog describes the current **unreleased source**. The published
+0.3.1 crate has 23 tools; build from this checkout to use the additions.
+See [API coverage and provider limits](docs/service-research/coverage.md).
 
 ## Build and install
 
@@ -69,7 +74,11 @@ export GOOGLE_MAPS_API_KEY='your-key'
 Enable billing and the Google APIs used by your tools: Places API (New),
 Geocoding API, Routes API, Elevation API, Time Zone API, Maps Static API,
 Weather API, Air Quality API, Address Validation API, Pollen API, Places Aggregate
-API and Roads API. You only need APIs for tools you actually call.
+API and Roads API for the original catalog. The expanded source also uses
+Geolocation, Solar, Aerial View, Map Tiles, Street View Static, Maps Platform
+Datasets, Route Optimization and Street View Publish. You only need APIs for
+tools you actually call. The setup guide lists exact service IDs and credential
+requirements.
 Calls can incur charges; composite tools make multiple API requests. Availability
 and travel-mode coverage depend on Google and the region.
 
@@ -130,7 +139,11 @@ inspection work without credentials; actual API calls need credentials supported
 by the selected endpoints.
 
 In OAuth mode, keep `GOOGLE_MAPS_API_KEY` for the current Geocoding v3, Elevation,
-Time Zone, Static Maps, Pollen and Roads endpoints if used. Composite/location-resolution flows
+Time Zone, Static Maps, Pollen, Roads, Geolocation, Aerial View and Street View
+Static endpoints if used. Solar and Map Tiles also support OAuth. Datasets and
+Route Optimization require OAuth/IAM. Street View Publish requires an explicit
+end-user OAuth credential file with `streetviewpublish` consent; a service account
+cannot publish user imagery. Composite/location-resolution flows
 may need both credential types. OAuth-supported calls send a cached/refreshed
 access token and quota project, with no API key; an OAuth failure does not retry
 using a key. Google OAuth configures outbound Google access independently of
@@ -144,7 +157,9 @@ For containers and Kubernetes Secrets/ConfigMaps, see the
 
 Tool calls print JSON to stdout and errors to stderr, with a nonzero exit status
 on failure. `doctor` also prints its JSON report when checks fail. `--output`
-writes JSON to a file, or raw PNG for `static-map`.
+writes JSON to a file, or raw image/raster/dataset/3D bytes for binary results.
+Binary JSON output includes `mimeType`, base64 data and provider cache headers;
+MCP PNG/JPEG/WebP results use image content.
 
 ```sh
 mcp-gmap-rs tools
@@ -242,7 +257,7 @@ headers. Native TLS/mTLS and a Kubernetes TLS gateway example are documented in 
 metrics, JSON logs and `doctor`. External identity/OAuth remains a deployment concern;
 this executable authenticates HTTP clients with a configured bearer token.
 It uses one Google key per process; run separate instances for separate Google
-credentials. Request bodies are limited to 1 MiB. Ctrl-C and SIGTERM shut down
+credentials. Request bodies are limited to 12 MiB. Ctrl-C and SIGTERM shut down
 the server and active HTTP sessions.
 
 To serve HTTPS directly, supply a matching certificate/key and the runtime bearer
@@ -291,11 +306,32 @@ limits, response shape, restrictions and MCP/CLI examples.
 | [`maps_search_along_route`](docs/tools.md#maps_search_along_route) | `search-along-route` |
 | [`maps_local_rank_tracker`](docs/tools.md#maps_local_rank_tracker) | `local-rank-tracker` |
 
+| [`maps_datasets`](docs/tools.md#maps_datasets) | `datasets` |
+| [`maps_route_optimization`](docs/tools.md#maps_route_optimization) | `route-optimization` |
+| [`maps_air_quality_forecast`](docs/tools.md#maps_air_quality_forecast) | `air-quality-forecast` |
+| [`maps_air_quality_history`](docs/tools.md#maps_air_quality_history) | `air-quality-history` |
+| [`maps_air_quality_heatmap`](docs/tools.md#maps_air_quality_heatmap) | `air-quality-heatmap` |
+| [`maps_pollen_heatmap`](docs/tools.md#maps_pollen_heatmap) | `pollen-heatmap` |
+| [`maps_weather_history`](docs/tools.md#maps_weather_history) | `weather-history` |
+| [`maps_weather_alerts`](docs/tools.md#maps_weather_alerts) | `weather-alerts` |
+| [`maps_weather_minute_forecast`](docs/tools.md#maps_weather_minute_forecast) | `weather-minute-forecast` |
+| [`maps_weather_map`](docs/tools.md#maps_weather_map) | `weather-map` |
+| [`maps_map_tiles`](docs/tools.md#maps_map_tiles) | `map-tiles` |
+| [`maps_streetview`](docs/tools.md#maps_streetview) | `streetview` |
+| [`maps_streetview_publish`](docs/tools.md#maps_streetview_publish) | `streetview-publish` |
+| [`maps_speed_limits`](docs/tools.md#maps_speed_limits) | `speed-limits` |
+| [`maps_autocomplete`](docs/tools.md#maps_autocomplete) | `autocomplete` |
+| [`maps_geolocate`](docs/tools.md#maps_geolocate) | `geolocate` |
+| [`maps_solar`](docs/tools.md#maps_solar) | `solar` |
+| [`maps_aerial_view`](docs/tools.md#maps_aerial_view) | `aerial-view` |
+| [`maps_render_aerial_video`](docs/tools.md#maps_render_aerial_video) | `render-aerial-video` |
+
 Place data keeps Google field names and attribution metadata. Display review
 authors/source links, photo author attribution, and AI disclosures with the
 associated content, following [Google's Places policies](https://developers.google.com/maps/documentation/places/web-service/policies).
-MCP map calls return inline PNG image content; CLI map calls print base64 JSON
+MCP PNG/JPEG/WebP calls return inline image content and binary metadata; CLI binary calls print MIME/base64 JSON
 unless `--output` is provided.
+
 
 ## Agent skill
 
@@ -338,11 +374,11 @@ python3 .github/scripts/tool-reference.py --binary /path/to/mcp-gmap-rs --check 
 These example checks run without credentials or Google calls; CI verifies that
 all tools and parameter paths remain documented.
 
-The default tests use a local Google API fixture and exercise all 23 tools, CLI
+The default tests use local Google API fixtures and exercise all 42 tools, CLI
 subprocesses, stdio initialization and tool calls, plus HTTP sessions, auth, origin
 validation, and image responses. They make no live Google calls and require no key.
 
-There are also 23 opt-in live acceptance tests in `tests/live.rs`, one for each
+The original suite also has 23 opt-in API-key live acceptance tests in `tests/live.rs`, one for each
 tool. They check returned data, photo URLs, PNG dimensions, optimized route
 endpoints, matrix entries, all nine rank-grid searches, and nested composite
 errors. The weather test covers current conditions and daily/hourly forecasts.

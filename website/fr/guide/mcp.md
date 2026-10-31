@@ -40,4 +40,4 @@ mcp-gmap-rs serve http --listen 0.0.0.0:3000   --allowed-host maps.example.com  
 
 Le client envoie `Authorization: Bearer <token>`. Les Origin présents sont refusés par défaut ; autorisez les origines réelles, port compris. Les noms Host doivent correspondre à la liste autorisée. Utilisez HTTPS natif ou un [gateway TLS](./production) pour les clients distants.
 
-Les requêtes ont une limite de corps de 1 Mio. Les sessions sont en mémoire : un redémarrage les supprime et plusieurs réplicas nécessitent de l’affinité. Tous les clients d’un processus partagent l’identité Google et les budgets configurés. Ctrl-C et SIGTERM déclenchent l’arrêt gracieux.
+Les requêtes ont une limite de corps de 12 Mio. Les sessions sont en mémoire : un redémarrage les supprime et plusieurs réplicas nécessitent de l’affinité. Tous les clients d’un processus partagent l’identité Google et les budgets configurés. Ctrl-C et SIGTERM déclenchent l’arrêt gracieux.

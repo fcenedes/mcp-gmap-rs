@@ -54,4 +54,4 @@ mcp-gmap-rs serve http --listen 0.0.0.0:3000 \
   --allowed-origin https://app.example.com:443
 ```
 
-默认情况下，存在但不在允许列表中的 Origin 头会被拒绝。请求体限制为 1 MiB。`/health` 只检查进程存活，不会调用 Google。公开访问应配置[原生 TLS/mTLS 或网关](./production)。代理必须保留授权和 MCP 协议/会话头，并支持不缓冲的流式传输。会话与 Google 身份属于单个进程；添加副本前请阅读[部署](./deployment)。
+默认情况下，存在但不在允许列表中的 Origin 头会被拒绝。请求体限制为 12 MiB。`/health` 只检查进程存活，不会调用 Google。公开访问应配置[原生 TLS/mTLS 或网关](./production)。代理必须保留授权和 MCP 协议/会话头，并支持不缓冲的流式传输。会话与 Google 身份属于单个进程；添加副本前请阅读[部署](./deployment)。

@@ -89,7 +89,7 @@ async fn cli_discovers_tools_without_a_key_and_reports_failures() {
             .as_array()
             .unwrap()
             .len(),
-        23
+        42
     );
     let filtered = binary()
         .args(["--enabled-tools", "maps_geocode", "tools"])
@@ -209,7 +209,7 @@ async fn stdio_executable_initializes_lists_tools_and_returns_tool_errors() {
             }
         };
         if id == 2 {
-            assert_eq!(response["result"]["tools"].as_array().unwrap().len(), 23);
+            assert_eq!(response["result"]["tools"].as_array().unwrap().len(), 42);
         } else {
             assert_eq!(response["result"]["isError"], true);
         }

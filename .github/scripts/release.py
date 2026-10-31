@@ -71,7 +71,7 @@ def audit_package():
         "Cargo.toml", "Cargo.toml.orig", "Cargo.lock", "README.md", "LICENSE",
         "CHANGELOG.md", ".env.example", ".cargo_vcs_info.json", "Dockerfile", ".dockerignore",
     }
-    required = {"Cargo.lock", "LICENSE", "licenses/cablate-mcp-google-map-MIT.txt", ".env.example", "docs/crate.md", "docs/google-cloud-setup.md", "docs/production.md", "docs/tools.md", "Dockerfile", ".dockerignore", "deploy/kubernetes.yaml", "deploy/gateway.yaml", "skills/mcp-gmap/SKILL.md", "skills/mcp-gmap/agents/openai.yaml", "skills/mcp-gmap/references/cli.md", "skills/mcp-gmap/references/tool-selection.md"}
+    required = {"Cargo.lock", "LICENSE", "licenses/cablate-mcp-google-map-MIT.txt", ".env.example", "docs/crate.md", "docs/google-cloud-setup.md", "docs/production.md", "docs/tools.md", "Dockerfile", ".dockerignore", "deploy/kubernetes.yaml", "deploy/gateway.yaml", "skills/mcp-gmap/SKILL.md", "skills/mcp-gmap/agents/openai.yaml", "skills/mcp-gmap/references/cli.md", "skills/mcp-gmap/references/tool-selection.md", "skills/mcp-gmap/references/service-limits.md", "docs/service-research/coverage.md"}
     seen = set()
     with tarfile.open(path, "r:gz") as archive:
         for member in archive.getmembers():

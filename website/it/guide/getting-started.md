@@ -1,6 +1,12 @@
 # Primi passi
 
-Un solo eseguibile Rust offre 23 strumenti Google Maps attraverso CLI, MCP stdio e MCP Streamable HTTP. Non richiede un runtime JavaScript né un plugin per l'assistente dopo l'installazione.
+Questo manuale include i 42 strumenti del sorgente attuale. Il pacchetto v0.3.1 pubblicato contiene 23 strumenti. Compila questa copia del repository per usare le novità; installare v0.3.1 non le include.
+
+Dalla copia locale del repository:
+
+```sh
+cargo install --path . --locked
+```
 
 ## Installare
 

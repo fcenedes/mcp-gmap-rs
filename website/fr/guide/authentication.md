@@ -98,3 +98,23 @@ kubectl set env deployment/mcp-gmap-rs --namespace default \
 Ces commandes supposent un compte IAM et un cluster dans le même projet, le manifeste dans `default` et la fonctionnalité activée sur le cluster/pool. Adaptez les projets et namespaces. Ne définissez pas `GOOGLE_APPLICATION_CREDENTIALS` pour le flux via métadonnées GKE. Voir le [guide Google Workload Identity](https://docs.cloud.google.com/kubernetes-engine/docs/how-to/workload-identity).
 
 Pour vérifier OAuth, appelez un outil compatible comme `mcp-gmap-rs --auth-mode oauth search-places --query 'coffee in Paris'`. L’appel est facturable. Le projet OAuth provient de `GOOGLE_CLOUD_QUOTA_PROJECT`, tandis que les appels par clé sont imputés au projet de cette clé ; ces projets peuvent différer.
+
+
+## Services supplémentaires et limites {#expanded-services}
+
+Solar et Map Tiles acceptent aussi OAuth. Datasets et Route Optimization exigent OAuth et les autorisations IAM propres aux opérations. Street View Publish exige un fichier authorized_user explicite et le consentement au scope streetviewpublish.
+
+| Service | API | Authentification |
+| --- | --- | --- |
+| Geolocation API | `geolocation.googleapis.com` | Clé API |
+| Solar API | `solar.googleapis.com` | Clé API / OAuth |
+| Aerial View API | `aerialview.googleapis.com` | Clé API |
+| Map Tiles API | `tile.googleapis.com` | Clé API / OAuth |
+| Street View Static API | `street-view-image-backend.googleapis.com` | Clé API |
+| Maps Platform Datasets API | `mapsplatformdatasets.googleapis.com` | OAuth / IAM |
+| Route Optimization API | `routeoptimization.googleapis.com` | OAuth / IAM |
+| Street View Publish API | `streetviewpublish.googleapis.com` | OAuth utilisateur avec consentement ; compte de service refusé |
+
+Speed Limits exige un accès Asset Tracking restreint. Aerial View est limité aux adresses américaines prises en charge et interdit le téléchargement ou la mise en cache des vidéos. Map Tiles est réservé à la visualisation : analyse automatique et extraction interdites. Les outils Weather minute/map sont expérimentaux, avec une limite de cache d’une heure et des restrictions d’usage. Les références de chaque outil détaillent les conditions, l’attribution et les limites.
+
+[Google: Speed Limits](https://developers.google.com/maps/documentation/roads/speed-limits), [Map Tiles](https://developers.google.com/maps/documentation/tile/policies), [Aerial View](https://developers.google.com/maps/documentation/aerial-view/policies), [Street View Publish](https://developers.google.com/streetview/publish/authorizing).

@@ -194,10 +194,46 @@ the matching count is at most 100. It does not silently fetch Place Details.
 Pollen requests 1–5 days in a single page; descriptions are opt-in. Snap to Roads
 accepts 2–100 ordered points; Nearest Roads accepts 1–100 independent points.
 Road snapping works best with consecutive points within about 300 metres.
-Speed limits are not exposed by these tools.
+Speed limits use the separate `maps_speed_limits` tool and require restricted
+Asset Tracking access. Enabling Roads alone does not grant this entitlement.
 
 API references: [Address Validation](https://developers.google.com/maps/documentation/address-validation/requests-validate-address),
 [Pollen](https://developers.google.com/maps/documentation/pollen/forecast),
 [Places Aggregate](https://developers.google.com/maps/documentation/places-aggregate/request-parameters),
 [Snap to Roads](https://developers.google.com/maps/documentation/roads/snap),
 [Nearest Roads](https://developers.google.com/maps/documentation/roads/nearest).
+
+
+## Expanded server-side service coverage (unreleased)
+
+The source catalog has 42 tools across 20 server-side API families. The complete
+parameter/operation documentation is in the Tool reference. Native UI/mobile/JS
+SDKs and legacy Directions/Distance Matrix/Places endpoints are not wrapped;
+modern Routes and Places APIs supply their existing use cases.
+
+Solar and Map Tiles also support service-account/ADC OAuth. Datasets and Route
+Optimization require OAuth/IAM; Street View Publish requires end-user OAuth
+(`streetviewpublish` scope) from an explicit authorized_user credential file.
+Neither IAM grants nor a service-account key substitute for user consent.
+
+Datasets, publishing, Aerial render and batch optimization can mutate resources
+and incur charges. MCP discovery marks mixed-operation tools conservatively;
+automatic retries are disabled for writes. Inspect resource status after an
+ambiguous failure before manually resubmitting. `doctor --live` leaves these
+resource/license-specific checks `not_tested` and never publishes or creates jobs.
+
+Binary responses preserve MIME, Cache-Control, ETag, Expires and Last-Modified.
+MCP PNG/JPEG/WebP use image content plus metadata; other binary types use base64
+JSON. CLI `--output` writes raw bytes. Each upstream response is bounded to
+16 MiB, decoded publishing uploads to 8 MiB, and CLI/HTTP request JSON to 12 MiB.
+These are executable bounds, not Google's product maximums. Pagination and job
+polling are explicit; no automatic unbounded downloads or loops are performed.
+
+Provider content limits apply independently of this repository's MIT license:
+Map Tiles permits visualization and excludes machine interpretation/image
+analysis/geodata extraction; do not feed tiles to an agent vision model. Aerial
+View covers supported US addresses and prohibits downloading/storing/caching
+videos. Solar coverage and EEA content differ. Minute weather forecasts and map
+tiles are experimental/pre-GA, have attribution/cache restrictions and cannot be
+used to recreate a primary-purpose weather app/model. Preserve all Google,
+provider and user attribution. The tool descriptions include primary policy links.

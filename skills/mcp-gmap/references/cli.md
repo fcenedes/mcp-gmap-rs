@@ -33,7 +33,10 @@ mcp-gmap-rs static-map --center '48.8584,2.2945' --zoom 14 --output area.png
 
 Object/array flags take JSON. Boolean flags accept `true`/`false`; a bare boolean
 flag means `true`. Inspect `COMMAND --help` for available flags. `--output` writes
-JSON for ordinary tools and raw PNG for `static-map`.
+JSON for ordinary tools and raw bytes for binary tools (PNG/JPEG/WebP/TIFF,
+dataset source or 3D content). Binary stdout JSON includes MIME/base64/cache
+metadata. Input JSON is bounded to 12 MiB; decoded uploads to 8 MiB; upstream
+responses to 16 MiB.
 
 CLI success writes JSON to stdout. Errors go to stderr with a nonzero exit code.
 Batch/composite JSON can contain per-item errors even on exit 0. `doctor` is a
@@ -55,8 +58,13 @@ the process's working directory.
 | MCP client authentication | Configured by the MCP host; remote clients send the server's `MCP_HTTP_TOKEN` as a bearer token |
 
 In this implementation OAuth covers Places (New), Routes, Weather and Air Quality,
-plus Address Validation and Places Aggregate when available. Geocoding v3,
-Elevation, Time Zone, Static Maps, Pollen and Roads use the API key. Named-location
+plus Address Validation, Places Aggregate, Solar and Map Tiles when available.
+Datasets and Route Optimization require OAuth/IAM. Street View Publish needs
+an explicit authorized_user credential JSON and user consent for the
+`streetviewpublish` scope; service-account credentials cannot publish user photos.
+Geocoding v3,
+Elevation, Time Zone, Static Maps, Pollen, Roads, Geolocation, Aerial View and
+Street View Static use the API key. Named-location
 resolution and some composite flows can therefore require both credential types.
 Do not infer that every enabled Google API supports this executable's OAuth path.
 OAuth failures never silently fall back to a key.
@@ -75,6 +83,8 @@ mcp-gmap-rs doctor
 
 Default doctor is offline. Read `checks[].status` (`pass`, `fail`, `not_tested`)
 and the command's exit status. It checks local configuration, not live API access.
+Service-specific resource, license and user-consent checks remain `not_tested`;
+live doctor does not create jobs, publish or delete data.
 ADC discovery may remain `not_tested`; `/health` is only process liveness.
 
 Use `doctor --live` only when live access diagnosis is in scope: it issues

@@ -138,3 +138,23 @@ cargo test --locked --test live live_oauth_ -- --ignored --test-threads=1
 | API 密钥 IP 被拒绝 | 限制应匹配服务器或集群的公网出口 IP。 |
 | 令牌超时 | 允许访问 Google 令牌/STS/IAM 端点或工作负载元数据服务器，并检查 `GOOGLE_MAPS_TIMEOUT`。 |
 | 此 MCP 服务器返回 HTTP `401` | 发送其 `MCP_HTTP_TOKEN`；Google 服务账号令牌验证的是独立的出站连接。 |
+
+
+## 新增服务与限制 {#expanded-services}
+
+Solar 和 Map Tiles 也支持 OAuth。Datasets 与 Route Optimization 需要 OAuth 及对应操作的 IAM 权限。Street View Publish 必须使用明确指定的 authorized_user 凭据文件，并获得 streetviewpublish 范围的用户同意。
+
+| 服务 | API | 身份验证 |
+| --- | --- | --- |
+| Geolocation API | `geolocation.googleapis.com` | API 密钥 |
+| Solar API | `solar.googleapis.com` | API 密钥 / OAuth |
+| Aerial View API | `aerialview.googleapis.com` | API 密钥 |
+| Map Tiles API | `tile.googleapis.com` | API 密钥 / OAuth |
+| Street View Static API | `street-view-image-backend.googleapis.com` | API 密钥 |
+| Maps Platform Datasets API | `mapsplatformdatasets.googleapis.com` | OAuth / IAM |
+| Route Optimization API | `routeoptimization.googleapis.com` | OAuth / IAM |
+| Street View Publish API | `streetviewpublish.googleapis.com` | 需用户同意的 OAuth；不接受服务账号 |
+
+Speed Limits 需要受限的 Asset Tracking 授权。Aerial View 仅支持特定美国地址，禁止下载或缓存视频。Map Tiles 仅供可视化展示，禁止机器分析和数据提取。Weather 分钟预报和地图工具属于实验功能，缓存最多一小时，并有额外使用限制。各工具参考页列出详细条款、署名要求和限制。
+
+[Google: Speed Limits](https://developers.google.com/maps/documentation/roads/speed-limits), [Map Tiles](https://developers.google.com/maps/documentation/tile/policies), [Aerial View](https://developers.google.com/maps/documentation/aerial-view/policies), [Street View Publish](https://developers.google.com/streetview/publish/authorizing).

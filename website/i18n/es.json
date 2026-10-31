@@ -2,7 +2,7 @@
   "label": "Español",
   "lang": "es",
   "dir": "ltr",
-  "description": "El manual completo de la CLI y servidor MCP Google Maps autónomo en Rust. Configuración, OAuth, 23 herramientas, TLS y Kubernetes.",
+  "description": "El manual completo de la CLI y servidor MCP Google Maps autónomo en Rust. Configuración, OAuth, 42 herramientas, TLS y Kubernetes.",
   "homeTitle": "El manual de campo",
   "sidebarIntro": "Su atlas de posibilidades.",
   "eyebrow": "EL MANUAL",
@@ -61,7 +61,7 @@
     "Resolución de problemas",
     "Skill para agentes",
     "Desarrollo y releases",
-    "Las 23 herramientas",
+    "Las 42 herramientas",
     "Todos los ajustes"
   ],
   "landing": {
@@ -86,7 +86,7 @@
     "httpText": "Streamable HTTP, TLS y mTLS nativos. Preparado para contenedores y Kubernetes.",
     "catalog": "02 / LAS HERRAMIENTAS",
     "toolsTitle": "Un mundo de respuestas.",
-    "toolsIntro": "23 herramientas. Desde el detalle de una calle hasta las condiciones locales. Cada parámetro, valor predeterminado y ejemplo está documentado.",
+    "toolsIntro": "42 herramientas. Desde el detalle de una calle hasta las condiciones locales. Cada parámetro, valor predeterminado y ejemplo está documentado.",
     "search": "Filtrar herramientas",
     "count": "herramientas",
     "all": "Todas",
@@ -118,7 +118,7 @@
   },
   "reference": {
     "title": "Referencia de herramientas",
-    "intro": "Las 23 herramientas, con cada parámetro, valor predeterminado, restricción y ejemplo. La misma interfaz está disponible mediante MCP y CLI.",
+    "intro": "Las 42 herramientas, con cada parámetro, valor predeterminado, restricción y ejemplo. La misma interfaz está disponible mediante MCP y CLI.",
     "calling": "Convenciones de llamada",
     "cli": "Comando CLI",
     "access": "Acceso Google",
@@ -142,8 +142,10 @@
       "Solo los parámetros de primer nivel tienen opciones CLI. Pase objetos anidados y arrays como JSON. Una opción booleana sin valor significa `true`; `--flag false` establece `false`. Se rechazan las propiedades desconocidas. Examine su versión instalada con `tools` o `schema TOOL`.",
       "La autenticación Google y el idioma se configuran por proceso, no como parámetros de herramienta. Las coordenadas exactas evitan resolver direcciones; los lugares con nombre pueden necesitar además una clave API de Geocoding. Consulte [autenticación](../guide/authentication) y [configuración](../guide/configuration).",
       "Las llamadas pueden generar cargos Google. Los resultados compuestos y matriciales pueden contener errores por elemento aunque la herramienta termine correctamente. Conserve enlaces Google, autores de reseñas/fotos y avisos de resúmenes IA. Los ejemplos ilustran entradas, no garantizan resultados o cobertura actuales.",
-      "Los tipos, campos obligatorios y límites proceden de la referencia derivada de esquemas del ejecutable. Los valores predeterminados, resultados y restricciones entre campos se revisan contra la implementación. Google puede imponer más límites de cobertura y cuota."
-    ]
+      "Los tipos, campos obligatorios y límites proceden de la referencia derivada de esquemas del ejecutable. Los valores predeterminados, resultados y restricciones entre campos se revisan contra la implementación. Google puede imponer más límites de cobertura y cuota.",
+      "Se rechazan las propiedades desconocidas del primer nivel; los cuerpos nativos de la API admiten campos de Google, que valida Google. Las operaciones de modificación no se reintentan automáticamente."
+    ],
+    "sources": "Fuentes primarias"
   },
   "typeTranslations": {
     "array of string": "array de cadenas",

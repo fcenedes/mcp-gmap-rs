@@ -1,6 +1,12 @@
 # Démarrage rapide
 
-Un seul exécutable Rust donne accès à Google Maps en ligne de commande, en MCP stdio ou en MCP Streamable HTTP. Les trois interfaces partagent les mêmes 23 outils et les mêmes contrôles. Aucun environnement Node.js, Python ou module spécifique à un assistant n’est nécessaire pour exécuter le programme.
+Ce manuel couvre les 42 outils du code source actuel. Le paquet v0.3.1 publié contient 23 outils. Compilez ce dépôt pour utiliser les nouveautés ; installer v0.3.1 ne les ajoute pas.
+
+Depuis le dépôt cloné :
+
+```sh
+cargo install --path . --locked
+```
 
 ## Installer
 

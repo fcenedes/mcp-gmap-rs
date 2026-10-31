@@ -44,6 +44,10 @@
       "enableUspsCass": {
         "description": "USPS CASS 処理を要求します。この実装では true の場合 regionCode が US または PR である必要があります。",
         "default": "false"
+      },
+      "sessionToken": {
+        "description": "任意の呼び出し元管理 Autocomplete セッショントークン。URL 安全 ASCII 最大 36 文字。先行する候補要求と同じ値で適格セッションを終了。同じ Cloud プロジェクトの認証を使い、終了後は新規トークンにします。",
+        "default": "未指定。Autocomplete セッションを終了しない"
       }
     },
     "result": "通常 `result.verdict`、`result.address`、`result.geocode`、`responseId` を含む完全な検証応答です。利用できない項目は省略される場合があります。",
@@ -411,6 +415,10 @@
       "maxPhotos": {
         "description": "実行する写真メディア URL 検索の最大数。",
         "default": "0"
+      },
+      "sessionToken": {
+        "description": "任意の呼び出し元管理 Autocomplete セッショントークン。URL 安全 ASCII 最大 36 文字。先行する候補要求と同じ値で適格セッションを終了。同じ Cloud プロジェクトの認証を使い、終了後は新規トークンにします。",
+        "default": "未指定。Autocomplete セッションを終了しない"
       }
     },
     "result": "要求したフィールドマスクに対応するネイティブ Google Place オブジェクト。写真要求時の `photoUrls` はメディア URL、写真著者の帰属、ソースリンクを含みます。",
@@ -937,5 +945,1197 @@
     ],
     "authentication": "主 API は API キーまたは OAuth に対応します。",
     "summary": "1–3 キーワードの検索順位を地理グリッドで測り、ARP・ATRP・SoLV と点別エラーを返します。"
+  },
+  "maps_speed_limits": {
+    "purpose": "GPS 経路または Roads 区間 ID から自動車の掲示速度制限を取得。Asset Tracking 許諾が必要で、Roads 有効化だけでは利用不可。",
+    "parameters": {
+      "path": {
+        "description": "GPS 座標 1〜100 点。roadPlaceIds と排他。Google は先に経路を道路へ補正。",
+        "default": "未指定"
+      },
+      "path[].latitude": {
+        "description": "WGS84 緯度、−90〜90 度。",
+        "default": "各経路点で必須"
+      },
+      "path[].longitude": {
+        "description": "WGS84 経度、−180〜180 度。",
+        "default": "各経路点で必須"
+      },
+      "roadPlaceIds": {
+        "description": "道路補正・近傍道路が返す区間 ID を 1〜100 件。通常の店舗 ID には制限情報がない場合あり。path と排他。",
+        "default": "未指定"
+      },
+      "units": {
+        "description": "速度単位。KPH（km/時）または MPH（マイル/時）。",
+        "default": "KPH"
+      }
+    },
+    "result": "speedLimits、任意の snappedPoints、警告、メタデータを含む完全なネイティブ応答。",
+    "example": {
+      "roadPlaceIds": [
+        "ChIJs5ydyTiuEmsR0fRSlU0C7k0"
+      ],
+      "units": "KPH"
+    },
+    "notes": [
+      "Asset Tracking 権限が必要。移行済み Premium プロジェクトの一部は権限を保持。一般の課金アカウントは許諾を意味しません。https://developers.google.com/maps/documentation/roads/speed-limits",
+      "返される speedLimits ごとに課金され、1 要求で複数件になる場合あり。可変制限は自動車の最大値。リアルタイムではなく欠損・推定・陳腐化の可能性があり、現地標識を優先。",
+      "403 は秘匿処理後の Google 理由とアクセスの手掛かりを保持。API・キー制約・権限も原因になるため、すべてを許諾エラーとは判定しません。"
+    ],
+    "authentication": "この実装は API キーを使用。OAuth モードでも、このエンドポイントにはキーが必要。",
+    "summary": "GPS 経路または Roads 区間 ID から自動車の掲示速度制限を取得。Asset Tracking 許諾が必要で、Roads 有効化だけでは利用不可。"
+  },
+  "maps_autocomplete": {
+    "purpose": "入力中の Places API (New) 地点・検索語候補を取得。位置優先・制限、種別、カーソル位置、呼び出し元管理の課金セッションに対応。",
+    "parameters": {
+      "input": {
+        "description": "空でない検索文字列。場所名・住所の一部も可。",
+        "default": "—"
+      },
+      "locationBias": {
+        "description": "円または矩形の周辺を優先。範囲外も可。locationRestriction と排他。",
+        "default": "位置指定がどちらもなければ Google の IP 優先"
+      },
+      "locationRestriction": {
+        "description": "円または矩形内に結果を制限。locationBias と排他。",
+        "default": "位置指定がどちらもなければ Google の IP 優先"
+      },
+      "includedPrimaryTypes": {
+        "description": "主要種別を最大 5 件。(cities)・(regions) は単独指定。",
+        "default": "すべての種別"
+      },
+      "includedRegionCodes": {
+        "description": "2 文字 CLDR 地域コード最大 15 件。位置制限との共通範囲。空配列は制限なし。",
+        "default": "すべての地域"
+      },
+      "languageCode": {
+        "description": "希望する IETF BCP-47 応答言語。複数言語が混ざる場合あり。",
+        "default": "設定済み GOOGLE_MAPS_LANGUAGE"
+      },
+      "regionCode": {
+        "description": "書式・順位用の 2 文字 CLDR 地域。地域内への制限ではありません。",
+        "default": "未指定"
+      },
+      "origin": {
+        "description": "直線距離 distanceMeters の基準座標。",
+        "default": "距離は省略"
+      },
+      "origin.latitude": {
+        "description": "WGS84 緯度、−90〜90 度。",
+        "default": "origin 指定時に必須"
+      },
+      "origin.longitude": {
+        "description": "WGS84 経度、−180〜180 度。",
+        "default": "origin 指定時に必須"
+      },
+      "inputOffset": {
+        "description": "0 始まりの Unicode 文字位置。input の文字数以下。",
+        "default": "入力の末尾"
+      },
+      "includeQueryPredictions": {
+        "description": "地点候補に加えて検索語候補も返す。",
+        "default": "false"
+      },
+      "sessionToken": {
+        "description": "呼び出し元が生成する URL 安全トークン。ASCII 最大 36 文字。セッションごとに新しい UUID v4 を推奨。終了時の details/validate-address にも渡す。",
+        "default": "セッション集約なし、要求単位課金"
+      },
+      "includePureServiceAreaBusinesses": {
+        "description": "公開店舗を持たず、訪問・配達でサービスを行う事業者を含む。",
+        "default": "false"
+      },
+      "includeFutureOpeningBusinesses": {
+        "description": "今後開業予定の事業者を含む。",
+        "default": "false"
+      },
+      "locationBias.circle": {
+        "description": "円形範囲。rectangle と排他。",
+        "default": "未指定"
+      },
+      "locationBias.circle.center": {
+        "description": "円の中心の WGS84 座標。",
+        "default": "circle 指定時に必須"
+      },
+      "locationBias.circle.center.latitude": {
+        "description": "中心緯度、−90〜90 度。",
+        "default": "center 指定時に必須"
+      },
+      "locationBias.circle.center.longitude": {
+        "description": "中心経度、−180〜180 度。",
+        "default": "center 指定時に必須"
+      },
+      "locationBias.circle.radius": {
+        "description": "半径は最大 50,000 m。locationRestriction では正数が必要。",
+        "default": "circle 指定時に必須"
+      },
+      "locationBias.rectangle": {
+        "description": "緯度経度の閉じた表示範囲。circle と排他。日付変更線越えに対応。",
+        "default": "未指定"
+      },
+      "locationBias.rectangle.low": {
+        "description": "南西端の境界。",
+        "default": "rectangle 指定時に必須"
+      },
+      "locationBias.rectangle.low.latitude": {
+        "description": "南端緯度は北端以下。",
+        "default": "境界指定時に必須"
+      },
+      "locationBias.rectangle.low.longitude": {
+        "description": "西端経度。東端より大きければ日付変更線を横断。",
+        "default": "境界指定時に必須"
+      },
+      "locationBias.rectangle.high": {
+        "description": "北東端の境界。",
+        "default": "rectangle 指定時に必須"
+      },
+      "locationBias.rectangle.high.latitude": {
+        "description": "北端緯度は南端以上。",
+        "default": "境界指定時に必須"
+      },
+      "locationBias.rectangle.high.longitude": {
+        "description": "東端経度。西端より小さければ日付変更線を横断。",
+        "default": "境界指定時に必須"
+      },
+      "locationRestriction.circle": {
+        "description": "円形範囲。rectangle と排他。",
+        "default": "未指定"
+      },
+      "locationRestriction.circle.center": {
+        "description": "円の中心の WGS84 座標。",
+        "default": "circle 指定時に必須"
+      },
+      "locationRestriction.circle.center.latitude": {
+        "description": "中心緯度、−90〜90 度。",
+        "default": "center 指定時に必須"
+      },
+      "locationRestriction.circle.center.longitude": {
+        "description": "中心経度、−180〜180 度。",
+        "default": "center 指定時に必須"
+      },
+      "locationRestriction.circle.radius": {
+        "description": "半径は最大 50,000 m。locationRestriction では正数が必要。",
+        "default": "circle 指定時に必須"
+      },
+      "locationRestriction.rectangle": {
+        "description": "緯度経度の閉じた表示範囲。circle と排他。日付変更線越えに対応。",
+        "default": "未指定"
+      },
+      "locationRestriction.rectangle.low": {
+        "description": "南西端の境界。",
+        "default": "rectangle 指定時に必須"
+      },
+      "locationRestriction.rectangle.low.latitude": {
+        "description": "南端緯度は北端以下。",
+        "default": "境界指定時に必須"
+      },
+      "locationRestriction.rectangle.low.longitude": {
+        "description": "西端経度。東端より大きければ日付変更線を横断。",
+        "default": "境界指定時に必須"
+      },
+      "locationRestriction.rectangle.high": {
+        "description": "北東端の境界。",
+        "default": "rectangle 指定時に必須"
+      },
+      "locationRestriction.rectangle.high.latitude": {
+        "description": "北端緯度は南端以上。",
+        "default": "境界指定時に必須"
+      },
+      "locationRestriction.rectangle.high.longitude": {
+        "description": "東端経度。西端より小さければ日付変更線を横断。",
+        "default": "境界指定時に必須"
+      }
+    },
+    "result": "suggestions、文字列一致、地点・検索語候補、利用可能な distanceMeters を保持。",
+    "example": {
+      "input": "coffee near Paris",
+      "sessionToken": "550e8400-e29b-41d4-a716-446655440000",
+      "includedRegionCodes": [
+        "FR"
+      ],
+      "locationBias": {
+        "circle": {
+          "center": {
+            "latitude": 48.8566,
+            "longitude": 2.3522
+          },
+          "radius": 5000
+        }
+      },
+      "includeQueryPredictions": true
+    },
+    "notes": [
+      "トークンは呼び出し元が管理。自動作成・終了なし。同じ Cloud プロジェクトの認証で、適格な Place Details/Address Validation により終了し、次回は新規トークン。省略・再利用は要求単位課金の場合あり。",
+      "円は最大 50 km、制限円は正の半径。矩形緯度は順序付きで日付変更線越え可。表示時の Google・提供元の帰属表示を保持。EEA 条件・項目は異なる場合あり。https://developers.google.com/maps/documentation/places/web-service/reference/rest/v1/places/autocomplete"
+    ],
+    "authentication": "API キーまたは cloud-platform スコープの OAuth。サービスアカウントには API 有効化とクォータ側の serviceusage.services.use も必要。",
+    "summary": "入力中の Places API (New) 地点・検索語候補を取得。位置優先・制限、種別、カーソル位置、呼び出し元管理の課金セッションに対応。"
+  },
+  "maps_geolocate": {
+    "purpose": "ネイティブの基地局・WiFi 観測から位置を推定し、サーバー出口 IP へのフォールバックも選択可能。",
+    "parameters": {
+      "body": {
+        "description": "ネイティブ本文。homeMobileCountryCode、homeMobileNetworkCode、radioType（gsm/cdma/wcdma/lte/nr）、carrier、considerIp、cellTowers、wifiAccessPoints、方式固有の cellId/newRadioCellId・信号情報。空オブジェクトはサーバー IP フォールバックを許可。",
+        "default": "—"
+      }
+    },
+    "result": "ネイティブ location と accuracy（m）。Google エラーを保持。推定位置は厳密な測位ではありません。",
+    "example": {
+      "body": {
+        "considerIp": false,
+        "wifiAccessPoints": [
+          {
+            "macAddress": "00:25:9c:cf:1c:ac",
+            "signalStrength": -43
+          },
+          {
+            "macAddress": "00:25:9c:cf:1c:ad",
+            "signalStrength": -55
+          }
+        ]
+      }
+    },
+    "notes": [
+      "Google の既定は considerIp=true。対象は実行環境の出口 IP で、エージェント利用者ではありません。false で禁止。ネストした通信仕様は Google が検証。https://developers.google.com/maps/documentation/geolocation/requests-geolocation",
+      "WiFi は異なる固定アクセスポイントが最低 2 つ必要。ローカル管理・予約 MAC、移動ホットスポットでは結果がない場合あり。NOT_FOUND の可能性があるため accuracy を確認。"
+    ],
+    "authentication": "この実装は API キーを使用。OAuth モードでも、このエンドポイントにはキーが必要。",
+    "summary": "ネイティブの基地局・WiFi 観測から位置を推定し、サーバー出口 IP へのフォールバックも選択可能。"
+  },
+  "maps_solar": {
+    "purpose": "建物の太陽光発電ポテンシャル・地域レイヤー、または Google が返す ID の実際の GeoTIFF を取得。",
+    "parameters": {
+      "operation": {
+        "description": "building_insights、data_layers、geo_tiff。操作に関連する引数のみ許可。",
+        "default": "—"
+      },
+      "location": {
+        "description": "建物検索・データレイヤーの中心。building_insights/data_layers に必須。",
+        "default": "未指定"
+      },
+      "location.latitude": {
+        "description": "WGS84 緯度、−90〜90 度。",
+        "default": "location 指定時に必須"
+      },
+      "location.longitude": {
+        "description": "WGS84 経度、−180〜180 度。",
+        "default": "location 指定時に必須"
+      },
+      "requiredQuality": {
+        "description": "最低画像品質。HIGH、MEDIUM、BASE。BASE は拡張衛星画像で、提供地域は異なる。",
+        "default": "HIGH（Google 既定）"
+      },
+      "exactQualityRequired": {
+        "description": "指定した品質に完全一致させ、上位品質を許可しない。",
+        "default": "false"
+      },
+      "experiments": {
+        "description": "任意の EXPANDED_COVERAGE。Google では pre-GA 扱い。",
+        "default": "実験指定なし"
+      },
+      "additionalInsights": {
+        "description": "building_insights で DETECTED_ARRAYS を指定し、検出済み屋根上太陽光パネルを取得。",
+        "default": "追加分析なし"
+      },
+      "radiusMeters": {
+        "description": "data_layers に必須の正半径。最大 1000 m。100 m 超は pixelSizeMeters×1000 以下、175 m 超は月別日射・時間別影を含まない view が必要。",
+        "default": "未指定"
+      },
+      "view": {
+        "description": "レイヤー選択：DSM_LAYER、IMAGERY_LAYERS、IMAGERY_AND_ANNUAL_FLUX_LAYERS、IMAGERY_AND_ALL_FLUX_LAYERS、FULL_LAYERS。",
+        "default": "FULL_LAYERS（Google 既定）"
+      },
+      "pixelSizeMeters": {
+        "description": "最小ピクセル尺度。0.1、0.25、0.5、1.0 m。レイヤー固有の解像度は粗い場合あり。",
+        "default": "0.1"
+      },
+      "id": {
+        "description": "返却された Solar URL の id パラメーター。geo_tiff に必須。URL ではなく ID のみ指定。",
+        "default": "geo_tiff で必須"
+      }
+    },
+    "result": "完全なネイティブの分析・レイヤー JSON。geo_tiff は MIME・キャッシュ情報付きラスター。",
+    "example": {
+      "operation": "data_layers",
+      "location": {
+        "latitude": 37.444,
+        "longitude": -122.16
+      },
+      "radiusMeters": 100,
+      "view": "IMAGERY_AND_ANNUAL_FLUX_LAYERS"
+    },
+    "notes": [
+      "地域ごとに範囲・品質が異なり、約 50 m 内に建物がなければ NOT_FOUND。レイヤー URL は一時的で認証必須。geo_tiff は solar.googleapis.com の固定エンドポイントのみ。https://developers.google.com/maps/documentation/solar/coverage",
+      "GeoTIFF は 16 MiB・ツール時間制限内。大きい画像は半径縮小・ピクセル粗化が必要。EXPANDED_COVERAGE は pre-GA。EEA では項目・条件が異なる場合あり。各端点に課金、表示には帰属表示が必要。設置設計は対象外。"
+    ],
+    "authentication": "API キーまたは cloud-platform スコープの OAuth。サービスアカウントには API 有効化とクォータ側の serviceusage.services.use も必要。",
+    "summary": "建物の太陽光発電ポテンシャル・地域レイヤー、または Google が返す ID の実際の GeoTIFF を取得。"
+  },
+  "maps_aerial_view": {
+    "purpose": "米国の対応住所について Aerial View の状態・メタデータ・一時的再生 URL を取得。",
+    "parameters": {
+      "operation": {
+        "description": "lookup は再生 URL とメタデータ（課金）、metadata はメタデータのみ（Google 無料メソッド）。",
+        "default": "lookup"
+      },
+      "address": {
+        "description": "対応する米国住所。videoId とどちらか 1 つ。",
+        "default": "未指定"
+      },
+      "videoId": {
+        "description": "以前返された動画 ID。address とどちらか 1 つ。",
+        "default": "未指定"
+      }
+    },
+    "result": "処理状態・動画情報・形式/解像度別の再生 URI。metadata は再生 URI を含みません。",
+    "example": {
+      "operation": "metadata",
+      "address": "600 Montgomery St, San Francisco, CA 94111"
+    },
+    "notes": [
+      "3D 提供範囲の米国住所のみ。未作成は NOT_FOUND。作成は明示的な maps_render_aerial_video。処理中は適切な間隔で metadata を照会。lookup 自体が課金イベント。",
+      "再生 URL は短時間で失効するため表示ごとに取得。動画のダウンロード・保存・キャッシュは禁止。動画 ID のみ文書上の例外あり。帰属表示を維持。EEA 条件は異なる場合あり。https://developers.google.com/maps/documentation/aerial-view/policies"
+    ],
+    "authentication": "この実装は API キーを使用。OAuth モードでも、このエンドポイントにはキーが必要。",
+    "summary": "米国の対応住所について Aerial View の状態・メタデータ・一時的再生 URL を取得。"
+  },
+  "maps_render_aerial_video": {
+    "purpose": "対応する米国住所の Aerial View 動画生成を明示的にキューへ登録。",
+    "parameters": {
+      "address": {
+        "description": "生成対象の対応する米国住所。",
+        "default": "—"
+      }
+    },
+    "result": "ネイティブの生成応答。PROCESSING は待機・処理中。既存動画は即時 ACTIVE の場合あり。",
+    "example": {
+      "address": "600 Montgomery St, San Francisco, CA 94111"
+    },
+    "notes": [
+      "生成キューを変更します。自動再試行・完了待ち・動画ダウンロードはしません。maps_aerial_view の metadata で進捗確認し、再生時に lookup。",
+      "米国・3D の範囲、割当、利用条件が適用。有効化済みでも生成できるとは限りません。動画のダウンロード・保存・キャッシュは禁止、帰属表示が必要。https://developers.google.com/maps/documentation/aerial-view/reference/rest/v1/videos/renderVideo"
+    ],
+    "authentication": "この実装は API キーを使用。OAuth モードでも、このエンドポイントにはキーが必要。",
+    "summary": "対応する米国住所の Aerial View 動画生成を明示的にキューへ登録。"
+  },
+  "maps_map_tiles": {
+    "purpose": "適切な地図可視化用に Google 2D・3D・Street View タイル、セッション、帰属メタデータを取得。",
+    "parameters": {
+      "operation": {
+        "description": "create_session、tile_2d、viewport、root_3d、resource_3d、streetview_pano_ids、streetview_metadata、streetview_thumbnail、streetview_tile。操作ごとに端点・必須引数が異なります。",
+        "default": "—"
+      },
+      "sessionOptions": {
+        "description": "create_session に必須のネイティブ設定。mapType、language、region が必須。",
+        "default": "未指定。該当操作では必須"
+      },
+      "sessionOptions.mapType": {
+        "description": "roadmap、satellite、terrain、streetview。terrain は layerTypes に layerRoadmap が必要。",
+        "default": "未指定。該当操作では必須"
+      },
+      "sessionOptions.language": {
+        "description": "IETF 言語タグ。例：en-US。",
+        "default": "未指定。該当操作では必須"
+      },
+      "sessionOptions.region": {
+        "description": "利用者の物理的位置を表す大文字 2 文字の CLDR 地域。例：US。",
+        "default": "未指定。該当操作では必須"
+      },
+      "sessionOptions.imageFormat": {
+        "description": "jpeg または png。JPEG は透明オーバーレイ不可。",
+        "default": "Google が最適な形式を選択"
+      },
+      "sessionOptions.scale": {
+        "description": "scaleFactor1x、scaleFactor2x、scaleFactor4x で地図要素の大きさを指定。",
+        "default": "scaleFactor1x"
+      },
+      "sessionOptions.highDpi": {
+        "description": "2x/4x で画素数を増加。1x では効果なし。",
+        "default": "false"
+      },
+      "sessionOptions.overlay": {
+        "description": "true で基底画像を除き layerTypes のみ描画。",
+        "default": "false"
+      },
+      "sessionOptions.layerTypes": {
+        "description": "layerRoadmap、layerStreetview、layerTraffic を 1〜3 件。terrain に layerRoadmap が必須。",
+        "default": "追加レイヤーなし"
+      },
+      "sessionOptions.styles": {
+        "description": "ネイティブのスタイル JSON。roadmap のみ。https://developers.google.com/maps/documentation/tile/style-reference",
+        "default": "Google 既定のスタイル"
+      },
+      "session": {
+        "description": "createSession のトークン。2D・Street View に必須、3D は不要。応答の有効期限を使用。",
+        "default": "未指定。該当操作では必須"
+      },
+      "zoom": {
+        "description": "tile_2d/viewport は 0〜22、streetview_tile は 0〜5。実際の最大値は viewport メタデータで確認。",
+        "default": "未指定。該当操作では必須"
+      },
+      "x": {
+        "description": "タイル列。2D は 2^zoom 未満。Street View はメタデータのパノラマ寸法による。",
+        "default": "未指定。該当操作では必須"
+      },
+      "y": {
+        "description": "タイル行。2D は 2^zoom 未満。Street View はメタデータのパノラマ寸法による。",
+        "default": "未指定。該当操作では必須"
+      },
+      "north": {
+        "description": "viewport の北端緯度。south より大きい値。",
+        "default": "未指定。該当操作では必須"
+      },
+      "south": {
+        "description": "viewport の南端 WGS84 緯度。",
+        "default": "未指定。該当操作では必須"
+      },
+      "east": {
+        "description": "viewport の東端経度。東端が負・西端が正なら日付変更線を横断可能。",
+        "default": "未指定。該当操作では必須"
+      },
+      "west": {
+        "description": "viewport の西端経度。",
+        "default": "未指定。該当操作では必須"
+      },
+      "resourceUrl": {
+        "description": "resource_3d 用の Google 発行 https://tile.googleapis.com/v1/3dtiles/... 絶対 URL。別オリジン・ポート・ユーザー情報・フラグメント・符号化パスは禁止。URL 内のキーを除去し設定済み認証を使用。",
+        "default": "未指定。該当操作では必須"
+      },
+      "panoId": {
+        "description": "streetview_tile/thumbnail に必須。metadata では緯度経度の代わりに指定可。一時 ID でありセッションを超えて安定とは限りません。",
+        "default": "未指定。該当操作では必須"
+      },
+      "latitude": {
+        "description": "streetview_metadata の中心緯度。longitude が必要。panoId と排他。",
+        "default": "未指定。該当操作では必須"
+      },
+      "longitude": {
+        "description": "streetview_metadata の中心経度。latitude が必要。panoId と排他。",
+        "default": "未指定。該当操作では必須"
+      },
+      "locations": {
+        "description": "streetview_pano_ids 用の lat・lng を持つ位置を 1〜100 件。",
+        "default": "未指定。該当操作では必須"
+      },
+      "locations[].lat": {
+        "description": "検索中心の WGS84 緯度。",
+        "default": "未指定。該当操作では必須"
+      },
+      "locations[].lng": {
+        "description": "検索中心の WGS84 経度。",
+        "default": "未指定。該当操作では必須"
+      },
+      "radius": {
+        "description": "パノラマ ID・座標メタデータ検索半径。0〜100000 m。metadata の panoId と同時指定不可。",
+        "default": "50 m"
+      },
+      "width": {
+        "description": "サムネイル幅、16〜600 ピクセル。",
+        "default": "600"
+      },
+      "height": {
+        "description": "サムネイル高さ、16〜250 ピクセル。",
+        "default": "250"
+      },
+      "yaw": {
+        "description": "サムネイルの水平向き、−360〜360 度。",
+        "default": "0"
+      },
+      "pitch": {
+        "description": "サムネイルの垂直向き、−90〜90 度。",
+        "default": "0"
+      },
+      "fov": {
+        "description": "サムネイルの水平視野角、30〜120 度。",
+        "default": "90"
+      }
+    },
+    "result": "セッション・メタデータ・tileset はネイティブ JSON。画像・3D リソースは MIME・キャッシュ情報付き実データ。描画側の実装は利用者が用意。",
+    "example": {
+      "operation": "root_3d"
+    },
+    "notes": [
+      "create_session は Google セッションを作成し自動再試行なし。パノラマ ID は読み取り専用 POST。無関係な引数を拒否。Web・ネイティブ描画や画像結合は提供しません。",
+      "地図可視化のみ。許可のない先読み・索引・保存・キャッシュ・抽出・エージェントでの画像解釈は禁止。Cache-Control、ETag、契約を遵守。https://developers.google.com/maps/documentation/tile/policies",
+      "Google Maps ロゴと提供元帰属表示を保持。2D は viewport copyright、Street View は metadata copyright と問題報告リンク、3D はタイル著作権を表示。隠したり切り落としたりしません。",
+      "範囲・EEA 条件・課金・割当は異なる場合あり。session の expiry を優先し、パノラマ ID は短期有効。オフライン地図・一括取得・キャッシュ・分析は未実装。https://developers.google.com/maps/documentation/tile/session_tokens"
+    ],
+    "authentication": "API キーまたは cloud-platform スコープの OAuth。Map Tiles と課金を有効化。サービスアカウントにはクォータ側 Service Usage 権限が必要。",
+    "summary": "適切な地図可視化用に Google 2D・3D・Street View タイル、セッション、帰属メタデータを取得。"
+  },
+  "maps_streetview": {
+    "purpose": "Street View パノラマのメタデータ、または実際の静止 JPEG を取得。",
+    "parameters": {
+      "operation": {
+        "description": "metadata は JSON、image は JPEG バイト列。",
+        "default": "—"
+      },
+      "location": {
+        "description": "住所、緯度経度文字列（例：48.8584,2.2945）、place_id:PLACE_ID。panoId とどちらか 1 つ。",
+        "default": "未指定。該当操作では必須"
+      },
+      "panoId": {
+        "description": "特定パノラマ ID。location と排他。ID は変わるため元の検索場所を保持。",
+        "default": "未指定。該当操作では必須"
+      },
+      "width": {
+        "description": "image の幅、1〜640 ピクセル。特別アクセスが必要な大画像は未対応。",
+        "default": "640"
+      },
+      "height": {
+        "description": "image の高さ、1〜640 ピクセル。",
+        "default": "400"
+      },
+      "heading": {
+        "description": "画像カメラの方位角、0〜360 度。",
+        "default": "Google が指定位置の方向を選択"
+      },
+      "fov": {
+        "description": "水平視野角、1〜120 度。",
+        "default": "90"
+      },
+      "pitch": {
+        "description": "垂直カメラ角度、−90〜90 度。",
+        "default": "0"
+      },
+      "radius": {
+        "description": "検索半径、整数 0〜100000 m。",
+        "default": "50"
+      },
+      "source": {
+        "description": "default、google、outdoor。提供範囲は地域・コレクション次第。",
+        "default": "default"
+      },
+      "returnErrorCode": {
+        "description": "image で画像がない場合、灰色画像の代わりに HTTP エラーを返す。",
+        "default": "この実装では true"
+      },
+      "signature": {
+        "description": "正確な符号化済み要求の URL 署名。アカウントにより必須。生成はせず転送のみ。 署名付きリクエストでは API キーの後に signature を最後に追加します。生成された既定値も含む、正確にエンコードされたパスとクエリに署名してください。画像の順序：location、radius、source、pano、size、heading、fov、pitch、return_error_code、key。未指定の任意項目は省略し、メタデータは画像項目を含みません。空白は + です。既定値は size=640x400 と return_error_code=true です。",
+        "default": "未指定"
+      }
+    },
+    "result": "metadata はネイティブの状態・パノラマ ID・日付・著作権。image は MIME・キャッシュ情報付き JPEG。",
+    "example": {
+      "operation": "metadata",
+      "location": "Eiffel Tower, Paris, France"
+    },
+    "notes": [
+      "location、panoId のどちらか 1 つ。画像用カメラ・寸法引数は metadata で使用不可。メタデータは現在無料で画像クォータを消費せず、画像は課金。https://developers.google.com/maps/documentation/streetview/metadata",
+      "埋め込みの Google Maps 帰属表示を保持。印刷は禁止、保存・キャッシュ制限が適用。このツールは保持・再配布・分析の権利を付与しません。https://developers.google.com/maps/documentation/streetview/policies",
+      "任意署名の転送のみ。署名鍵管理・特別な大画像は未対応。範囲、EEA 条件、パノラマ ID・撮影日は変わる場合あり。"
+    ],
+    "authentication": "この実装は API キーのみ。OAuth のみでは不可。Street View Static を有効化。Google は署名を推奨し、一部アカウントでは必須。",
+    "summary": "Street View パノラマのメタデータ、または実際の静止 JPEG を取得。"
+  },
+  "maps_streetview_publish": {
+    "purpose": "同意した利用者の Street View 写真・シーケンスを管理。アップロード・公開・メタデータ変更・削除を明示実行。",
+    "parameters": {
+      "operation": {
+        "description": "list、get、start_upload、upload、create、update、delete、batch_get、batch_update、batch_delete、list_sequences、get_sequence、start_sequence_upload、create_sequence、delete_sequence。",
+        "default": "—"
+      },
+      "photoId": {
+        "description": "get/update/delete の写真 ID。リソースパス・URL 引数は含めない。",
+        "default": "未指定。該当操作では必須"
+      },
+      "sequenceId": {
+        "description": "get_sequence/delete_sequence のシーケンス ID。作成時の操作名に含まれます。",
+        "default": "未指定。該当操作では必須"
+      },
+      "photoIds": {
+        "description": "batch_get/batch_delete 用の写真 ID を 1〜100 件。",
+        "default": "未指定。該当操作では必須"
+      },
+      "view": {
+        "description": "list/get/batch_get/get_sequence の BASIC または INCLUDE_DOWNLOAD_URL。ダウンロード URL は機密性のあるユーザーリソースで、本ツールでは取得しません。",
+        "default": "BASIC"
+      },
+      "languageCode": {
+        "description": "list/get/batch_get 写真情報の希望言語。",
+        "default": "Google の既定"
+      },
+      "pageSize": {
+        "description": "list/list_sequences のページ件数 1〜100。Google はこれより少ない場合あり。",
+        "default": "Google サービスの既定"
+      },
+      "pageToken": {
+        "description": "前ページの nextPageToken。全ページ自動取得はしません。",
+        "default": "未指定。該当操作では必須"
+      },
+      "filter": {
+        "description": "list/list_sequences/get_sequence のネイティブ条件式。構文は端点ごとに異なります。",
+        "default": "未指定。該当操作では必須"
+      },
+      "updateMask": {
+        "description": "update に必須のカンマ区切り FieldMask。例：pose.heading、pose.latLngPair。",
+        "default": "未指定。該当操作では必須"
+      },
+      "photo": {
+        "description": "create/update の完全な Photo JSON。create はバイト送信済みの uploadReference.uploadUrl、update は別途 photoId・updateMask が必要。",
+        "default": "未指定。該当操作では必須"
+      },
+      "photoSequence": {
+        "description": "create_sequence のネイティブ PhotoSequence。uploadReference.uploadUrl と形式に応じた GPS/CAMM/IMU・撮影情報が必要。",
+        "default": "未指定。該当操作では必須"
+      },
+      "updatePhotoRequests": {
+        "description": "batch_update の UpdatePhotoRequest を 1〜100 件。各項目に photo.photoId.id、updateMask が必要。",
+        "default": "未指定。該当操作では必須"
+      },
+      "inputType": {
+        "description": "create_sequence に必須。VIDEO または XDM。",
+        "default": "未指定。該当操作では必須"
+      },
+      "uploadUrl": {
+        "description": "start_upload/start_sequence_upload の完全な HTTPS UploadRef。streetviewpublish.googleapis.com/media/user/{account}/photo/{reference} または photoSequence のみ。転送・別オリジン・ユーザー情報・フラグメント・符号化パスは禁止。",
+        "default": "未指定。該当操作では必須"
+      },
+      "dataBase64": {
+        "description": "標準パディング付き base64。復号後 1 バイト〜8 MiB。Google 製品の上限ではなく実装上限。",
+        "default": "未指定。該当操作では必須"
+      },
+      "mimeType": {
+        "description": "upload のメディア形式。image/jpeg、video/mp4、application/octet-stream。",
+        "default": "image/jpeg"
+      }
+    },
+    "result": "ネイティブの写真・シーケンス・一覧・UploadRef・処理操作。バッチは項目別状態を保持。バイトの送信だけでは公開されません。",
+    "example": {
+      "operation": "list",
+      "pageSize": 10,
+      "view": "BASIC"
+    },
+    "notes": [
+      "写真手順：start_upload → upload → create。Photo Sphere/XMP、権利、公開審査の要件を満たす必要。https://developers.google.com/streetview/publish/first-app",
+      "update は PUT と updateMask。Google は画像ピクセル更新を非対応。delete/batch_delete は公開写真を削除。doctor・ライブスモークで書き込み・公開・送信・削除は行いません。",
+      "シーケンス手順：start_sequence_upload → upload → create_sequence → get_sequence。動画は 8 MiB 上限を超える場合が多く、分割・再開可能送信は未対応。大きな媒体は Google 側で先に送信して UploadRef を渡します。",
+      "公開 v1 の写真・シーケンス REST 端点を実装していますが、すべてのネスト項目をライブ検証した意味ではありません。GPS・姿勢・IMU・接続・地点は Google が検証。batch_update は各項目に photo.photoId.id・updateMask が必須。https://developers.google.com/streetview/publish/reference/rest",
+      "アップロードは固定オリジン・サイズ制限付き・再試行なしの POST。変更はすべて自動再試行を無効化し、曖昧な通信失敗による重複公開を防止。プライバシー・所有権・割当・審査に従う必要。提供済みサービスアカウントではライブ検証不可。同意済みの実ユーザー認証が必要。"
+    ],
+    "authentication": "エンドユーザー OAuth のみ。スコープ https://www.googleapis.com/auth/streetviewpublish。authorized_user JSON、OAuth モード、クォータプロジェクトを明示設定。サービスアカウント・暗黙 ADC・API キーのみは拒否。同意済みトークンの更新だけを行い、ブラウザー認可コールバックは提供しません。",
+    "summary": "同意した利用者の Street View 写真・シーケンスを管理。アップロード・公開・メタデータ変更・削除を明示実行。"
+  },
+  "maps_datasets": {
+    "purpose": "Google Maps のデータドリブン スタイル用データセットを管理。既存 Cloud Storage オブジェクトからの非同期取り込みに対応。",
+    "parameters": {
+      "operation": {
+        "description": "list、get、create、update、delete、import、download、fetch_errors。作成・更新・削除・取り込みはクラウドを変更。",
+        "default": "必須"
+      },
+      "parent": {
+        "description": "projects/{プロジェクト ID または番号}。list、create に必須。",
+        "default": "list/create に必須"
+      },
+      "name": {
+        "description": "projects/{project}/datasets/{dataset}。list/create 以外で必須。get のみ @active で最新の完了版を取得可能。",
+        "default": "リソース操作に必須"
+      },
+      "dataset": {
+        "description": "ネイティブ Dataset JSON。全フィールドは Google が検証。create は一意の displayName と usage:[\"USAGE_DATA_DRIVEN_STYLING\"] が必要。update は一致するリソース名を設定。",
+        "default": "create/update に必須"
+      },
+      "gcsSource": {
+        "description": "取り込む既存の Cloud Storage オブジェクト。呼び出し元の読み取り権限が必要。ローカルファイルは読みません。",
+        "default": "import に必須"
+      },
+      "gcsSource.inputUri": {
+        "description": "既存の gs://bucket/object。storage.objects.get（例：Storage Object Viewer）が必要。",
+        "default": "gcsSource 指定時に必須"
+      },
+      "gcsSource.fileFormat": {
+        "description": "形式：FILE_FORMAT_GEOJSON、FILE_FORMAT_KML、FILE_FORMAT_CSV。",
+        "default": "gcsSource 指定時に必須"
+      },
+      "versionDescription": {
+        "description": "新しく取り込むバージョンの説明。import のみ。",
+        "default": "省略"
+      },
+      "updateMask": {
+        "description": "更新するメタデータのパス。カンマ区切り。例：description,displayName。",
+        "default": "Google の既定は *（メタデータ全置換）"
+      },
+      "pageSize": {
+        "description": "1 ページのデータセット・エラー件数。この実装は 1〜500。",
+        "default": "list：100、fetch_errors：Google 既定 50"
+      },
+      "pageToken": {
+        "description": "前回の nextPageToken。他の条件は同じにします。1 回の呼び出しで 1 ページだけ取得します。",
+        "default": "最初のページ"
+      },
+      "tag": {
+        "description": "list で active を指定すると最新の完了版のみを返し、完了版のないものを除外。",
+        "default": "処理状態を問わず最新バージョン"
+      }
+    },
+    "result": "ネイティブのデータセット、一覧、エラー、取り込みバージョン名を返します。ダウンロードは MIME・キャッシュ情報付きバイト列。get は status.state、status.errorMessage、versionId を保持。取り込み応答は処理完了を意味しません。",
+    "example": {
+      "operation": "list",
+      "parent": "projects/my-project",
+      "pageSize": 20
+    },
+    "notes": [
+      "操作ごとに mapsplatformdatasets.datasets.list/get/create/update/delete/import/export が必要。ネイティブの定義：https://developers.google.com/maps/documentation/datasets/reference/rest 。",
+      "GCS 取り込みは非同期で新バージョンを作成。get で状態、fetch_errors でエラーを明示的に確認。自動ポーリングなし。公開 v1 に listVersions はなく、最新・@active・versionId のみ。",
+      "ダウンロードに export 権限が必要。CLI --output で保存可能。現在 API 自体は無料ですが課金設定が必要。地図表示や Cloud Storage は別料金の場合あり。データドリブン スタイル用途のみ。ローカル multipart アップロードは未対応。https://developers.google.com/maps/documentation/datasets/overview"
+    ],
+    "authentication": "OAuth 2.0 のみ。サービスアカウントまたは ADC、スコープ https://www.googleapis.com/auth/cloud-platform。API キー不可。リソース IAM とクォータ側権限は別々に設定。",
+    "summary": "Google Maps のデータドリブン スタイル用データセットを管理。既存 Cloud Storage オブジェクトからの非同期取り込みに対応。"
+  },
+  "maps_route_optimization": {
+    "purpose": "実際の Route Optimization API で車両を最適化。ShipmentModel の容量・時間枠・費用制約を保持。",
+    "parameters": {
+      "operation": {
+        "description": "optimize は同期計算、validate は VALIDATE_ONLY、batch は GCS ジョブ、optimize_long_running・optimize_uri は実験ジョブ作成、get_operation は状態を 1 回取得。",
+        "default": "必須"
+      },
+      "parent": {
+        "description": "projects/{プロジェクト ID}。/locations/- も可。同期・長時間最適化で具体的リージョンは不可。batch/URI はネイティブの位置形式。",
+        "default": "get_operation 以外で必須"
+      },
+      "name": {
+        "description": "Google が返す projects/{project}[/locations/{location}]/operations/{ID}。get_operation 用。",
+        "default": "get_operation に必須"
+      },
+      "request": {
+        "description": "parent を除く完全なネイティブ本文。最適化・検証は model が必要。shipments、vehicles、制約は Google が検証。batch は GCS 入出力 URI と JSON/PROTO_TEXT の dataFormat を持つ modelConfigs を 1〜100 件。URI は .json/.txtpb で終わる gs:// の input.uri/output.uri。",
+        "default": "get_operation 以外で必須"
+      }
+    },
+    "result": "ネイティブ OptimizeToursResponse または長時間 Operation。状態取得は done:false、metadata、完了後の response/error を保持し、失敗を隠しません。",
+    "example": {
+      "operation": "validate",
+      "parent": "projects/my-project",
+      "request": {
+        "model": {
+          "shipments": [],
+          "vehicles": [
+            {
+              "startLocation": {
+                "latitude": 48.85,
+                "longitude": 2.35
+              }
+            }
+          ]
+        },
+        "maxValidationErrors": 10
+      }
+    },
+    "notes": [
+      "ネイティブのモデル・要求定義：https://developers.google.com/maps/documentation/route-optimization/reference/rest/v1/projects/optimizeTours 。validate も Google に接続しますが計算は行いません。",
+      "viewer は OptimizeTours と状態読み取り、editor は batch 作成にも対応。locations.use、operations.create/get と別途 GCS 権限が必要。https://developers.google.com/maps/documentation/route-optimization/cloud-setup",
+      "batch/URI は明示指定された GCS 入出力で課金対象ジョブを作成。ファイル送信・自動ポーリングなし。クライアントのタイムアウトでジョブは取消されません。荷物数・単車/車両群 SKU の課金で、Routes の経由地最適化とは別機能。",
+      "長時間・URI 版は実験機能。URI の大文字小文字は :OptimizeToursUri。Google は現在 cancel/list/delete をサポートせず、get_operation のみ提供。https://developers.google.com/maps/documentation/route-optimization/reference/rest/v1/operations"
+    ],
+    "authentication": "OAuth 2.0 のみ。サービスアカウントまたは ADC、スコープ https://www.googleapis.com/auth/cloud-platform。API キー不可。リソース IAM とクォータ側権限は別々に設定。",
+    "summary": "実際の Route Optimization API で車両を最適化。ShipmentModel の容量・時間枠・費用制約を保持。"
+  },
+  "maps_air_quality_forecast": {
+    "purpose": "指定時刻・期間の最大 96 時間先までの大気質予報を取得。",
+    "parameters": {
+      "location": {
+        "description": "照会する位置の座標。",
+        "default": "必須"
+      },
+      "location.latitude": {
+        "description": "緯度。−90〜90 度。",
+        "default": "location 指定時に必須"
+      },
+      "location.longitude": {
+        "description": "経度。−180〜180 度。",
+        "default": "location 指定時に必須"
+      },
+      "dateTime": {
+        "description": "Z で終わる RFC3339 UTC 時刻。Google は直前の正時に丸めます。period、hours とは同時指定できません。",
+        "default": "時刻指定を 1 種類選択"
+      },
+      "period": {
+        "description": "終了時刻を含む順序付き期間。予報は 96 時間以内、履歴は 720 時間以内。",
+        "default": "時刻指定を 1 種類選択"
+      },
+      "period.startTime": {
+        "description": "期間の開始時刻。正しい RFC3339 UTC Z 形式。",
+        "default": "period 指定時に必須"
+      },
+      "period.endTime": {
+        "description": "期間に含める終了時刻。正しい RFC3339 UTC Z 形式。",
+        "default": "period 指定時に必須"
+      },
+      "pageSize": {
+        "description": "このページの時間別レコード上限。この実装では予報 96、履歴は Google の上限 168。",
+        "default": "Google：予報 24、履歴 72"
+      },
+      "pageToken": {
+        "description": "前回の nextPageToken。他の条件は同じにします。1 回の呼び出しで 1 ページだけ取得します。",
+        "default": "最初のページ"
+      },
+      "universalAqi": {
+        "description": "世界共通の大気質指数を含めるか。",
+        "default": "Google：true"
+      },
+      "languageCode": {
+        "description": "希望する IETF/BCP-47 言語コード。未対応の場合、Google が近い言語を選択します。",
+        "default": "Google：en"
+      },
+      "uaqiColorPalette": {
+        "description": "共通 AQI の配色。RED_GREEN、INDIGO_PERSIAN_DARK、INDIGO_PERSIAN_LIGHT。地域指数の配色は固定。",
+        "default": "Google 既定の配色"
+      },
+      "extraComputations": {
+        "description": "LOCAL_AQI、HEALTH_RECOMMENDATIONS、POLLUTANT_ADDITIONAL_INFO、DOMINANT_POLLUTANT_CONCENTRATION、POLLUTANT_CONCENTRATION を追加。",
+        "default": "追加計算なし"
+      },
+      "customLocalAqis": {
+        "description": "国・地域ごとに Google 標準の地域指数を上書き。",
+        "default": "Google が地域指数を選択"
+      },
+      "customLocalAqis[].regionCode": {
+        "description": "指数を上書きする 2 文字の国・地域コード。",
+        "default": "各上書きに必須"
+      },
+      "customLocalAqis[].aqi": {
+        "description": "対応する指数コード。例：us_epa。組み合わせは Google が検証。",
+        "default": "各上書きに必須"
+      }
+    },
+    "result": "Google の時間別レコード、regionCode、nextPageToken、任意の汚染物質・健康推奨を保持。",
+    "example": {
+      "location": {
+        "latitude": 48.85,
+        "longitude": 2.35
+      },
+      "dateTime": "2026-11-01T12:00:00Z",
+      "pageSize": 24
+    },
+    "notes": [
+      "時刻指定は 1 種類だけ選択。履歴は hours/dateTime/period、予報は dateTime/period。UTC・期間はローカル、提供期間・地域は Google が検証。",
+      "1 回で 1 ページ。nextPageToken で明示的に次ページを取得。指数・国の対応範囲、帰属表示・表示・キャッシュ制限が適用。https://developers.google.com/maps/documentation/air-quality/policies"
+    ],
+    "authentication": "API キー、または cloud-platform スコープの OAuth トークン。対象 API と課金を有効化。OAuth のクォータプロジェクトには serviceusage.services.use も必要。",
+    "summary": "指定時刻・期間の最大 96 時間先までの大気質予報を取得。"
+  },
+  "maps_air_quality_history": {
+    "purpose": "直近 30 日の大気質履歴を明示的なページ単位で取得。",
+    "parameters": {
+      "location": {
+        "description": "照会する位置の座標。",
+        "default": "必須"
+      },
+      "location.latitude": {
+        "description": "緯度。−90〜90 度。",
+        "default": "location 指定時に必須"
+      },
+      "location.longitude": {
+        "description": "経度。−180〜180 度。",
+        "default": "location 指定時に必須"
+      },
+      "dateTime": {
+        "description": "Z で終わる RFC3339 UTC 時刻。Google は直前の正時に丸めます。period、hours とは同時指定できません。",
+        "default": "時刻指定を 1 種類選択"
+      },
+      "period": {
+        "description": "終了時刻を含む順序付き期間。予報は 96 時間以内、履歴は 720 時間以内。",
+        "default": "時刻指定を 1 種類選択"
+      },
+      "period.startTime": {
+        "description": "期間の開始時刻。正しい RFC3339 UTC Z 形式。",
+        "default": "period 指定時に必須"
+      },
+      "period.endTime": {
+        "description": "期間に含める終了時刻。正しい RFC3339 UTC Z 形式。",
+        "default": "period 指定時に必須"
+      },
+      "pageSize": {
+        "description": "このページの時間別レコード上限。この実装では予報 96、履歴は Google の上限 168。",
+        "default": "Google：予報 24、履歴 72"
+      },
+      "pageToken": {
+        "description": "前回の nextPageToken。他の条件は同じにします。1 回の呼び出しで 1 ページだけ取得します。",
+        "default": "最初のページ"
+      },
+      "universalAqi": {
+        "description": "世界共通の大気質指数を含めるか。",
+        "default": "Google：true"
+      },
+      "languageCode": {
+        "description": "希望する IETF/BCP-47 言語コード。未対応の場合、Google が近い言語を選択します。",
+        "default": "Google：en"
+      },
+      "uaqiColorPalette": {
+        "description": "共通 AQI の配色。RED_GREEN、INDIGO_PERSIAN_DARK、INDIGO_PERSIAN_LIGHT。地域指数の配色は固定。",
+        "default": "Google 既定の配色"
+      },
+      "extraComputations": {
+        "description": "LOCAL_AQI、HEALTH_RECOMMENDATIONS、POLLUTANT_ADDITIONAL_INFO、DOMINANT_POLLUTANT_CONCENTRATION、POLLUTANT_CONCENTRATION を追加。",
+        "default": "追加計算なし"
+      },
+      "customLocalAqis": {
+        "description": "国・地域ごとに Google 標準の地域指数を上書き。",
+        "default": "Google が地域指数を選択"
+      },
+      "customLocalAqis[].regionCode": {
+        "description": "指数を上書きする 2 文字の国・地域コード。",
+        "default": "各上書きに必須"
+      },
+      "customLocalAqis[].aqi": {
+        "description": "対応する指数コード。例：us_epa。組み合わせは Google が検証。",
+        "default": "各上書きに必須"
+      },
+      "hours": {
+        "description": "直近 1〜720 時間（30 日）。dateTime、period とは同時指定不可。",
+        "default": "hours/dateTime/period のどれか 1 つ"
+      }
+    },
+    "result": "Google の時間別レコード、regionCode、nextPageToken、任意の汚染物質・健康推奨を保持。",
+    "example": {
+      "location": {
+        "latitude": 48.85,
+        "longitude": 2.35
+      },
+      "hours": 24,
+      "pageSize": 12
+    },
+    "notes": [
+      "時刻指定は 1 種類だけ選択。履歴は hours/dateTime/period、予報は dateTime/period。UTC・期間はローカル、提供期間・地域は Google が検証。",
+      "1 回で 1 ページ。nextPageToken で明示的に次ページを取得。指数・国の対応範囲、帰属表示・表示・キャッシュ制限が適用。https://developers.google.com/maps/documentation/air-quality/policies"
+    ],
+    "authentication": "API キー、または cloud-platform スコープの OAuth トークン。対象 API と課金を有効化。OAuth のクォータプロジェクトには serviceusage.services.use も必要。",
+    "summary": "直近 30 日の大気質履歴を明示的なページ単位で取得。"
+  },
+  "maps_air_quality_heatmap": {
+    "purpose": "実際の大気質ヒートマップ PNG タイルを取得。",
+    "parameters": {
+      "mapType": {
+        "description": "ヒートマップ種別：UAQI_RED_GREEN / UAQI_INDIGO_PERSIAN / PM25_INDIGO_PERSIAN / GBR_DEFRA / DEU_UBA / CAN_EC / FRA_ATMO / US_AQI。",
+        "default": "必須"
+      },
+      "zoom": {
+        "description": "Web Mercator のズーム 0〜16。0 は世界全体を 1 枚で表示。",
+        "default": "必須"
+      },
+      "x": {
+        "description": "タイル列番号。0〜2^zoom−1。送信前に検証。",
+        "default": "必須"
+      },
+      "y": {
+        "description": "タイル行番号。0〜2^zoom−1。送信前に検証。",
+        "default": "必須"
+      }
+    },
+    "result": "MIME・キャッシュ情報付きバイナリタイル。MCP は画像、CLI --output はバイト列を保存。",
+    "example": {
+      "mapType": "UAQI_RED_GREEN",
+      "zoom": 2,
+      "x": 2,
+      "y": 1
+    },
+    "notes": [
+      "国・指数・季節によって提供範囲が異なります。Google の帰属表示・地図利用・キャッシュ許諾に従ってください。API 有効化でコンテンツ制限が免除されるわけではありません。https://developers.google.com/maps/documentation/air-quality/policies"
+    ],
+    "authentication": "API キー、または cloud-platform スコープの OAuth トークン。対象 API と課金を有効化。OAuth のクォータプロジェクトには serviceusage.services.use も必要。",
+    "summary": "実際の大気質ヒートマップ PNG タイルを取得。"
+  },
+  "maps_pollen_heatmap": {
+    "purpose": "樹木・草・雑草の花粉指数ヒートマップを取得。",
+    "parameters": {
+      "mapType": {
+        "description": "ヒートマップ種別：TREE_UPI / GRASS_UPI / WEED_UPI。",
+        "default": "必須"
+      },
+      "zoom": {
+        "description": "Web Mercator のズーム 0〜16。0 は世界全体を 1 枚で表示。",
+        "default": "必須"
+      },
+      "x": {
+        "description": "タイル列番号。0〜2^zoom−1。送信前に検証。",
+        "default": "必須"
+      },
+      "y": {
+        "description": "タイル行番号。0〜2^zoom−1。送信前に検証。",
+        "default": "必須"
+      }
+    },
+    "result": "MIME・キャッシュ情報付きバイナリタイル。MCP は画像、CLI --output はバイト列を保存。",
+    "example": {
+      "mapType": "TREE_UPI",
+      "zoom": 2,
+      "x": 2,
+      "y": 1
+    },
+    "notes": [
+      "国・指数・季節によって提供範囲が異なります。Google の帰属表示・地図利用・キャッシュ許諾に従ってください。API 有効化でコンテンツ制限が免除されるわけではありません。https://developers.google.com/maps/documentation/pollen/policies"
+    ],
+    "authentication": "この実装は API キーのみ。Pollen API と課金を有効化。サービスアカウント OAuth は未対応。",
+    "summary": "樹木・草・雑草の花粉指数ヒートマップを取得。"
+  },
+  "maps_weather_history": {
+    "purpose": "直近最大 24 時間の気象履歴をページ単位で取得。",
+    "parameters": {
+      "location": {
+        "description": "照会する位置の座標。",
+        "default": "必須"
+      },
+      "location.latitude": {
+        "description": "緯度。−90〜90 度。",
+        "default": "location 指定時に必須"
+      },
+      "location.longitude": {
+        "description": "経度。−180〜180 度。",
+        "default": "location 指定時に必須"
+      },
+      "pageSize": {
+        "description": "ページ件数上限。履歴は 1〜24、警報・分単位予報の実装上限は 1〜1000。",
+        "default": "履歴：Google 24、その他：Google 既定"
+      },
+      "pageToken": {
+        "description": "前回の nextPageToken。他の条件は同じにします。1 回の呼び出しで 1 ページだけ取得します。",
+        "default": "最初のページ"
+      },
+      "hours": {
+        "description": "前の時間帯から遡る 1〜24 時間。",
+        "default": "Google：24"
+      },
+      "unitsSystem": {
+        "description": "単位系。METRIC または IMPERIAL。",
+        "default": "Google：METRIC"
+      },
+      "languageCode": {
+        "description": "希望する IETF/BCP-47 言語コード。未対応の場合、Google が近い言語を選択します。",
+        "default": "Google：en"
+      }
+    },
+    "result": "ネイティブ historyHours、timeZone、nextPageToken と時間別気象条件。",
+    "example": {
+      "location": {
+        "latitude": 48.85,
+        "longitude": 2.35
+      },
+      "hours": 12,
+      "pageSize": 6
+    },
+    "notes": [
+      "直近 24 時間のみ。任意の過去日付には未対応。自動ページ取得なし。Google の地域範囲・利用方針が適用。https://developers.google.com/maps/documentation/weather/reference/rest/v1/history.hours/lookup"
+    ],
+    "authentication": "API キー、または cloud-platform スコープの OAuth トークン。対象 API と課金を有効化。OAuth のクォータプロジェクトには serviceusage.services.use も必要。",
+    "summary": "直近最大 24 時間の気象履歴をページ単位で取得。"
+  },
+  "maps_weather_alerts": {
+    "purpose": "指定地点に影響する公的気象警報を、深刻度・発表機関情報とともに取得。",
+    "parameters": {
+      "location": {
+        "description": "照会する位置の座標。",
+        "default": "必須"
+      },
+      "location.latitude": {
+        "description": "緯度。−90〜90 度。",
+        "default": "location 指定時に必須"
+      },
+      "location.longitude": {
+        "description": "経度。−180〜180 度。",
+        "default": "location 指定時に必須"
+      },
+      "pageSize": {
+        "description": "ページ件数上限。履歴は 1〜24、警報・分単位予報の実装上限は 1〜1000。",
+        "default": "履歴：Google 24、その他：Google 既定"
+      },
+      "pageToken": {
+        "description": "前回の nextPageToken。他の条件は同じにします。1 回の呼び出しで 1 ページだけ取得します。",
+        "default": "最初のページ"
+      },
+      "languageCode": {
+        "description": "希望する IETF/BCP-47 言語コード。未対応の場合、Google が近い言語を選択します。",
+        "default": "Google：en"
+      }
+    },
+    "result": "ネイティブ weatherAlerts、発表機関・地域情報、存在する場合は nextPageToken。",
+    "example": {
+      "location": {
+        "latitude": 48.85,
+        "longitude": 2.35
+      },
+      "pageSize": 5
+    },
+    "notes": [
+      "提供範囲・遅延・項目は発表機関によります。発表元の帰属表示を保持。警報が空でも安全を保証しません。https://developers.google.com/maps/documentation/weather/reference/rest/v1/publicAlerts/lookup"
+    ],
+    "authentication": "API キー、または cloud-platform スコープの OAuth トークン。対象 API と課金を有効化。OAuth のクォータプロジェクトには serviceusage.services.use も必要。",
+    "summary": "指定地点に影響する公的気象警報を、深刻度・発表機関情報とともに取得。"
+  },
+  "maps_weather_minute_forecast": {
+    "purpose": "実験機能：6 時間先までの高解像度降水予報をページ単位で取得。",
+    "parameters": {
+      "location": {
+        "description": "照会する位置の座標。",
+        "default": "必須"
+      },
+      "location.latitude": {
+        "description": "緯度。−90〜90 度。",
+        "default": "location 指定時に必須"
+      },
+      "location.longitude": {
+        "description": "経度。−180〜180 度。",
+        "default": "location 指定時に必須"
+      },
+      "pageSize": {
+        "description": "ページ件数上限。履歴は 1〜24、警報・分単位予報の実装上限は 1〜1000。",
+        "default": "履歴：Google 24、その他：Google 既定"
+      },
+      "pageToken": {
+        "description": "前回の nextPageToken。他の条件は同じにします。1 回の呼び出しで 1 ページだけ取得します。",
+        "default": "最初のページ"
+      },
+      "unitsSystem": {
+        "description": "単位系。METRIC または IMPERIAL。",
+        "default": "Google：METRIC"
+      }
+    },
+    "result": "overallPredictionTimeframe、timeZone、segments、nextPageToken。種別・確率・量・強度を保持。",
+    "example": {
+      "location": {
+        "latitude": 37.60451,
+        "longitude": -80.59044
+      },
+      "pageSize": 5
+    },
+    "notes": [
+      "実験・pre-GA 機能。サポートは限定的で非互換変更の可能性あり。帰属表示が必要。キャッシュは最大 1 時間で、その後削除が必要。",
+      "主目的が気象情報のアプリ・モデルをこのコンテンツで再現することは禁止。下流利用者にも適用。分単位予報と地図は同期しない場合あり。https://developers.google.com/maps/documentation/weather/minute-forecast"
+    ],
+    "authentication": "API キー、または cloud-platform スコープの OAuth トークン。対象 API と課金を有効化。OAuth のクォータプロジェクトには serviceusage.services.use も必要。",
+    "summary": "実験機能：6 時間先までの高解像度降水予報をページ単位で取得。"
+  },
+  "maps_weather_map": {
+    "purpose": "実験機能：米国・欧州の降水ナウキャスト画像タイルを取得。",
+    "parameters": {
+      "mapType": {
+        "description": "US_PRECIPITATION_CURRENT または EU_PRECIPITATION_CURRENT。文書記載の米国・欧州地域のみ。",
+        "default": "必須"
+      },
+      "zoom": {
+        "description": "Web Mercator のズーム 0〜16。0 は世界全体を 1 枚で表示。",
+        "default": "必須"
+      },
+      "x": {
+        "description": "タイル列番号。0〜2^zoom−1。送信前に検証。",
+        "default": "必須"
+      },
+      "y": {
+        "description": "タイル行番号。0〜2^zoom−1。送信前に検証。",
+        "default": "必須"
+      }
+    },
+    "result": "上流 MIME・キャッシュ情報付き PNG バイナリ。CLI --output で保存、MCP で画像表示。",
+    "example": {
+      "mapType": "US_PRECIPITATION_CURRENT",
+      "zoom": 12,
+      "x": 1025,
+      "y": 1688
+    },
+    "notes": [
+      "実験・pre-GA 機能。サポートは限定的で非互換変更の可能性あり。帰属表示が必要。キャッシュは最大 1 時間で、その後削除が必要。",
+      "主目的が気象情報のアプリ・モデルをこのコンテンツで再現することは禁止。下流利用者にも適用。分単位予報と地図は同期しない場合あり。https://developers.google.com/maps/documentation/weather/minute-forecast",
+      "グリッド座標が有効でもデータ提供があるとは限りません。範囲・条件：https://developers.google.com/maps/documentation/weather/weather-map"
+    ],
+    "authentication": "API キー、または cloud-platform スコープの OAuth トークン。対象 API と課金を有効化。OAuth のクォータプロジェクトには serviceusage.services.use も必要。",
+    "summary": "実験機能：米国・欧州の降水ナウキャスト画像タイルを取得。"
   }
 }

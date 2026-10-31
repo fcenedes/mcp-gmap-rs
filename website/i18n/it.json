@@ -2,7 +2,7 @@
   "label": "Italiano",
   "lang": "it",
   "dir": "ltr",
-  "description": "Il manuale completo del CLI e server MCP Google Maps autonomo in Rust. Configurazione, OAuth, 23 strumenti, TLS e Kubernetes.",
+  "description": "Il manuale completo del CLI e server MCP Google Maps autonomo in Rust. Configurazione, OAuth, 42 strumenti, TLS e Kubernetes.",
   "homeTitle": "Il manuale sul campo",
   "sidebarIntro": "Il tuo atlante di possibilità.",
   "eyebrow": "IL MANUALE",
@@ -61,7 +61,7 @@
     "Risoluzione dei problemi",
     "Skill per agenti",
     "Sviluppo e release",
-    "Tutti i 23 strumenti",
+    "Tutti i 42 strumenti",
     "Tutte le impostazioni"
   ],
   "landing": {
@@ -86,7 +86,7 @@
     "httpText": "HTTP streamable, TLS e mTLS nativi. Per container e Kubernetes.",
     "catalog": "02 / GLI STRUMENTI",
     "toolsTitle": "Un mondo di risposte.",
-    "toolsIntro": "23 strumenti. Dai dettagli di una strada alle condizioni locali. Ogni parametro, valore predefinito ed esempio è documentato.",
+    "toolsIntro": "42 strumenti. Dai dettagli di una strada alle condizioni locali. Ogni parametro, valore predefinito ed esempio è documentato.",
     "search": "Filtra gli strumenti",
     "count": "strumenti",
     "all": "Tutti gli strumenti",
@@ -118,7 +118,7 @@
   },
   "reference": {
     "title": "Riferimento strumenti",
-    "intro": "Tutti i 23 strumenti, con ogni parametro, valore predefinito, vincolo ed esempio. La stessa interfaccia è disponibile tramite MCP e CLI.",
+    "intro": "Tutti i 42 strumenti, con ogni parametro, valore predefinito, vincolo ed esempio. La stessa interfaccia è disponibile tramite MCP e CLI.",
     "calling": "Convenzioni di chiamata",
     "cli": "Comando CLI",
     "access": "Accesso Google",
@@ -142,8 +142,10 @@
       "Solo i parametri di primo livello hanno un’opzione CLI. Passa oggetti annidati e array in JSON. Un’opzione booleana da sola significa `true`; `--flag false` imposta `false`. Le proprietà sconosciute vengono rifiutate. Consulta la versione installata con `tools` o `schema STRUMENTO`.",
       "L’autenticazione Google e la lingua sono configurazioni del processo, non parametri dello strumento. Le coordinate esatte evitano la risoluzione degli indirizzi; i luoghi nominati possono richiedere anche una chiave API per Geocoding. Vedi [autenticazione](../guide/authentication) e [configurazione](../guide/configuration).",
       "Le chiamate possono comportare costi Google. I risultati compositi e delle matrici possono contenere errori per elemento anche se lo strumento riesce. Mantieni i link Google, gli autori di recensioni/foto e le diciture dei riepiloghi IA. Gli esempi illustrano gli input, senza garantire risultati o copertura attuali.",
-      "Tipi, campi obbligatori e limiti provengono dal riferimento derivato dagli schemi dell’eseguibile. Valori predefiniti, risultati e vincoli tra campi sono verificati nell’implementazione. Google può imporre ulteriori limiti di copertura e quota."
-    ]
+      "Tipi, campi obbligatori e limiti provengono dal riferimento derivato dagli schemi dell’eseguibile. Valori predefiniti, risultati e vincoli tra campi sono verificati nell’implementazione. Google può imporre ulteriori limiti di copertura e quota.",
+      "Le proprietà sconosciute al primo livello vengono rifiutate; i corpi API nativi accettano campi Google, validati da Google. Le operazioni di modifica non vengono ritentate automaticamente."
+    ],
+    "sources": "Fonti primarie"
   },
   "typeTranslations": {
     "array of string": "array di stringhe",

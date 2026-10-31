@@ -24,15 +24,19 @@ use crate::{
     tools::{EngineState, Output},
 };
 
+#[path = "tests_services.rs"]
+mod service_transport;
+
 #[path = "tests_v03.rs"]
 mod production;
 
 #[derive(Clone, Debug)]
-struct Record {
-    path: String,
-    query: String,
-    headers: HeaderMap,
-    body: Value,
+pub(crate) struct Record {
+    pub(crate) method: axum::http::Method,
+    pub(crate) path: String,
+    pub(crate) query: String,
+    pub(crate) headers: HeaderMap,
+    pub(crate) body: Value,
 }
 
 type Overrides = HashMap<String, (StatusCode, Value)>;
@@ -46,8 +50,8 @@ struct FixtureState {
     queued: Arc<Mutex<Queued>>,
 }
 
-struct Fixture {
-    engine: EngineState,
+pub(crate) struct Fixture {
+    pub(crate) engine: EngineState,
     state: FixtureState,
     task: JoinHandle<()>,
 }
@@ -59,7 +63,7 @@ impl Drop for Fixture {
 }
 
 impl Fixture {
-    async fn new() -> Self {
+    pub(crate) async fn new() -> Self {
         let state = FixtureState::default();
         let app = Router::new()
             .fallback(any(google))
@@ -87,10 +91,10 @@ impl Fixture {
         }
     }
 
-    fn records(&self) -> Vec<Record> {
+    pub(crate) fn records(&self) -> Vec<Record> {
         self.state.records.lock().unwrap().clone()
     }
-    fn enable_oauth(&mut self) -> tempfile::TempDir {
+    pub(crate) fn enable_oauth(&mut self) -> tempfile::TempDir {
         let directory = tempfile::tempdir().unwrap();
         let path = directory.path().join("credentials.json");
         std::fs::write(&path, serde_json::to_vec(&json!({
@@ -105,14 +109,14 @@ impl Fixture {
         ));
         directory
     }
-    fn override_response(&self, path: &str, status: StatusCode, value: Value) {
+    pub(crate) fn override_response(&self, path: &str, status: StatusCode, value: Value) {
         self.state
             .overrides
             .lock()
             .unwrap()
             .insert(path.into(), (status, value));
     }
-    async fn call(&self, name: &str, args: Value) -> Value {
+    pub(crate) async fn call(&self, name: &str, args: Value) -> Value {
         self.engine.call(name, args).await.unwrap().into_json()
     }
 }
@@ -124,6 +128,7 @@ fn place() -> Value {
 async fn google(
     State(state): State<FixtureState>,
     uri: Uri,
+    method: axum::http::Method,
     headers: HeaderMap,
     body: Bytes,
 ) -> Response {
@@ -137,6 +142,7 @@ async fn google(
     let body: Value = serde_json::from_slice(&body).unwrap_or(Value::Null);
     let path = uri.path();
     state.records.lock().unwrap().push(Record {
+        method,
         path: path.into(),
         query: uri.query().unwrap_or_default().into(),
         headers,
@@ -191,6 +197,8 @@ async fn google(
         "/pollen.googleapis.com/v1/forecast:lookup"=>json!({"regionCode":"FR","dailyInfo":[{"date":{"year":2026,"month":10,"day":31},"pollenTypeInfo":[{"code":"GRASS","indexInfo":{"value":1}}]}]}),
         "/areainsights.googleapis.com/v1:computeInsights"=>json!({"count":"42","placeInsights":[{"place":"places/p1"}]}),
         "/roads.googleapis.com/v1/snapToRoads" | "/roads.googleapis.com/v1/nearestRoads"=>json!({"snappedPoints":[{"location":{"latitude":48.85,"longitude":2.35},"originalIndex":0,"placeId":"road1"}],"warningMessage":"fixture attribution"}),
+        "/maps.googleapis.com/maps/api/streetview"=>return ([("content-type","image/jpeg"),("cache-control","private, max-age=60"),("etag","fixture-image")],b"\xff\xd8\xffjpeg-fixture".to_vec()).into_response(),
+        "/solar.googleapis.com/v1/geoTiff:get"=>return ([("content-type","image/tiff"),("cache-control","private, max-age=60")],b"II\x2a\x00fixture".to_vec()).into_response(),
         "/maps.googleapis.com/maps/api/staticmap"=>return ([("content-type","image/png")],b"\x89PNG\r\n\x1a\nfixture".to_vec()).into_response(),
         _=>return (StatusCode::NOT_FOUND,axum::Json(json!({"error":{"message":format!("unhandled fixture {path}")}}))).into_response(),
     };
@@ -198,9 +206,9 @@ async fn google(
 }
 
 #[test]
-fn catalog_has_all_23_tools_and_rejects_bad_filters() {
+fn catalog_has_all_42_tools_and_rejects_bad_filters() {
     let catalog = Catalog::new(None).unwrap();
-    assert_eq!(catalog.iter().count(), 23);
+    assert_eq!(catalog.iter().count(), 42);
     assert_eq!(
         Catalog::new(Some("maps_geocode,maps_weather"))
             .unwrap()
@@ -882,7 +890,7 @@ async fn streamable_http_supports_sessions_tools_calls_auth_and_origin_checks() 
             .await
             .unwrap(),
     );
-    assert_eq!(tools["result"]["tools"].as_array().unwrap().len(), 23);
+    assert_eq!(tools["result"]["tools"].as_array().unwrap().len(), 42);
     let geocode = decode_rpc(
         &request(rpc(
             3,
@@ -914,6 +922,51 @@ async fn streamable_http_supports_sessions_tools_calls_auth_and_origin_checks() 
         .unwrap(),
     );
     assert_eq!(image["result"]["content"][0]["type"], "image");
+    let jpeg = decode_rpc(
+        &request(rpc(
+            10,
+            "tools/call",
+            json!({"name":"maps_streetview","arguments":{"operation":"image","location":"Paris"}}),
+        ))
+        .send()
+        .await
+        .unwrap()
+        .text()
+        .await
+        .unwrap(),
+    );
+    assert_eq!(jpeg["result"]["content"][0]["type"], "image");
+    assert_eq!(jpeg["result"]["content"][0]["mimeType"], "image/jpeg");
+    assert_eq!(
+        jpeg["result"]["structuredContent"]["headers"]["etag"],
+        "fixture-image"
+    );
+    assert!(jpeg["result"]["structuredContent"].get("base64").is_none());
+    let raster = decode_rpc(
+        &request(rpc(
+            11,
+            "tools/call",
+            json!({"name":"maps_solar","arguments":{"operation":"geo_tiff","id":"fixture"}}),
+        ))
+        .send()
+        .await
+        .unwrap()
+        .text()
+        .await
+        .unwrap(),
+    );
+    assert_eq!(raster["result"]["content"][0]["type"], "text");
+    assert_eq!(
+        raster["result"]["structuredContent"]["mimeType"],
+        "image/tiff"
+    );
+    assert!(
+        raster["result"]["structuredContent"]["base64"]
+            .as_str()
+            .unwrap()
+            .starts_with("SUkq")
+    );
+
     let invalid = decode_rpc(
         &request(rpc(
             5,
@@ -957,7 +1010,7 @@ async fn streamable_http_supports_sessions_tools_calls_auth_and_origin_checks() 
         let result = decode_rpc(&body);
         assert!(result.get("error").is_none(), "{result}");
         if method == "tools/list" {
-            assert_eq!(result["result"]["tools"].as_array().unwrap().len(), 23);
+            assert_eq!(result["result"]["tools"].as_array().unwrap().len(), 42);
         }
     }
     cancellation.cancel();

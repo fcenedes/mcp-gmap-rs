@@ -35,7 +35,7 @@ Pro Prozess können fünf Google-HTTP-Anfragen gleichzeitig ausgeführt werden. 
 | `MCP_TLS_KEY` | Ungesetzt | `--tls-key` | Pfad zum privaten PEM-Serverschlüssel. Für die Laufzeitidentität lesbar halten und nicht in Quellcode oder Images speichern. |
 | `MCP_TLS_CLIENT_CA` | Ungesetzt | `--tls-client-ca` | PEM-Client-CA-Bündel für obligatorische Clientzertifikate auf allen Listener-Pfaden. Ersetzt das Bearer-Token nicht. |
 
-Der HTTP-Token-Bucket gilt prozessweit, nicht pro Benutzer oder IP. Nicht autorisierte Anfragen verbrauchen ihn nicht; Health und Metriken sind ausgenommen. Ablehnungen liefern 429 mit `Retry-After`. Die Körpergröße ist auf 1 MiB begrenzt. Siehe [MCP-Zugriff](../guide/mcp#bind-addresses-and-access) und [TLS-Betrieb](../guide/production#native-tls-and-mutual-tls).
+Der HTTP-Token-Bucket gilt prozessweit, nicht pro Benutzer oder IP. Nicht autorisierte Anfragen verbrauchen ihn nicht; Health und Metriken sind ausgenommen. Ablehnungen liefern 429 mit `Retry-After`. Die Körpergröße ist auf 12 MiB begrenzt. Siehe [MCP-Zugriff](../guide/mcp#bind-addresses-and-access) und [TLS-Betrieb](../guide/production#native-tls-and-mutual-tls).
 
 ## Diagnoseereignisse
 

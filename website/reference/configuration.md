@@ -35,7 +35,7 @@ Five Google HTTP requests can execute concurrently per process. The attempt budg
 | `MCP_TLS_KEY` | Unset | `--tls-key` | PEM server private key path. Keep readable by the runtime identity and out of source/images. |
 | `MCP_TLS_CLIENT_CA` | Unset | `--tls-client-ca` | PEM client CA bundle enabling mandatory client certificates on every listener path. Does not replace the bearer token. |
 
-The HTTP token bucket is global to the process, not per user/IP. Unauthorized requests do not consume it; health and metrics are exempt. Rejections return 429 with `Retry-After`. The request-body limit is 1 MiB. See [MCP access](../guide/mcp#bind-addresses-and-access) and [TLS operations](../guide/production#native-tls-and-mutual-tls).
+The HTTP token bucket is global to the process, not per user/IP. Unauthorized requests do not consume it; health and metrics are exempt. Rejections return 429 with `Retry-After`. The request-body limit is 12 MiB. See [MCP access](../guide/mcp#bind-addresses-and-access) and [TLS operations](../guide/production#native-tls-and-mutual-tls).
 
 ## Diagnostic events
 

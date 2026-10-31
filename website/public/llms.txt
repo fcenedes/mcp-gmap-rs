@@ -1,6 +1,6 @@
 # mcp-gmap-rs
 
-All 23 tools, with every parameter, default, constraint and example. The same interface is available through MCP and the CLI.
+All 42 tools, with every parameter, default, constraint and example. The same interface is available through MCP and the CLI.
 
 ## Tools
 
@@ -11,9 +11,9 @@ All 23 tools, with every parameter, default, constraint and example. The same in
 - [Deployment](https://fcenedes.github.io/mcp-gmap-rs/guide/deployment)
 - [Development and releases](https://fcenedes.github.io/mcp-gmap-rs/guide/development)
 - [Getting started](https://fcenedes.github.io/mcp-gmap-rs/guide/getting-started)
-- [Google Cloud setup](https://fcenedes.github.io/mcp-gmap-rs/guide/google-cloud)
+- [Google Cloud setup and authentication](https://fcenedes.github.io/mcp-gmap-rs/guide/google-cloud)
 - [MCP integration](https://fcenedes.github.io/mcp-gmap-rs/guide/mcp)
-- [Production operations](https://fcenedes.github.io/mcp-gmap-rs/guide/production)
+- [Production configuration](https://fcenedes.github.io/mcp-gmap-rs/guide/production)
 - [Recipes](https://fcenedes.github.io/mcp-gmap-rs/guide/recipes)
 - [Troubleshooting](https://fcenedes.github.io/mcp-gmap-rs/guide/troubleshooting)
 - [Configuration reference](https://fcenedes.github.io/mcp-gmap-rs/reference/configuration)

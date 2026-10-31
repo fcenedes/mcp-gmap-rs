@@ -51,4 +51,4 @@ mcp-gmap-rs serve http --listen 0.0.0.0:3000   --allowed-host maps.example.com  
 
 Fornisci `MCP_HTTP_TOKEN` tramite ambiente o Secret; il client invia `Authorization: Bearer <token>`. Gli header Origin presenti sono rifiutati se non autorizzati esplicitamente. Un proxy deve preservare Host consentito, autorizzazione, header MCP e streaming SSE.
 
-`GET /health` verifica solo la disponibilità del processo, non l'accesso Google. Il corpo delle richieste è limitato a 1 MiB. Le sessioni risiedono in memoria: più repliche richiedono affinità e i client devono riconnettersi dopo un riavvio. Per TLS e sicurezza operativa, continua con [produzione](./production).
+`GET /health` verifica solo la disponibilità del processo, non l'accesso Google. Il corpo delle richieste è limitato a 12 MiB. Le sessioni risiedono in memoria: più repliche richiedono affinità e i client devono riconnettersi dopo un riavvio. Per TLS e sicurezza operativa, continua con [produzione](./production).

@@ -14,7 +14,7 @@ cargo test --doc --all-features --locked
 cargo build --release --locked
 ```
 
-I test ordinari usano fixture locali e non richiedono Google. Coprono i 23 strumenti, sottoprocessi CLI, stdio e HTTP. I test live sono esplicitamente ignorati per impostazione predefinita: richiedono credenziali, API abilitate e fatturazione e possono generare costi.
+I test ordinari usano fixture locali e non richiedono Google. Coprono i 42 strumenti, sottoprocessi CLI, stdio e HTTP. I test live sono esplicitamente ignorati per impostazione predefinita: richiedono credenziali, API abilitate e fatturazione e possono generare costi.
 
 ```sh
 cargo test --locked --test live live_maps_ -- --ignored --test-threads=1

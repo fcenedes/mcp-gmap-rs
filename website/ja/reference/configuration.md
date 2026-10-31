@@ -35,7 +35,7 @@
 | `MCP_TLS_KEY` | 未設定 | `--tls-key` | PEM サーバー秘密鍵のパス。実行時の ID に読み取り権限を与え、ソース・イメージから除外します。 |
 | `MCP_TLS_CLIENT_CA` | 未設定 | `--tls-client-ca` | 全リスナーパスでクライアント証明書を必須にする PEM クライアント CA バンドル。Bearer トークンを置き換えません。 |
 
-HTTP のトークンバケットはユーザー・IP 単位でなくプロセス全体です。未認可リクエストは消費せず、ヘルスとメトリクスは対象外です。拒否は 429 と `Retry-After` を返します。本文上限は 1 MiB です。[MCP アクセス](../guide/mcp#bind-addresses-and-access)と [TLS 運用](../guide/production#native-tls-and-mutual-tls)を参照してください。
+HTTP のトークンバケットはユーザー・IP 単位でなくプロセス全体です。未認可リクエストは消費せず、ヘルスとメトリクスは対象外です。拒否は 429 と `Retry-After` を返します。本文上限は 12 MiB です。[MCP アクセス](../guide/mcp#bind-addresses-and-access)と [TLS 運用](../guide/production#native-tls-and-mutual-tls)を参照してください。
 
 ## 診断イベント {#diagnostic-events}
 

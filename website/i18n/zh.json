@@ -2,7 +2,7 @@
   "label": "简体中文",
   "lang": "zh-Hans",
   "dir": "ltr",
-  "description": "独立 Rust Google Maps CLI 与 MCP 服务器完整手册，涵盖配置、OAuth、23 个工具、TLS 和 Kubernetes。",
+  "description": "独立 Rust Google Maps CLI 与 MCP 服务器完整手册，涵盖配置、OAuth、42 个工具、TLS 和 Kubernetes。",
   "homeTitle": "实用手册",
   "sidebarIntro": "探索更多可能的地图集。",
   "eyebrow": "使用手册",
@@ -61,7 +61,7 @@
     "故障排查",
     "智能体技能",
     "开发与发布",
-    "全部 23 个工具",
+    "全部 42 个工具",
     "全部配置项"
   ],
   "landing": {
@@ -86,7 +86,7 @@
     "httpText": "支持 Streamable HTTP、原生 TLS 与 mTLS，可部署到容器和 Kubernetes。",
     "catalog": "02 / 工具集",
     "toolsTitle": "探索世界的答案。",
-    "toolsIntro": "23 个工具，从街道细节到当地环境。每个参数、默认值和示例都有完整文档。",
+    "toolsIntro": "42 个工具，从街道细节到当地环境。每个参数、默认值和示例都有完整文档。",
     "search": "筛选工具",
     "count": "个工具",
     "all": "全部工具",
@@ -118,7 +118,7 @@
   },
   "reference": {
     "title": "工具参考",
-    "intro": "全部 23 个工具的参数、默认值、限制与示例。MCP 和 CLI 使用相同的接口。",
+    "intro": "全部 42 个工具的参数、默认值、限制与示例。MCP 和 CLI 使用相同的接口。",
     "calling": "调用约定",
     "cli": "CLI 命令",
     "access": "Google 访问凭据",
@@ -142,8 +142,10 @@
       "仅顶层参数具有 CLI 选项。嵌套对象和数组使用 JSON。单独的布尔选项表示 `true`；`--flag false` 设置为 `false`。未知属性会被拒绝。使用 `tools` 或 `schema TOOL` 查看已安装版本的接口。",
       "Google 身份验证和语言属于进程配置，而不是工具参数。路线使用精确坐标可避免地址解析；命名地点可能还需要 Geocoding 的 API 密钥。参阅[身份验证](../guide/authentication)和[配置](../guide/configuration)。",
       "调用可能产生 Google 费用。即使工具调用成功，复合结果和矩阵结果仍可能包含逐项错误。请保留 Google 来源链接、评论/照片作者和 AI 摘要披露。示例仅说明输入，不保证当前覆盖范围或结果。",
-      "类型、必填字段和模式边界来自根据可执行文件模式生成的参考。默认值、结果说明及跨字段限制均对照实现审阅。Google 可能设置额外的覆盖范围和配额限制。"
-    ]
+      "类型、必填字段和模式边界来自根据可执行文件模式生成的参考。默认值、结果说明及跨字段限制均对照实现审阅。Google 可能设置额外的覆盖范围和配额限制。",
+      "拒绝未知的顶层参数；原生 API 请求体允许 Google 字段，并由 Google 验证。修改操作不会自动重试。"
+    ],
+    "sources": "官方来源"
   },
   "typeTranslations": {
     "array of string": "字符串数组",

@@ -2,7 +2,7 @@
   "label": "English",
   "lang": "en",
   "dir": "ltr",
-  "description": "The complete manual for the standalone Rust Google Maps CLI and MCP server. Setup, OAuth, 23 tools, TLS and Kubernetes.",
+  "description": "The complete manual for the standalone Rust Google Maps CLI and MCP server. Setup, OAuth, 42 tools, TLS and Kubernetes.",
   "homeTitle": "The field manual",
   "sidebarIntro": "Your atlas of possibilities.",
   "eyebrow": "THE MANUAL",
@@ -61,7 +61,7 @@
     "Troubleshooting",
     "Agent skill",
     "Development & releases",
-    "All 23 tools",
+    "All 42 tools",
     "All configuration settings"
   ],
   "landing": {
@@ -86,7 +86,7 @@
     "httpText": "Streamable HTTP, native TLS and mTLS. Ready for containers and Kubernetes.",
     "catalog": "02 / THE TOOLKIT",
     "toolsTitle": "A world of answers.",
-    "toolsIntro": "23 tools. From street-level details to the conditions overhead. Every parameter, default and example is documented.",
+    "toolsIntro": "42 tools. From street-level details to the conditions overhead. Every parameter, default and example is documented.",
     "search": "Filter tools",
     "count": "tools",
     "all": "All tools",
@@ -118,7 +118,7 @@
   },
   "reference": {
     "title": "Tool reference",
-    "intro": "All 23 tools, with every parameter, default, constraint and example. The same interface is available through MCP and the CLI.",
+    "intro": "All 42 tools, with every parameter, default, constraint and example. The same interface is available through MCP and the CLI.",
     "calling": "Calling conventions",
     "cli": "CLI command",
     "access": "Google access",
@@ -142,8 +142,10 @@
       "Only top-level parameters have CLI flags. Pass nested objects and arrays as JSON. A bare boolean flag means `true`; `--flag false` sets `false`. Unknown properties are rejected. Inspect your installed release with `tools` or `schema TOOL`.",
       "Google authentication and language are process configuration, not tool parameters. Exact route coordinates avoid address resolution; named locations may also require an API key for Geocoding. See [authentication](../guide/authentication) and [configuration](../guide/configuration).",
       "Calls can incur Google charges. Composite and matrix results may contain per-item errors even when the tool succeeds. Preserve Google source links, review/photo authors and AI-summary disclosures. Examples illustrate inputs, not current coverage or results.",
-      "Types, required fields and schema bounds come from the executable's schema-derived reference. Defaults, result descriptions and cross-field restrictions are reviewed against the implementation. Google may impose additional coverage and quota limits."
-    ]
+      "Types, required fields and schema bounds come from the executable's schema-derived reference. Defaults, result descriptions and cross-field restrictions are reviewed against the implementation. Google may impose additional coverage and quota limits.",
+      "Unknown top-level properties are rejected; native API body objects accept Google fields, which Google validates. Mutating operations are not automatically retried."
+    ],
+    "sources": "Primary sources"
   },
   "typeTranslations": {},
   "exports": {
