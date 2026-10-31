@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.3.0 - Unreleased
+## 0.3.0 - 2026-10-31
 
 - Include a reusable agent skill for MCP/CLI usage, with capability discovery, tool selection, credential boundaries and partial-result handling.
 - Add Address Validation, Pollen, Places Aggregate, Snap to Roads and Nearest Roads tools across CLI and both MCP transports (23 tools total).

@@ -10,10 +10,10 @@ The underlying Google clients are implementation details, not a public Rust SDK.
 
 ## Install
 
-After the crate version is published on crates.io:
+Install this version from crates.io:
 
 ```sh
-cargo install mcp-gmap-rs --locked
+cargo install mcp-gmap-rs --version 0.3.0 --locked
 ```
 
 For an existing source checkout, use `cargo install --path . --locked`.
@@ -54,15 +54,18 @@ searched. Files are parsed without changing the process environment.
 corresponding values. Repeated `--allowed-host` / `--allowed-origin` flags replace
 the entire corresponding list. Empty environment values override file values;
 empty optional credentials/lists clear them, while an empty timeout is invalid.
-Settings are read once at startup, including mounted Secret files.
+Application settings are read once at startup, including mounted Secret files.
+TLS certificate/key/client-CA files can be reloaded with SIGHUP; see Production
+configuration below for the additional TLS, limit, metric and logging settings.
 
 For project billing, API enablement, key creation and service-account setup, see
 the bundled `docs/google-cloud-setup.md` or the
 [repository setup guide](https://github.com/fcenedes/mcp-gmap-rs/blob/main/docs/google-cloud-setup.md).
 OAuth mode uses Google's official Rust auth library, the `cloud-platform` scope,
 cached/refreshed access tokens and a quota-project header for Places (New), Routes,
-Weather, Air Quality, Address Validation and Places Aggregate. Other current endpoints (Geocoding v3, Elevation, Time
-Zone, Static Maps, Pollen and Roads) still use `GOOGLE_MAPS_API_KEY`; composite flows may need it.
+Weather, Air Quality, Address Validation and Places Aggregate. Other current
+endpoints (Geocoding v3, Elevation, Time Zone, Static Maps, Pollen and Roads) still
+use `GOOGLE_MAPS_API_KEY`; composite flows may need it.
 With no credential file selected, ADC can discover local credentials or use the
 attached service/workload account. Credential loading is lazy for discovery.
 Tokens are not MCP client credentials: the HTTP server still uses `MCP_HTTP_TOKEN`.
@@ -73,8 +76,9 @@ requiring `MCP_HTTP_TOKEN`. CLI commands and `serve stdio` are also available by
 overriding its command. See the bundled `docs/containers.md` guide.
 
 Enable the Google APIs used by your commands: Places API (New), Geocoding API,
-Routes API, Elevation API, Time Zone API, Maps Static API, Weather API, and Air
-Quality API. Google requests can incur charges. Composite tools make multiple
+Routes API, Elevation API, Time Zone API, Maps Static API, Weather API, Air Quality
+API, Address Validation API, Pollen API, Places Aggregate API and Roads API.
+Google requests can incur charges. Composite tools make multiple
 requests, with up to five concurrent Google requests per process.
 
 ## CLI
@@ -88,8 +92,9 @@ mcp-gmap-rs call maps_geocode --args '{"address":"Paris, France"}'
 mcp-gmap-rs static-map --center 'Paris' --zoom 12 --output paris.png
 ```
 
-CLI commands print JSON to stdout and failures to stderr. Failures produce a
-nonzero exit status. `--output` writes JSON to a file, or raw PNG for a static map.
+Tool calls print JSON to stdout and failures to stderr. Failures produce a
+nonzero exit status. `doctor` prints its JSON report even on failed checks.
+`--output` writes JSON to a file, or raw PNG for a static map.
 Object and array flags take JSON; boolean flags accept `true` or `false`, and a
 bare boolean flag means `true`. Use `COMMAND --help` for its input flags and
 `schema COMMAND` for its JSON Schema.
@@ -119,7 +124,8 @@ mcp-gmap-rs serve http --listen 127.0.0.1:3000
 The MCP endpoint is `http://127.0.0.1:3000/mcp`. `GET /health` checks process
 liveness only. HTTP validates Host and Origin headers. For a non-loopback bind,
 configure `MCP_HTTP_TOKEN` and allowed hosts/origins using the server's flags;
-clients send `Authorization: Bearer <token>`. External HTTPS can use native TLS or a TLS gateway; see Production configuration below.
+clients send `Authorization: Bearer <token>`. External HTTPS can use native TLS
+or a TLS gateway; see Production configuration below.
 The server uses one configured Google key per process.
 
 ## Tool catalog

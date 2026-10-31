@@ -1,5 +1,23 @@
 # Validation record
 
+## Latest feature validation: v0.3.0
+
+On 2026-10-31, the v0.3.0 feature/skill commit passed
+[all eight CI jobs](https://github.com/fcenedes/mcp-gmap-rs/actions/runs/41198737996):
+Linux/macOS tests, strict Clippy, Rust 1.88, stable/nightly docs, package auditing
+and Linux amd64 container/TLS checks. The suite has 53 offline tests, 23 opt-in
+API-key tests, six opt-in OAuth tests and one compile-checked documentation example.
+All 29 live scenarios and all twelve `doctor --live` API probes passed in the
+local acceptance runs. Both Kubernetes examples pass strict schema validation;
+no cluster deployment was performed. Public Rust documentation coverage is 100%.
+
+The detailed v0.3.0 and agent-skill records are below. Earlier sections are dated
+historical snapshots, including failures subsequently resolved; their old tool
+counts and preparation status do not describe the current version. Release
+publication and hosted docs.rs availability are verified after the final tag.
+
+## Historical validation: v0.1.0
+
 Validated locally on 2026-10-30 with Rust 1.94.1 on macOS arm64.
 
 | Check | Result |
@@ -66,7 +84,7 @@ after API enablement. The default offline suite remains independent of credentia
 To repeat all live tests with `GOOGLE_MAPS_API_KEY` exported:
 
 ```sh
-cargo test --locked --test live -- --ignored --test-threads=1
+cargo test --locked --test live live_maps_ -- --ignored --test-threads=1
 ```
 
 These checks cover small Paris-based scenarios using one key. Other locations,

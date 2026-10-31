@@ -31,11 +31,11 @@ Download the archive for your platform and verify it against `SHA256SUMS`:
 - macOS Intel: `x86_64-apple-darwin`.
 
 Archives contain the executable, README, changelog, configuration example,
-documentation and licenses. The source archive and Cargo package include the
-Dockerfile and deployment examples. Discovery/help require no Google credentials.
+documentation, deployment examples, agent skill and licenses. The source archive
+and Cargo package also include the Dockerfile. Discovery/help require no Google credentials.
 The macOS binaries are not notarized or code-signed.
 
-Once this crate version has been published:
+Install this version from crates.io:
 
 ```sh
 cargo install mcp-gmap-rs --version 0.3.0 --locked

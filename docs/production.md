@@ -1,6 +1,6 @@
 # Production configuration
 
-The following features are available in the v0.3.0 source. All Google tools share
+This guide covers v0.3.0. All Google tools share
 the same implementation across CLI, MCP stdio and Streamable HTTP.
 
 ## Native TLS and mutual TLS

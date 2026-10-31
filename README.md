@@ -3,6 +3,11 @@
 A standalone Rust executable for Google Maps: 
 **CLI**, **MCP stdio**, and **MCP Streamable HTTP**. 
 
+- 23 tools for places, routing, address validation, local conditions and road data.
+- API keys or service-account/ADC OAuth for supported APIs.
+- Native TLS/mTLS, request limits, Prometheus metrics and access diagnostics.
+- Docker/Kubernetes examples and a portable agent skill for MCP or CLI use.
+
 [![CI](https://github.com/fcenedes/mcp-gmap-rs/actions/workflows/ci.yml/badge.svg)](https://github.com/fcenedes/mcp-gmap-rs/actions/workflows/ci.yml)
 [![docs.rs](https://docs.rs/mcp-gmap-rs/badge.svg)](https://docs.rs/mcp-gmap-rs/latest/mcp_gmap_rs/)
 
@@ -17,7 +22,14 @@ See [release automation](docs/releases.md) for the CI and publishing process.
 
 ## Build and install
 
-Install a stable Rust toolchain (Rust 1.88 or newer; validated with 1.94.1), then:
+Install Rust 1.88 or newer. CI checks the minimum and current stable toolchains;
+release binaries are built with Rust 1.94.1. Install this version from crates.io:
+
+```sh
+cargo install mcp-gmap-rs --version 0.3.0 --locked
+```
+
+Or build from a source checkout:
 
 ```sh
 cargo build --release --locked
@@ -28,8 +40,8 @@ cargo install --path . --locked
 ```
 
 `target/release/mcp-gmap-rs` is the executable. It needs no source checkout or
-language runtime after building. HTTPS uses the operating system certificate
-store; the host still needs working CA certificates and network access to Google.
+language runtime after building. Outbound HTTPS uses the operating system
+certificate store; the host needs working CA certificates and network access to Google.
 
 ## Configure Google access
 
@@ -43,14 +55,15 @@ export GOOGLE_MAPS_API_KEY='your-key'
 
 Enable billing and the Google APIs used by your tools: Places API (New),
 Geocoding API, Routes API, Elevation API, Time Zone API, Maps Static API,
-Weather API, Air Quality API, Address Validation API, Pollen API, Places Aggregate API and Roads API. You only need APIs for tools you actually call.
+Weather API, Air Quality API, Address Validation API, Pollen API, Places Aggregate
+API and Roads API. You only need APIs for tools you actually call.
 Calls can incur charges; composite tools make multiple API requests. Availability
 and travel-mode coverage depend on Google and the region.
 
 Configuration is layered: **defaults → optional `.env` → environment variables →
 CLI flags**. The default file is `.env` in the working directory; parent directories
 are not searched. See [.env.example](.env.example). API keys stay in process
-configuration and are never accepted as MCP tool arguments or HTTP query parameters.
+configuration and are never accepted as MCP tool arguments or MCP HTTP query parameters.
 
 ```sh
 cp .env.example .env
@@ -81,13 +94,24 @@ disables all file loading. Files are parsed without modifying the process enviro
 | `MCP_HTTP_ALLOWED_HOSTS` | loopback hosts | Comma-separated allowed HTTP Host values |
 | `MCP_HTTP_ALLOWED_ORIGINS` | none | Comma-separated browser origins; specify ports explicitly |
 | `RUST_LOG` | `warn` | Diagnostic log filter; logs go to stderr |
+| `MCP_LOG_FORMAT` | `text` | `text` or `json` diagnostic events |
+| `GOOGLE_MAPS_MAX_REQUESTS` | `200` | Google HTTP attempt budget per tool call, including retries |
+| `GOOGLE_MAPS_MAX_RETRIES` | `2` | Additional transient attempts per Google request |
+| `GOOGLE_MAPS_TOOL_TIMEOUT` | `120` | Overall tool deadline in seconds |
+| `MCP_HTTP_RATE_LIMIT` | `120` | Authenticated MCP HTTP requests/minute per process; `0` disables |
+| `MCP_METRICS_ENABLED` | `false` | Enable protected Prometheus `/metrics` |
+| `MCP_TLS_CERT` | unset | PEM server certificate chain file |
+| `MCP_TLS_KEY` | unset | Matching PEM server private key file |
+| `MCP_TLS_CLIENT_CA` | unset | PEM client CA bundle; require client certificates |
 
 `--auth-mode`, `--language`, `--timeout`, and `--enabled-tools` override their environment values.
 HTTP `--listen`, `--allowed-host`, and `--allowed-origin` do the same. Repeated
 allowlist flags replace the corresponding file/environment list as a whole.
 An explicitly empty environment value also overrides the file; it can clear an
 optional token or allowlist, but an empty timeout is invalid. Configuration is
-read at startup; restart the process after changing files or Kubernetes Secrets.
+read at startup; restart the process after changing application settings or
+Kubernetes Secrets. TLS certificate/key/client-CA files can be reloaded with
+SIGHUP; see the [production guide](docs/production.md).
 Unknown tool names in an allowlist fail startup. Tool discovery and input-schema
 inspection work without credentials; actual API calls need credentials supported
 by the selected endpoints.
@@ -105,8 +129,9 @@ For containers and Kubernetes Secrets/ConfigMaps, see the
 
 ## CLI
 
-All commands print JSON to stdout and errors to stderr, with a nonzero exit status
-on failure. `--output` writes JSON to a file, or raw PNG for `static-map`.
+Tool calls print JSON to stdout and errors to stderr, with a nonzero exit status
+on failure. `doctor` also prints its JSON report when checks fail. `--output`
+writes JSON to a file, or raw PNG for `static-map`.
 
 ```sh
 mcp-gmap-rs tools
@@ -122,6 +147,15 @@ mcp-gmap-rs directions --origin 'Paris' --destination 'Versailles' --mode drivin
 mcp-gmap-rs plan-route --stops '["Eiffel Tower","Louvre","Montmartre","Notre Dame, Paris"]'
 mcp-gmap-rs batch-geocode --addresses '["Paris","London","Rome"]'
 mcp-gmap-rs static-map --center 'Paris' --zoom 12 --output paris.png
+mcp-gmap-rs validate-address --address-lines '["5 Avenue Anatole France"]' --region-code FR
+mcp-gmap-rs pollen --latitude 48.8584 --longitude 2.2945 --days 3
+mcp-gmap-rs area-insights \
+  --area '{"circle":{"latLng":{"latitude":48.8584,"longitude":2.2945},"radius":500}}' \
+  --included-types '["restaurant"]' --min-rating 4
+mcp-gmap-rs snap-to-roads \
+  --path '[{"latitude":-35.27801,"longitude":149.12958},{"latitude":-35.28032,"longitude":149.12907}]'
+mcp-gmap-rs nearest-roads --points '[{"latitude":48.8584,"longitude":2.2945}]'
+mcp-gmap-rs doctor
 ```
 
 Use `COMMAND --help` for flags. Object/array flags take JSON; boolean flags accept
@@ -197,6 +231,20 @@ this executable authenticates HTTP clients with a configured bearer token.
 It uses one Google key per process; run separate instances for separate Google
 credentials. Request bodies are limited to 1 MiB. Ctrl-C and SIGTERM shut down
 the server and active HTTP sessions.
+
+To serve HTTPS directly, supply a matching certificate/key and the runtime bearer
+token. Set `RUST_LOG=info` to see tool completion events:
+
+```sh
+mcp-gmap-rs --log-format json serve http --listen 0.0.0.0:3443 \
+  --tls-cert /etc/mcp-gmap/tls/tls.crt --tls-key /etc/mcp-gmap/tls/tls.key \
+  --allowed-host maps.example.com:3443 --metrics --rate-limit 120
+```
+
+Add `--tls-client-ca /etc/mcp-gmap/tls/client-ca.pem` to require client certificates.
+For diagnostics, `doctor` is offline; `doctor --live` opts into billable probes
+and can be scoped with `--enabled-tools`. The [production guide](docs/production.md)
+documents request-budget flags, metric names, TLS renewal and deployment limits.
 
 ## Tools
 
@@ -274,7 +322,7 @@ These tests require `GOOGLE_MAPS_API_KEY` exported in the environment, enabled
 APIs, billing and network access, and make billable Google requests:
 
 ```sh
-cargo test --locked --test live -- --ignored --test-threads=1
+cargo test --locked --test live live_maps_ -- --ignored --test-threads=1
 ```
 
 Six additional opt-in tests exercise OAuth on Places, Routes, Weather, Air
@@ -283,5 +331,8 @@ Quality, Address Validation and Places Aggregate with the API key removed. See t
 Live tests are ignored in ordinary `cargo test` and CI runs. Run a single tool
 with, for example, `cargo test --locked --test live live_maps_weather -- --ignored`.
 See the [validation record](docs/validation.md) for the checks run and live-test status.
+
+After local verification, run `cargo clean` to reclaim generated build output.
+Subsequent source builds will recompile it.
 
 MIT licensed. 

@@ -38,8 +38,9 @@ docker run --rm --read-only --cap-drop ALL --security-opt no-new-privileges \
   --env-file .env -p 127.0.0.1:3000:3000 mcp-gmap-rs:local
 ```
 
-Ensure `.env` contains `MCP_HTTP_TOKEN` as well as `GOOGLE_MAPS_API_KEY` for Google
-calls. The former is required because the container listens outside loopback.
+Ensure `.env` contains `MCP_HTTP_TOKEN`, required because the container listens
+outside loopback. Google calls use `GOOGLE_MAPS_API_KEY` or the OAuth settings
+and credential mounts from the setup guide, depending on the enabled tools.
 Clients use `http://127.0.0.1:3000/mcp` and `Authorization: Bearer <token>`.
 `GET /health` needs no token and does not contact Google.
 
@@ -103,10 +104,12 @@ Secrets or ConfigMaps still override it. See the upstream Kubernetes guidance on
 [environment injection](https://kubernetes.io/docs/tasks/inject-data-application/define-environment-variable-container/)
 and [Secret volumes](https://kubernetes.io/docs/concepts/configuration/secret/).
 
-Configuration is read at startup. Restart pods after Secret/ConfigMap changes.
+Application configuration is read at startup. Restart pods after changing those
+Secret/ConfigMap values; native TLS files also support SIGHUP reload.
 Probes use `/health` for HTTP availability; a healthy pod does not prove that a
-Google API is enabled or its key is authorized. Google calls require outbound
-HTTPS, working DNS and a key permitted for the cluster's egress address.
+Google API is enabled or its credentials are authorized. Google calls require
+outbound HTTPS and working DNS. API-key restrictions must permit the cluster's
+public egress address; OAuth requires access to its token/identity endpoints.
 
 Keep one replica for the default in-memory MCP session store. Multiple replicas
 need session affinity so each session reaches its owning pod; rolling restarts

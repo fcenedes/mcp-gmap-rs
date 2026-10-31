@@ -53,7 +53,7 @@ def package(target, output):
         shutil.copy2(binary, folder / binary_name)
         for filename in ["README.md", "LICENSE", "CHANGELOG.md", ".env.example"]:
             shutil.copy2(ROOT / filename, folder / filename)
-        for directory_name in ["licenses", "docs"]:
+        for directory_name in ["licenses", "docs", "deploy"]:
             shutil.copytree(ROOT / directory_name, folder / directory_name)
         shutil.copytree(ROOT / "skills" / "mcp-gmap", folder / "skills" / "mcp-gmap")
         with tarfile.open(destination, "w:gz") as archive:

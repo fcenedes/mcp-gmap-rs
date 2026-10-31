@@ -7,8 +7,8 @@ package. Package auditing checks the file allowlist, original license and exampl
 configuration; Google credentials are never needed in CI. A Linux container job
 builds the Dockerfile, exercises CLI discovery and both MCP transports as a
 non-root user with a read-only filesystem, verifies mounted dotenv/environment
-overrides, authentication and SIGTERM shutdown, and validates the Kubernetes
-example against its schemas.
+overrides, native TLS, authentication, metrics, rate limits, doctor, SIGHUP and
+SIGTERM, and strictly validates the base Kubernetes and TLS Gateway examples.
 
 Action dependencies are pinned to commit SHAs. Dependabot checks Cargo and Actions
 dependencies weekly. Live Google tests remain opt-in because they are billable
@@ -19,8 +19,9 @@ and the local test key has an IP restriction.
 The crate declares its docs.rs documentation URL and builds all features on the
 default Linux target only. `targets = []` disables docs.rs's additional default
 targets, including Windows; the Mac/Linux executable release matrix is independent.
-The docs.rs landing page is compiled from `docs/crate.md`, which must remain in
-the Cargo package. [`run`](https://docs.rs/mcp-gmap-rs/latest/mcp_gmap_rs/fn.run.html)
+The docs.rs landing page includes `docs/crate.md` and `docs/production.md`, both
+of which must remain in the Cargo package. The package also carries the agent
+skill and its references. [`run`](https://docs.rs/mcp-gmap-rs/latest/mcp_gmap_rs/fn.run.html)
 is the public Rust entry point; internal Google clients stay private.
 
 CI builds rustdoc on stable and nightly with `DOCS_RS=1`, `--cfg docsrs`, and
@@ -47,9 +48,11 @@ not reproduced exactly by CI, so check the hosted build status after publication
 
 ## GitHub release
 
-1. Update the Cargo version, lockfile, changelog and `.github/RELEASE_NOTES.md`.
+1. Update the Cargo version, lockfile, dated changelog, README, bundled guides
+   and `.github/RELEASE_NOTES.md`; check tool names, flags and examples against
+   the executable. Keep agent-skill references and package contents aligned.
 2. Commit and push the release changes; wait for CI to pass.
-3. Create an annotated tag matching the Cargo version, e.g. `v0.1.0`, and push it.
+3. Create an annotated tag matching the Cargo version, e.g. `v0.3.0`, and push it.
 4. The Release workflow reruns CI on the exact tag, creates an unpublished draft,
    builds the three native executable targets, and smoke-tests version/discovery
    without credentials. Each build uploads its archive and checksum to the draft.
@@ -58,8 +61,9 @@ not reproduced exactly by CI, so check the hosted build status after publication
 
 The release build uses Rust 1.94.1 and `Cargo.lock`. Linux x86_64 binaries are built
 on Ubuntu 22.04 for glibc 2.35 compatibility. The other targets are macOS Apple
-Silicon and macOS Intel. Each archive includes documentation,
-configuration example and licenses. macOS code signing is not configured.
+Silicon and macOS Intel. Each archive includes documentation, deployment examples,
+the reusable agent skill, configuration example and licenses. macOS code signing
+is not configured. The Cargo source package also contains the Dockerfile.
 
 Draft assets are used for staging, so releases do not depend on the account's
 Actions artifact storage quota. A failed build leaves the release unpublished.
@@ -69,7 +73,7 @@ unchanged source tag. Tags must match the Cargo version. Completed releases are
 not overwritten by this workflow; create a new version for changed release files.
 
 ```sh
-gh workflow run release.yml --ref main -f tag=v0.1.0
+gh workflow run release.yml --ref main -f tag=v0.3.0
 ```
 
 ## crates.io publication
@@ -87,7 +91,7 @@ Environment approvals may be configured by the repository owner if desired.
 Dispatch from the repository Actions page, or use:
 
 ```sh
-gh workflow run publish.yml -f tag=v0.1.0
+gh workflow run publish.yml --ref v0.3.0 -f tag=v0.3.0
 ```
 
 Crate versions cannot be overwritten. The workflow does not run automatically on
@@ -96,5 +100,10 @@ tag pushes, and Google API keys must never be used as registry credentials.
 After publishing, users can install with:
 
 ```sh
-cargo install mcp-gmap-rs --locked
+cargo install mcp-gmap-rs --version 0.3.0 --locked
 ```
+
+After publication, verify the crates.io version and hosted docs.rs landing page,
+production guide and skill source files. Run `cargo clean` in the local checkout
+to reclaim generated build output after local verification; CI builds use their
+own runner storage.
