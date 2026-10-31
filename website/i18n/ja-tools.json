@@ -463,9 +463,13 @@
       "arrival_time": {
         "description": "希望到着時刻。タイムゾーン付き RFC 3339 で、公共交通のみです。",
         "default": "未指定"
+      },
+      "trafficSegments": {
+        "description": "自動車運転のみの任意の真偽値。TRAFFIC_ON_POLYLINE と HIGH_QUALITY・ENCODED_POLYLINE の形状を要求します。交通付きポリラインは高料金の Compute Routes Enterprise SKU を発生させるため、区間詳細が不要なら false のままにします。",
+        "default": "false"
       }
     },
-    "result": "`routes`、`summary`、`total_distance`（メートル）、`total_duration`（秒）、任意の最適化インデックスを持つオブジェクト。経路は選択した区間、手順、ポリライン、警告を含みます。",
+    "result": "`routes`、`summary`、`total_distance`（メートル）、`total_duration`（秒）、任意の最適化インデックスを持つオブジェクト。経路は選択した区間、手順、ポリライン、警告を含みます。 trafficSegments=true の場合、経路と各区間に正規化した segments と segmentMetadata も含まれます。",
     "example": {
       "origin": "48.8584,2.2945",
       "destination": "48.8606,2.3376",
@@ -474,7 +478,10 @@
     "notes": [
       "departure_time と arrival_time は同時指定できません。arrival_time は公共交通のみです。",
       "回避オプションは運転が必要です。Google は移動方法・時刻・地域の追加制限も適用します。",
-      "利用可能な経路がなければ明示的なエラーです。"
+      "利用可能な経路がなければ明示的なエラーです。",
+      "trafficSegments=true では Routes が NORMAL、SLOW、TRAFFIC_JAM の交通範囲を返します。経路・各区間の正規化セグメントは、それぞれ固有のポリラインと独立した点インデックスを使用します。Google の範囲は [start,end) ですが、形状には共有する終了境界の頂点を残し、最後の辺を含めます。範囲の欠落・不正は明示し、通常の交通と推測して補完しません。",
+      "segmentMetadata.retrievedAt はローカルで応答を取得した時刻で、提供者による交通観測時刻ではありません。Routes は観測時刻を返さないため trafficObservedAt は null。この Routes 応答は道路分類・制限速度も返さないため roadCategory・speedLimit は null。暗黙の Roads 呼び出しやクライアント側の所要時間倍率は使用せず、時間は Google の予測値を保持します。",
+      "交通セグメントは明示的な指定が必要で、この実装では自動車運転のみです。交通付きポリラインを要求し、Compute Routes Enterprise 課金が発生します。[交通範囲の仕様](https://developers.google.com/maps/documentation/routes/traffic_on_polylines)、[現在の SKU 発生条件](https://developers.google.com/maps/billing-and-pricing/sku-details/routes)。"
     ],
     "authentication": "Routes・Places は API キーまたは OAuth に対応します。場所名の解決には Geocoding の API キーも必要ですが、正確な座標文字列で回避できます。",
     "summary": "2 地点間の経路、案内手順、距離・時間の合計を取得します。"
@@ -789,9 +796,13 @@
       "optimize": {
         "description": "合計立ち寄り点が 3 点を超え、モードが transit 以外の場合に中間点の最適化を要求します。",
         "default": "true。ただし上記条件に従います"
+      },
+      "trafficSegments": {
+        "description": "自動車運転のみの任意の真偽値。TRAFFIC_ON_POLYLINE と HIGH_QUALITY・ENCODED_POLYLINE の形状を要求します。交通付きポリラインは高料金の Compute Routes Enterprise SKU を発生させるため、区間詳細が不要なら false のままにします。",
+        "default": "false"
       }
     },
-    "result": "`mode`、実際に適用した `optimized`、順序付き解決済み `stops`、表示用 `legs`、total_distance、total_duration、polyline、警告を持つオブジェクト。区間の durationSeconds は秒の数値です。",
+    "result": "`mode`、実際に適用した `optimized`、順序付き解決済み `stops`、表示用 `legs`、total_distance、total_duration、polyline、警告を持つオブジェクト。区間の durationSeconds は秒の数値です。 trafficSegments=true の場合、経路と各区間に正規化した segments と segmentMetadata も含まれます。",
     "example": {
       "stops": [
         "48.8584,2.2945",
@@ -804,7 +815,10 @@
     "notes": [
       "公共交通は 2 端点だけに対応し、中間点は使えません。",
       "最適化が有効なのは合計 4 点以上（中間点 2 つ以上）の場合だけです。",
-      "1 経路の順序最適化であり、車両群への車両・タスク割り当てではありません。"
+      "1 経路の順序最適化であり、車両群への車両・タスク割り当てではありません。",
+      "trafficSegments=true では Routes が NORMAL、SLOW、TRAFFIC_JAM の交通範囲を返します。経路・各区間の正規化セグメントは、それぞれ固有のポリラインと独立した点インデックスを使用します。Google の範囲は [start,end) ですが、形状には共有する終了境界の頂点を残し、最後の辺を含めます。範囲の欠落・不正は明示し、通常の交通と推測して補完しません。",
+      "segmentMetadata.retrievedAt はローカルで応答を取得した時刻で、提供者による交通観測時刻ではありません。Routes は観測時刻を返さないため trafficObservedAt は null。この Routes 応答は道路分類・制限速度も返さないため roadCategory・speedLimit は null。暗黙の Roads 呼び出しやクライアント側の所要時間倍率は使用せず、時間は Google の予測値を保持します。",
+      "交通セグメントは明示的な指定が必要で、この実装では自動車運転のみです。交通付きポリラインを要求し、Compute Routes Enterprise 課金が発生します。[交通範囲の仕様](https://developers.google.com/maps/documentation/routes/traffic_on_polylines)、[現在の SKU 発生条件](https://developers.google.com/maps/billing-and-pricing/sku-details/routes)。"
     ],
     "authentication": "Routes・Places は API キーまたは OAuth に対応します。場所名の解決には Geocoding の API キーも必要ですが、正確な座標文字列で回避できます。",
     "summary": "2–27 立ち寄り点の経路を計画します。公共交通以外は 2–25 中間点を最適化でき、正確な座標を保持します。"

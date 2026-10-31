@@ -16,6 +16,7 @@ mod media_services;
 mod metrics;
 mod policy;
 mod routes;
+mod segments;
 mod server;
 mod settings;
 mod tls;

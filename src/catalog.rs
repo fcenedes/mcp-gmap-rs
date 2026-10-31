@@ -132,12 +132,14 @@ fn builtin_definitions() -> Vec<(&'static str, &'static str, Value)> {
     directions["origin"] = string();
     directions["destination"] = string();
     directions["arrival_time"] = string();
+    directions["trafficSegments"] = boolean();
     let mut matrix = route_options.clone();
     matrix["origins"] = array(string(), 1, 50);
     matrix["destinations"] = array(string(), 1, 50);
     let mut plan = route_options;
     plan["stops"] = array(string(), 2, 27);
     plan["optimize"] = boolean();
+    plan["trafficSegments"] = boolean();
     vec![
         (
             "maps_geocode",

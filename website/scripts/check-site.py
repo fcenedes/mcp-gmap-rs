@@ -131,7 +131,7 @@ def main():
         raise SystemExit(f"Built site is missing: {dist}; run the website build first")
     notes = json.loads((REPOSITORY / ".github/scripts/tool-reference.json").read_text())
     parameter_count = sum(len(tool["parameters"]) for tool in notes.values())
-    if len(notes) != 42 or parameter_count != 325:
+    if len(notes) != 42 or parameter_count != 327:
         errors.append("The tool catalog changed: update the manual coverage contract")
 
     pages = {file: Page(file.read_text(encoding="utf-8")) for file in dist.rglob("*.html")}

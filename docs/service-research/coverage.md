@@ -12,7 +12,7 @@ license, billing entitlement or user consent.
 | Google product | Implemented tool / operations | Remaining boundary or access requirement |
 | --- | --- | --- |
 | Places API (New) | Search text/nearby, details, photo URL and autocomplete; composite discovery/ranking tools | Native API has additional methods/fields beyond these wrappers. Session tokens are caller-managed and can terminate via details/address validation. |
-| Routes API | Directions, route matrix, route planning and route comparison/search composites | Existing wrappers expose selected routing options, not the whole native Routes schema. Route Optimization is a separate API below. |
+| Routes API | Directions, route matrix, route planning and route comparison/search composites | Optional trafficSegments adds route/leg traffic intervals with explicit unknown road class, speed limit and observation time; higher Enterprise billing applies. Existing wrappers expose selected routing options, not the whole native Routes schema. Route Optimization is a separate API below. |
 | Geocoding API v3 | Geocode, reverse geocode, batch geocode | v4 endpoints are not implemented; v3 calls require an API key. |
 | Maps Elevation API | Point/batched elevation lookup | No dedicated encoded-polyline sampling wrapper. |
 | Time Zone API | Time zone and offsets for coordinates/time | API key required. |

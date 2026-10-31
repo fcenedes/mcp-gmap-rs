@@ -584,16 +584,22 @@ Compute a route between two endpoints and expose both selected Google route data
 | `destination` / `--destination` | string; at least 1 character(s) | Yes | — | Destination address/landmark or exact latitude,longitude string. |
 | `mode` / `--mode` | string; values: `driving`, `walking`, `bicycling`, `transit` | No | driving | Travel mode. Driving uses traffic-aware routing. |
 | `origin` / `--origin` | string; at least 1 character(s) | Yes | — | Origin address/landmark or exact latitude,longitude string. |
+| `trafficSegments` / `--traffic-segments` | boolean | No | false | Boolean opt-in for driving only. Requests TRAFFIC_ON_POLYLINE with HIGH_QUALITY and ENCODED_POLYLINE geometry. Traffic on polylines triggers the higher-priced Compute Routes Enterprise SKU; leave false unless segment detail is needed. |
 
 ### Behavior and restrictions
 
 - departure_time and arrival_time cannot both be supplied. arrival_time is accepted only for transit.
 - Avoidance flags require driving. Google applies additional travel-mode/time/region restrictions.
 - No available route is an explicit error.
+- With trafficSegments=true, Routes supplies NORMAL, SLOW or TRAFFIC_JAM intervals. Normalized route and leg segments use the corresponding route or leg polyline, with independent point indices. Google intervals are [start,end); each segment geometry retains the shared end boundary vertex to cover the final edge. Missing or invalid coverage is reported explicitly rather than invented as normal traffic.
+- segmentMetadata.retrievedAt is the local response-fetch time, not a provider traffic observation time; trafficObservedAt is null because Routes does not return it. roadCategory and speedLimit are null because this Routes response supplies neither. No implicit Roads API calls or client-side duration multipliers are applied; durations remain Google predictions.
+- Traffic segments are optional and driving-only in this executable. This requests traffic-aware polylines and triggers Compute Routes Enterprise billing. [Traffic interval contract](https://developers.google.com/maps/documentation/routes/traffic_on_polylines); [current SKU triggers](https://developers.google.com/maps/billing-and-pricing/sku-details/routes).
+
+**Primary sources:** <https://developers.google.com/maps/billing-and-pricing/sku-details/routes>, <https://developers.google.com/maps/documentation/routes/traffic_on_polylines>
 
 ### Result
 
-An object containing `routes`, `summary`, `total_distance` (value in metres), `total_duration` (value in seconds) and optional optimization indices. Route entries contain selected legs, steps, polyline and warnings.
+An object containing `routes`, `summary`, `total_distance` (value in metres), `total_duration` (value in seconds) and optional optimization indices. Route entries contain selected legs, steps, polyline and warnings. When trafficSegments is true, route and leg results additionally include normalized segments and segmentMetadata.
 
 ### Example
 
@@ -1012,16 +1018,22 @@ Plan a single route through ordered stops, optionally asking Google to reorder i
 | `mode` / `--mode` | string; values: `driving`, `walking`, `bicycling`, `transit` | No | driving | Travel mode. Driving uses traffic-aware routing. |
 | `optimize` / `--optimize` | boolean | No | true, subject to those conditions | Request intermediate-stop optimization when more than three total stops and mode is not transit. |
 | `stops` / `--stops` | array of string; 2–27 items; each item at least 1 character(s) | Yes | — | Ordered addresses/landmarks or exact latitude,longitude strings; first/last stay endpoints. |
+| `trafficSegments` / `--traffic-segments` | boolean | No | false | Boolean opt-in for driving only. Requests TRAFFIC_ON_POLYLINE with HIGH_QUALITY and ENCODED_POLYLINE geometry. Traffic on polylines triggers the higher-priced Compute Routes Enterprise SKU; leave false unless segment detail is needed. |
 
 ### Behavior and restrictions
 
 - Transit supports only two endpoints and no intermediate stops.
 - Optimization takes effect only for four or more total stops (at least two intermediate stops).
 - This optimizes stop order for one route, not vehicle/task assignment across a fleet.
+- With trafficSegments=true, Routes supplies NORMAL, SLOW or TRAFFIC_JAM intervals. Normalized route and leg segments use the corresponding route or leg polyline, with independent point indices. Google intervals are [start,end); each segment geometry retains the shared end boundary vertex to cover the final edge. Missing or invalid coverage is reported explicitly rather than invented as normal traffic.
+- segmentMetadata.retrievedAt is the local response-fetch time, not a provider traffic observation time; trafficObservedAt is null because Routes does not return it. roadCategory and speedLimit are null because this Routes response supplies neither. No implicit Roads API calls or client-side duration multipliers are applied; durations remain Google predictions.
+- Traffic segments are optional and driving-only in this executable. This requests traffic-aware polylines and triggers Compute Routes Enterprise billing. [Traffic interval contract](https://developers.google.com/maps/documentation/routes/traffic_on_polylines); [current SKU triggers](https://developers.google.com/maps/billing-and-pricing/sku-details/routes).
+
+**Primary sources:** <https://developers.google.com/maps/billing-and-pricing/sku-details/routes>, <https://developers.google.com/maps/documentation/routes/traffic_on_polylines>
 
 ### Result
 
-An object with `mode`, effective `optimized`, ordered resolved `stops`, display `legs`, total_distance, total_duration, polyline and warnings. Leg durationSeconds is numeric seconds.
+An object with `mode`, effective `optimized`, ordered resolved `stops`, display `legs`, total_distance, total_duration, polyline and warnings. Leg durationSeconds is numeric seconds. When trafficSegments is true, route and leg results additionally include normalized segments and segmentMetadata.
 
 ### Example
 

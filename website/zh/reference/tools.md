@@ -584,16 +584,22 @@ mcp-gmap-rs call maps_place_details --args '{"placeId":"ChIJLU7jZClu5kcR4PcOOO6p
 | `destination` / `--destination` | 字符串; 至少 1 个字符 | 是 | — | 终点地址/地标或精确 latitude,longitude 字符串。 |
 | `mode` / `--mode` | 字符串; 可选值： `driving`, `walking`, `bicycling`, `transit` | 否 | driving | 出行方式。驾车采用考虑交通状况的路线。 |
 | `origin` / `--origin` | 字符串; 至少 1 个字符 | 是 | — | 起点地址/地标或精确 latitude,longitude 字符串。 |
+| `trafficSegments` / `--traffic-segments` | 布尔值 | 否 | false | 仅适用于驾车的布尔可选项。请求 TRAFFIC_ON_POLYLINE，并使用 HIGH_QUALITY、ENCODED_POLYLINE 几何。折线交通数据会触发价格更高的 Compute Routes Enterprise 计费项；无需分段详情时保持 false。 |
 
 ### 行为与限制
 
 - departure_time 与 arrival_time 不可同时提供。arrival_time 仅限公共交通。
 - 避让选项要求驾车模式。Google 还有出行方式/时间/地区方面的附加限制。
 - 没有可用路线时显式报错。
+- trafficSegments=true 时，Routes 返回 NORMAL、SLOW、TRAFFIC_JAM 交通区间。路线及各路段的标准化分段分别引用自己的折线，点索引互相独立。Google 区间为 [start,end)；分段几何保留共享的结束边界顶点，以覆盖最后一条边。覆盖缺失或无效会明确报告，不会臆造正常交通。
+- segmentMetadata.retrievedAt 是本地取得响应的时间，不是提供方观测交通的时间；Routes 不返回该观测时间，因此 trafficObservedAt 为 null。该 Routes 响应也不返回道路类别和限速，因此 roadCategory、speedLimit 为 null。不隐式调用 Roads，不在客户端乘以时长系数；时长保持 Google 的预测值。
+- 本程序的交通分段需显式开启且仅支持驾车。此选项请求含交通信息的折线，并触发 Compute Routes Enterprise 计费。[交通区间约定](https://developers.google.com/maps/documentation/routes/traffic_on_polylines)；[当前计费触发条件](https://developers.google.com/maps/billing-and-pricing/sku-details/routes)。
+
+**官方来源:** <https://developers.google.com/maps/billing-and-pricing/sku-details/routes>, <https://developers.google.com/maps/documentation/routes/traffic_on_polylines>
 
 ### 结果
 
-对象包含 `routes`、`summary`、`total_distance`（米）、`total_duration`（秒）及可选优化索引。路线条目包含选定路段、步骤、折线与警告。
+对象包含 `routes`、`summary`、`total_distance`（米）、`total_duration`（秒）及可选优化索引。路线条目包含选定路段、步骤、折线与警告。 trafficSegments=true 时，路线和各路段还包含标准化 segments 与 segmentMetadata。
 
 ### 示例
 
@@ -1012,16 +1018,22 @@ mcp-gmap-rs call maps_explore_area --args '{"location":"48.8584,2.2945","types":
 | `mode` / `--mode` | 字符串; 可选值： `driving`, `walking`, `bicycling`, `transit` | 否 | driving | 出行方式。驾车采用考虑交通状况的路线。 |
 | `optimize` / `--optimize` | 布尔值 | 否 | true，但受上述条件限制 | 当总停靠点超过三个且模式不是 transit 时请求优化中间点。 |
 | `stops` / `--stops` | 字符串数组; 2–27 项; 每项至少 1 个字符 | 是 | — | 有序地址/地标或精确 latitude,longitude 字符串；首尾保持为端点。 |
+| `trafficSegments` / `--traffic-segments` | 布尔值 | 否 | false | 仅适用于驾车的布尔可选项。请求 TRAFFIC_ON_POLYLINE，并使用 HIGH_QUALITY、ENCODED_POLYLINE 几何。折线交通数据会触发价格更高的 Compute Routes Enterprise 计费项；无需分段详情时保持 false。 |
 
 ### 行为与限制
 
 - 公共交通只支持两个端点，不允许中间停靠点。
 - 只有总停靠点至少四个（至少两个中间点）时优化才生效。
 - 此工具优化单条路线的停靠顺序，不进行车队的车辆/任务分配。
+- trafficSegments=true 时，Routes 返回 NORMAL、SLOW、TRAFFIC_JAM 交通区间。路线及各路段的标准化分段分别引用自己的折线，点索引互相独立。Google 区间为 [start,end)；分段几何保留共享的结束边界顶点，以覆盖最后一条边。覆盖缺失或无效会明确报告，不会臆造正常交通。
+- segmentMetadata.retrievedAt 是本地取得响应的时间，不是提供方观测交通的时间；Routes 不返回该观测时间，因此 trafficObservedAt 为 null。该 Routes 响应也不返回道路类别和限速，因此 roadCategory、speedLimit 为 null。不隐式调用 Roads，不在客户端乘以时长系数；时长保持 Google 的预测值。
+- 本程序的交通分段需显式开启且仅支持驾车。此选项请求含交通信息的折线，并触发 Compute Routes Enterprise 计费。[交通区间约定](https://developers.google.com/maps/documentation/routes/traffic_on_polylines)；[当前计费触发条件](https://developers.google.com/maps/billing-and-pricing/sku-details/routes)。
+
+**官方来源:** <https://developers.google.com/maps/billing-and-pricing/sku-details/routes>, <https://developers.google.com/maps/documentation/routes/traffic_on_polylines>
 
 ### 结果
 
-对象包含 `mode`、实际生效的 `optimized`、按顺序解析的 `stops`、显示用 `legs`、total_distance、total_duration、polyline 与警告。路段 durationSeconds 为数值秒。
+对象包含 `mode`、实际生效的 `optimized`、按顺序解析的 `stops`、显示用 `legs`、total_distance、total_duration、polyline 与警告。路段 durationSeconds 为数值秒。 trafficSegments=true 时，路线和各路段还包含标准化 segments 与 segmentMetadata。
 
 ### 示例
 

@@ -221,3 +221,33 @@ async fn stdio_executable_initializes_lists_tools_and_returns_tool_errors() {
         .unwrap();
     assert!(status.success());
 }
+
+#[tokio::test]
+async fn traffic_segments_cli_flag_and_generic_json_share_mode_validation() {
+    for args in [
+        vec![
+            "directions",
+            "--origin",
+            "Paris",
+            "--destination",
+            "Lyon",
+            "--mode",
+            "walking",
+            "--traffic-segments",
+        ],
+        vec![
+            "call",
+            "maps_directions",
+            "--args",
+            r#"{"origin":"Paris","destination":"Lyon","mode":"walking","trafficSegments":true}"#,
+        ],
+    ] {
+        let output = binary().args(args).output().await.unwrap();
+        assert!(!output.status.success());
+        assert!(
+            String::from_utf8_lossy(&output.stderr)
+                .contains("trafficSegments requires driving mode")
+        );
+        assert!(output.stdout.is_empty());
+    }
+}

@@ -24,6 +24,9 @@ use crate::{
     tools::{EngineState, Output},
 };
 
+#[path = "tests_traffic.rs"]
+mod traffic;
+
 #[path = "tests_services.rs"]
 mod service_transport;
 

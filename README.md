@@ -333,6 +333,23 @@ MCP PNG/JPEG/WebP calls return inline image content and binary metadata; CLI bin
 unless `--output` is provided.
 
 
+## Traffic segments
+
+Set `trafficSegments: true` on `maps_directions` or `maps_plan_route` for
+polyline-aligned traffic categories and explicit provenance/availability metadata:
+
+```sh
+mcp-gmap-rs directions --origin '37.422,-122.084' \
+  --destination '37.7749,-122.4194' --traffic-segments
+```
+
+This opt-in requires driving and triggers Google's higher-priced Compute Routes
+Enterprise SKU. Traffic categories are not measured speeds or posted limits.
+Road classification, posted speed limits and provider observation times remain
+`null` because Routes does not return them. A separate `retrievedAt` is the local
+fetch time. No application-specific multipliers or implicit Roads requests are
+applied. See [the segment contract and examples](docs/route-segments.md).
+
 ## Agent skill
 
 The reusable [mcp-gmap skill](skills/mcp-gmap/SKILL.md) teaches agents to choose

@@ -1508,16 +1508,22 @@ Route zwischen zwei Endpunkten berechnen und ausgewählte Google-Routendaten sow
 | `destination` / `--destination` | Zeichenkette; mindestens 1 Zeichen | Ja | — | Zieladresse/Sehenswürdigkeit oder exakte latitude,longitude-Zeichenkette. |
 | `mode` / `--mode` | Zeichenkette; Werte: `driving`, `walking`, `bicycling`, `transit` | Nein | driving | Verkehrsmodus. Autofahrten berücksichtigen die Verkehrslage. |
 | `origin` / `--origin` | Zeichenkette; mindestens 1 Zeichen | Ja | — | Startadresse/Sehenswürdigkeit oder exakte latitude,longitude-Zeichenkette. |
+| `trafficSegments` / `--traffic-segments` | boolescher Wert | Nein | false | Boolesche Zusatzoption nur für Autofahrten. Fordert TRAFFIC_ON_POLYLINE mit HIGH_QUALITY und ENCODED_POLYLINE an. Verkehrsdaten auf Polylinien lösen die teurere Compute Routes Enterprise-SKU aus; ohne Bedarf für Segmentdetails auf false lassen. |
 
 ### Verhalten und Einschränkungen
 
 - departure_time und arrival_time dürfen nicht gemeinsam gesetzt werden. arrival_time wird nur bei transit akzeptiert.
 - Vermeidungsoptionen erfordern driving. Google setzt zusätzliche Verkehrsmodus-, Zeit- und Regionsgrenzen.
 - Eine nicht verfügbare Route wird ausdrücklich als Fehler gemeldet.
+- Bei trafficSegments=true liefert Routes Intervalle mit NORMAL, SLOW oder TRAFFIC_JAM. Normalisierte Routen- und Etappensegmente beziehen sich jeweils auf die zugehörige Polylinie mit eigenen Punktindizes. Google verwendet [start,end); die Geometrie behält den gemeinsamen Endgrenzpunkt bei, damit die letzte Kante enthalten ist. Fehlende oder ungültige Abdeckung wird ausdrücklich gemeldet und nicht als normaler Verkehr ergänzt.
+- segmentMetadata.retrievedAt ist die lokale Abrufzeit der Antwort, keine Beobachtungszeit des Verkehrsanbieters; trafficObservedAt ist null, da Routes diese Zeit nicht liefert. roadCategory und speedLimit sind null, da diese Routes-Antwort beide Werte nicht enthält. Es erfolgen weder implizite Roads-Aufrufe noch lokale Dauerfaktoren; die Zeiten bleiben Google-Prognosen.
+- Verkehrssegmente sind optional und in diesem Programm nur für Autofahrten verfügbar. Die Option fordert verkehrsabhängige Polylinien an und löst Compute Routes Enterprise-Abrechnung aus. [Intervallvertrag](https://developers.google.com/maps/documentation/routes/traffic_on_polylines); [aktuelle SKU-Auslöser](https://developers.google.com/maps/billing-and-pricing/sku-details/routes).
+
+**Primärquellen:** <https://developers.google.com/maps/billing-and-pricing/sku-details/routes>, <https://developers.google.com/maps/documentation/routes/traffic_on_polylines>
 
 ### Ergebnis
 
-Objekt mit `routes`, `summary`, `total_distance` (Meter), `total_duration` (Sekunden) und optionalen Optimierungsindizes. Routeneinträge enthalten ausgewählte Etappen, Schritte, Polylinie und Warnungen.
+Objekt mit `routes`, `summary`, `total_distance` (Meter), `total_duration` (Sekunden) und optionalen Optimierungsindizes. Routeneinträge enthalten ausgewählte Etappen, Schritte, Polylinie und Warnungen. Bei trafficSegments=true enthalten Routen und Etappen zusätzlich normalisierte segments und segmentMetadata.
 
 ### Beispiel
 
@@ -1936,16 +1942,22 @@ Einzelne Route durch geordnete Stopps planen; optional Google um Neuordnung der 
 | `mode` / `--mode` | Zeichenkette; Werte: `driving`, `walking`, `bicycling`, `transit` | Nein | driving | Verkehrsmodus. Autofahrten berücksichtigen die Verkehrslage. |
 | `optimize` / `--optimize` | boolescher Wert | Nein | true, unter diesen Bedingungen | Zwischenstoppoptimierung anfordern, wenn mehr als drei Gesamtstopps vorliegen und der Modus nicht transit ist. |
 | `stops` / `--stops` | Array von Zeichenketten; 2–27 Elemente; jedes Element mindestens 1 Zeichen | Ja | — | Geordnete Adressen/Sehenswürdigkeiten oder exakte latitude,longitude-Zeichenketten; erster/letzter bleiben Endpunkte. |
+| `trafficSegments` / `--traffic-segments` | boolescher Wert | Nein | false | Boolesche Zusatzoption nur für Autofahrten. Fordert TRAFFIC_ON_POLYLINE mit HIGH_QUALITY und ENCODED_POLYLINE an. Verkehrsdaten auf Polylinien lösen die teurere Compute Routes Enterprise-SKU aus; ohne Bedarf für Segmentdetails auf false lassen. |
 
 ### Verhalten und Einschränkungen
 
 - Transit unterstützt nur zwei Endpunkte ohne Zwischenstopps.
 - Optimierung wirkt erst ab vier Gesamtstopps, also mindestens zwei Zwischenstopps.
 - Optimiert wird die Stoppreihenfolge einer Route, nicht die Fahrzeug-/Aufgabenverteilung einer Flotte.
+- Bei trafficSegments=true liefert Routes Intervalle mit NORMAL, SLOW oder TRAFFIC_JAM. Normalisierte Routen- und Etappensegmente beziehen sich jeweils auf die zugehörige Polylinie mit eigenen Punktindizes. Google verwendet [start,end); die Geometrie behält den gemeinsamen Endgrenzpunkt bei, damit die letzte Kante enthalten ist. Fehlende oder ungültige Abdeckung wird ausdrücklich gemeldet und nicht als normaler Verkehr ergänzt.
+- segmentMetadata.retrievedAt ist die lokale Abrufzeit der Antwort, keine Beobachtungszeit des Verkehrsanbieters; trafficObservedAt ist null, da Routes diese Zeit nicht liefert. roadCategory und speedLimit sind null, da diese Routes-Antwort beide Werte nicht enthält. Es erfolgen weder implizite Roads-Aufrufe noch lokale Dauerfaktoren; die Zeiten bleiben Google-Prognosen.
+- Verkehrssegmente sind optional und in diesem Programm nur für Autofahrten verfügbar. Die Option fordert verkehrsabhängige Polylinien an und löst Compute Routes Enterprise-Abrechnung aus. [Intervallvertrag](https://developers.google.com/maps/documentation/routes/traffic_on_polylines); [aktuelle SKU-Auslöser](https://developers.google.com/maps/billing-and-pricing/sku-details/routes).
+
+**Primärquellen:** <https://developers.google.com/maps/billing-and-pricing/sku-details/routes>, <https://developers.google.com/maps/documentation/routes/traffic_on_polylines>
 
 ### Ergebnis
 
-Objekt mit `mode`, wirksamem `optimized`, geordneten aufgelösten `stops`, Anzeige-`legs`, total_distance, total_duration, Polylinie und Warnungen. durationSeconds einer Etappe sind numerische Sekunden.
+Objekt mit `mode`, wirksamem `optimized`, geordneten aufgelösten `stops`, Anzeige-`legs`, total_distance, total_duration, Polylinie und Warnungen. durationSeconds einer Etappe sind numerische Sekunden. Bei trafficSegments=true enthalten Routen und Etappen zusätzlich normalisierte segments und segmentMetadata.
 
 ### Beispiel
 

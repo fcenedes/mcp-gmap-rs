@@ -198,6 +198,18 @@ Place results preserve Google field names and source metadata. Display review
 authors, photo attribution, source links, and AI disclosures with their associated
 content, following [Google's Places policies](https://developers.google.com/maps/documentation/places/web-service/policies).
 
+## Optional traffic segments
+
+Directions and route planning accept `trafficSegments: true` for driving.
+This opts into Google traffic-on-polyline calculations and higher Compute Routes
+Enterprise billing. Normalized route/leg segments preserve Google point
+boundaries and traffic categories. Native geometry/advisories remain available.
+Road category, posted speed limit and traffic observation time are `null` because
+Routes does not provide them; `retrievedAt` is only the local fetch timestamp.
+There are no application-specific speed multipliers or automatic Roads calls.
+See the [segment contract](https://github.com/fcenedes/mcp-gmap-rs/blob/main/docs/route-segments.md)
+for field names, independent index scopes, boundary reconstruction and examples.
+
 ## Documentation and tests
 
 The source package and release archives include `skills/mcp-gmap/`, a reusable

@@ -463,9 +463,13 @@
       "arrival_time": {
         "description": "الوصول المرغوب بصيغة RFC 3339 مع منطقة زمنية؛ للنقل العام فقط.",
         "default": "غير مزوّد"
+      },
+      "trafficSegments": {
+        "description": "خيار منطقي اختياري للقيادة فقط. يطلب TRAFFIC_ON_POLYLINE بهندسة HIGH_QUALITY وENCODED_POLYLINE. تفعّل حركة المرور على الخطوط تسعير Compute Routes Enterprise الأعلى تكلفة؛ اتركه false إذا لم تحتج تفاصيل المقاطع.",
+        "default": "false"
       }
     },
-    "result": "كائن يحتوي `routes` و`summary` و`total_distance` (بالأمتار) و`total_duration` (بالثواني) وفهارس تحسين اختيارية. تتضمن المسارات مقاطع وخطوات وخطًا مشفرًا وتحذيرات مختارة.",
+    "result": "كائن يحتوي `routes` و`summary` و`total_distance` (بالأمتار) و`total_duration` (بالثواني) وفهارس تحسين اختيارية. تتضمن المسارات مقاطع وخطوات وخطًا مشفرًا وتحذيرات مختارة. عند trafficSegments=true، تتضمن المسارات والأجزاء أيضًا segments موحّدة وsegmentMetadata.",
     "example": {
       "origin": "48.8584,2.2945",
       "destination": "48.8606,2.3376",
@@ -474,7 +478,10 @@
     "notes": [
       "لا يمكن توفير departure_time وarrival_time معًا. يُقبل arrival_time للنقل العام فقط.",
       "تتطلب خيارات التجنب وضع القيادة. تفرض Google قيودًا إضافية بحسب الوسيلة والوقت والمنطقة.",
-      "عدم وجود مسار متاح خطأ صريح."
+      "عدم وجود مسار متاح خطأ صريح.",
+      "عند trafficSegments=true يعيد Routes فترات NORMAL أو SLOW أو TRAFFIC_JAM. تستخدم المقاطع الموحّدة لكل مسار أو جزء خطه الخاص وفهارس نقاط مستقلة. فترات Google هي [start,end)؛ وتحتفظ هندسة المقطع برأس الحدود النهائي المشترك لتغطية الحافة الأخيرة. يُبلّغ عن التغطية المفقودة أو غير الصالحة بوضوح، ولا تُختلق حركة مرور عادية.",
+      "يمثل segmentMetadata.retrievedAt وقت جلب الاستجابة محليًا، وليس وقت رصد حركة المرور لدى المزود؛ تكون trafficObservedAt بقيمة null لأن Routes لا يعيدها. وتكون roadCategory وspeedLimit بقيمة null لأن استجابة Routes هذه لا توفرهما. لا تحدث استدعاءات ضمنية إلى Roads ولا تُطبّق معاملات محلية على المدة؛ تظل المدد توقعات Google.",
+      "مقاطع حركة المرور اختيارية وتقتصر على القيادة في هذا البرنامج. يطلب الخيار خطوطًا تتضمن حركة المرور ويُفعّل فوترة Compute Routes Enterprise. [مواصفات الفترات](https://developers.google.com/maps/documentation/routes/traffic_on_polylines)؛ [شروط تفعيل بنود التسعير الحالية](https://developers.google.com/maps/billing-and-pricing/sku-details/routes)."
     ],
     "authentication": "تقبل Routes وPlaces مفتاح API أو OAuth. يحتاج حل أسماء المواقع أيضًا مفتاح API لـ Geocoding؛ وتتجنب نصوص الإحداثيات الدقيقة ذلك البحث.",
     "summary": "جلب الاتجاهات وهندسة المسار وتعليمات الملاحة ومدة التنقل."
@@ -789,9 +796,13 @@
       "optimize": {
         "description": "طلب تحسين التوقفات الوسطية عندما يزيد مجموع التوقفات على ثلاثة ولا تكون الوسيلة transit.",
         "default": "true، وفق تلك الشروط"
+      },
+      "trafficSegments": {
+        "description": "خيار منطقي اختياري للقيادة فقط. يطلب TRAFFIC_ON_POLYLINE بهندسة HIGH_QUALITY وENCODED_POLYLINE. تفعّل حركة المرور على الخطوط تسعير Compute Routes Enterprise الأعلى تكلفة؛ اتركه false إذا لم تحتج تفاصيل المقاطع.",
+        "default": "false"
       }
     },
-    "result": "كائن يتضمن `mode` و`optimized` الفعّال و`stops` المحلولة المرتبة و`legs` للعرض وtotal_distance وtotal_duration وpolyline والتحذيرات. القيمة durationSeconds لكل مقطع عدد ثوانٍ رقمي.",
+    "result": "كائن يتضمن `mode` و`optimized` الفعّال و`stops` المحلولة المرتبة و`legs` للعرض وtotal_distance وtotal_duration وpolyline والتحذيرات. القيمة durationSeconds لكل مقطع عدد ثوانٍ رقمي. عند trafficSegments=true، تتضمن المسارات والأجزاء أيضًا segments موحّدة وsegmentMetadata.",
     "example": {
       "stops": [
         "48.8584,2.2945",
@@ -804,7 +815,10 @@
     "notes": [
       "يدعم النقل العام نقطتي نهاية فقط ودون توقفات وسيطة.",
       "يسري التحسين فقط عند أربعة توقفات إجمالًا أو أكثر (توقفان وسيطان على الأقل).",
-      "يحسّن هذا ترتيب التوقفات لمسار واحد، وليس توزيع المركبات أو المهام على أسطول."
+      "يحسّن هذا ترتيب التوقفات لمسار واحد، وليس توزيع المركبات أو المهام على أسطول.",
+      "عند trafficSegments=true يعيد Routes فترات NORMAL أو SLOW أو TRAFFIC_JAM. تستخدم المقاطع الموحّدة لكل مسار أو جزء خطه الخاص وفهارس نقاط مستقلة. فترات Google هي [start,end)؛ وتحتفظ هندسة المقطع برأس الحدود النهائي المشترك لتغطية الحافة الأخيرة. يُبلّغ عن التغطية المفقودة أو غير الصالحة بوضوح، ولا تُختلق حركة مرور عادية.",
+      "يمثل segmentMetadata.retrievedAt وقت جلب الاستجابة محليًا، وليس وقت رصد حركة المرور لدى المزود؛ تكون trafficObservedAt بقيمة null لأن Routes لا يعيدها. وتكون roadCategory وspeedLimit بقيمة null لأن استجابة Routes هذه لا توفرهما. لا تحدث استدعاءات ضمنية إلى Roads ولا تُطبّق معاملات محلية على المدة؛ تظل المدد توقعات Google.",
+      "مقاطع حركة المرور اختيارية وتقتصر على القيادة في هذا البرنامج. يطلب الخيار خطوطًا تتضمن حركة المرور ويُفعّل فوترة Compute Routes Enterprise. [مواصفات الفترات](https://developers.google.com/maps/documentation/routes/traffic_on_polylines)؛ [شروط تفعيل بنود التسعير الحالية](https://developers.google.com/maps/billing-and-pricing/sku-details/routes)."
     ],
     "authentication": "تقبل Routes وPlaces مفتاح API أو OAuth. يحتاج حل أسماء المواقع أيضًا مفتاح API لـ Geocoding؛ وتتجنب نصوص الإحداثيات الدقيقة ذلك البحث.",
     "summary": "تخطيط مسار يمر بـ 2–27 توقفًا. تحسين 2–25 توقفًا وسيطًا عدا النقل العام. تبقى الإحداثيات الدقيقة محفوظة."

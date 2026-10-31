@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add optional generic traffic segments to directions and route planning: native polyline boundaries/categories, independent route/leg indices, retrieval timestamps and explicit unavailable speed-limit/road-class/observation fields. Preserve raw advisories; request higher-tier traffic-on-polyline calculations only when opted in.
+
 - Expand the shared CLI/MCP catalog from 23 to 42 tools across all 20 server-side API families in the coverage matrix. Add restricted Roads Speed Limits, Places Autocomplete with concluding session tokens, Geolocation, Solar, Aerial View lookup/render, Map Tiles, Street View Static/Publish, Datasets and Route Optimization.
 - Add air quality forecast/history/heatmaps, pollen heatmaps, weather history/public alerts and explicitly experimental minute forecasts/map tiles.
 - Support OAuth for Solar and Map Tiles, OAuth-only cloud resource APIs and scoped end-user OAuth for Street View Publish; preserve credential redaction and prohibit silent key fallback.

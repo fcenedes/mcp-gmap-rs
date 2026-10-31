@@ -85,6 +85,37 @@ fn invoke_oauth(tool: &str, args: Value) -> Value {
 }
 
 #[test]
+#[ignore = "requires Google Routes API and higher-tier Compute Routes Enterprise billing"]
+fn live_maps_directions_traffic_segments() {
+    let output = invoke(
+        "maps_directions",
+        json!({"origin":"37.422,-122.084","destination":"37.7749,-122.4194","mode":"driving","trafficSegments":true}),
+    );
+    let route = &output["routes"][0];
+    assert_eq!(route["segmentMetadata"]["trafficStatus"], "AVAILABLE");
+    assert_eq!(route["segmentMetadata"]["polylineScope"], "ROUTE");
+    let segments = route["segments"].as_array().unwrap();
+    assert!(!segments.is_empty());
+    assert_eq!(segments[0]["startPolylinePointIndex"], 0);
+    for segment in segments {
+        assert!(
+            segment["startPolylinePointIndex"].as_u64().unwrap()
+                < segment["endPolylinePointIndex"].as_u64().unwrap()
+        );
+        assert!(segment["roadCategory"].is_null());
+        assert!(segment["speedLimit"].is_null());
+        assert!(segment["trafficObservedAt"].is_null());
+    }
+    assert!(
+        chrono::DateTime::parse_from_rfc3339(
+            route["segmentMetadata"]["retrievedAt"].as_str().unwrap()
+        )
+        .is_ok()
+    );
+    assert!(route["travelAdvisory"]["speedReadingIntervals"].is_array());
+}
+
+#[test]
 #[ignore = "requires service-account/ADC OAuth, Places API and billable Google requests"]
 fn live_oauth_places() {
     let places = invoke_oauth(

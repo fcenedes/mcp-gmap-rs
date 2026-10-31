@@ -463,9 +463,13 @@
       "arrival_time": {
         "description": "Heure d’arrivée souhaitée en RFC 3339 avec fuseau ; uniquement pour transit.",
         "default": "Non fourni"
+      },
+      "trafficSegments": {
+        "description": "Option booléenne réservée à la conduite. Demande TRAFFIC_ON_POLYLINE avec une géométrie HIGH_QUALITY et ENCODED_POLYLINE. Le trafic sur les polylignes déclenche le SKU Compute Routes Enterprise, plus cher ; laisser false si ce détail est inutile.",
+        "default": "false"
       }
     },
-    "result": "Objet contenant `routes`, `summary`, `total_distance` (valeur en mètres), `total_duration` (valeur en secondes) et d’éventuels indices d’optimisation. Les itinéraires contiennent les tronçons, étapes, polylignes et avertissements sélectionnés.",
+    "result": "Objet contenant `routes`, `summary`, `total_distance` (valeur en mètres), `total_duration` (valeur en secondes) et d’éventuels indices d’optimisation. Les itinéraires contiennent les tronçons, étapes, polylignes et avertissements sélectionnés. Si trafficSegments vaut true, les itinéraires et tronçons incluent aussi des segments normalisés et segmentMetadata.",
     "example": {
       "origin": "48.8584,2.2945",
       "destination": "48.8606,2.3376",
@@ -474,7 +478,10 @@
     "notes": [
       "departure_time et arrival_time ne peuvent pas être fournis ensemble. arrival_time est accepté uniquement pour transit.",
       "Les options d’évitement nécessitent driving. Google applique aussi des restrictions de mode, d’horaire et de région.",
-      "L’absence d’itinéraire disponible produit une erreur explicite."
+      "L’absence d’itinéraire disponible produit une erreur explicite.",
+      "Avec trafficSegments=true, Routes fournit les intervalles NORMAL, SLOW ou TRAFFIC_JAM. Les segments normalisés de chaque itinéraire ou tronçon utilisent leur propre polyligne et des indices indépendants. Les intervalles Google sont [start,end) ; la géométrie conserve le sommet de frontière final partagé pour couvrir la dernière arête. Une couverture absente ou invalide est signalée, sans inventer un trafic normal.",
+      "segmentMetadata.retrievedAt est l’heure locale de récupération de la réponse, pas l’heure d’observation du trafic par le fournisseur ; trafficObservedAt vaut null, car Routes ne la renvoie pas. roadCategory et speedLimit valent null, car cette réponse Routes ne les fournit pas. Aucun appel implicite à Roads ni multiplicateur local de durée : les durées restent les prévisions Google.",
+      "Les segments de trafic sont facultatifs et réservés à la conduite dans cet exécutable. Cette option demande des polylignes avec trafic et déclenche la facturation Compute Routes Enterprise. [Contrat des intervalles](https://developers.google.com/maps/documentation/routes/traffic_on_polylines) ; [déclencheurs des SKU actuels](https://developers.google.com/maps/billing-and-pricing/sku-details/routes)."
     ],
     "authentication": "Routes/Places acceptent une clé API ou OAuth. La résolution des lieux nommés nécessite aussi une clé pour Geocoding ; des chaînes de coordonnées exactes évitent cette recherche.",
     "summary": "Obtenir un itinéraire, sa géométrie, les instructions de navigation et la durée du trajet."
@@ -789,9 +796,13 @@
       "optimize": {
         "description": "Demander l’optimisation des arrêts intermédiaires si le total dépasse trois arrêts et si le mode n’est pas transit.",
         "default": "true, sous réserve de ces conditions"
+      },
+      "trafficSegments": {
+        "description": "Option booléenne réservée à la conduite. Demande TRAFFIC_ON_POLYLINE avec une géométrie HIGH_QUALITY et ENCODED_POLYLINE. Le trafic sur les polylignes déclenche le SKU Compute Routes Enterprise, plus cher ; laisser false si ce détail est inutile.",
+        "default": "false"
       }
     },
-    "result": "Objet contenant `mode`, la valeur effective `optimized`, les `stops` résolus et ordonnés, les `legs` d’affichage, total_distance, total_duration, polyline et warnings. durationSeconds d’un tronçon est un nombre de secondes.",
+    "result": "Objet contenant `mode`, la valeur effective `optimized`, les `stops` résolus et ordonnés, les `legs` d’affichage, total_distance, total_duration, polyline et warnings. durationSeconds d’un tronçon est un nombre de secondes. Si trafficSegments vaut true, les itinéraires et tronçons incluent aussi des segments normalisés et segmentMetadata.",
     "example": {
       "stops": [
         "48.8584,2.2945",
@@ -804,7 +815,10 @@
     "notes": [
       "Transit accepte seulement deux extrémités, sans arrêt intermédiaire.",
       "L’optimisation s’applique uniquement à partir de quatre arrêts au total, soit au moins deux intermédiaires.",
-      "Cet outil optimise l’ordre des arrêts d’un itinéraire, pas l’affectation de véhicules ou de tâches à une flotte."
+      "Cet outil optimise l’ordre des arrêts d’un itinéraire, pas l’affectation de véhicules ou de tâches à une flotte.",
+      "Avec trafficSegments=true, Routes fournit les intervalles NORMAL, SLOW ou TRAFFIC_JAM. Les segments normalisés de chaque itinéraire ou tronçon utilisent leur propre polyligne et des indices indépendants. Les intervalles Google sont [start,end) ; la géométrie conserve le sommet de frontière final partagé pour couvrir la dernière arête. Une couverture absente ou invalide est signalée, sans inventer un trafic normal.",
+      "segmentMetadata.retrievedAt est l’heure locale de récupération de la réponse, pas l’heure d’observation du trafic par le fournisseur ; trafficObservedAt vaut null, car Routes ne la renvoie pas. roadCategory et speedLimit valent null, car cette réponse Routes ne les fournit pas. Aucun appel implicite à Roads ni multiplicateur local de durée : les durées restent les prévisions Google.",
+      "Les segments de trafic sont facultatifs et réservés à la conduite dans cet exécutable. Cette option demande des polylignes avec trafic et déclenche la facturation Compute Routes Enterprise. [Contrat des intervalles](https://developers.google.com/maps/documentation/routes/traffic_on_polylines) ; [déclencheurs des SKU actuels](https://developers.google.com/maps/billing-and-pricing/sku-details/routes)."
     ],
     "authentication": "Routes/Places acceptent une clé API ou OAuth. La résolution des lieux nommés nécessite aussi une clé pour Geocoding ; des chaînes de coordonnées exactes évitent cette recherche.",
     "summary": "Planifier un itinéraire de 2 à 27 arrêts. Optimiser 2 à 25 arrêts intermédiaires, sauf en transport en commun. Les coordonnées exactes sont préservées."

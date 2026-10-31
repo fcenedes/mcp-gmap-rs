@@ -1511,16 +1511,22 @@ mcp-gmap-rs call maps_place_details --args '{"placeId":"ChIJLU7jZClu5kcR4PcOOO6p
 | `destination` / `--destination` | מחרוזת; לפחות 1 תווים | כן | <bdi dir="auto">—</bdi> | כתובת או אתר יעד, או מחרוזת latitude,longitude מדויקת. |
 | `mode` / `--mode` | מחרוזת; ערכים: `driving`, `walking`, `bicycling`, `transit` | לא | <bdi dir="auto">driving</bdi> | אופן נסיעה. נהיגה משתמשת בניתוב המתחשב בתנועה. |
 | `origin` / `--origin` | מחרוזת; לפחות 1 תווים | כן | <bdi dir="auto">—</bdi> | כתובת או אתר מוצא, או מחרוזת latitude,longitude מדויקת. |
+| `trafficSegments` / `--traffic-segments` | בוליאני | לא | <bdi dir="auto">false</bdi> | אפשרות בוליאנית לבחירה מפורשת, לנהיגה בלבד. מבקשת TRAFFIC_ON_POLYLINE עם גאומטריה מסוג HIGH_QUALITY ו־ENCODED_POLYLINE. מידע תנועה לאורך קווים מפעיל את תעריף Compute Routes Enterprise היקר יותר; יש להשאיר false כשאין צורך בפירוט מקטעים. |
 
 ### התנהגות ומגבלות
 
 - לא ניתן לספק יחד departure_time ו-arrival_time. arrival_time מתקבל רק לתחבורה ציבורית.
 - אפשרויות הימנעות דורשות נהיגה. Google מטילה מגבלות נוספות של אופן נסיעה, זמן ואזור.
 - אין מסלול זמין הוא שגיאה מפורשת.
+- כאשר trafficSegments=true, ‏Routes מחזיר טווחי NORMAL, ‏SLOW או TRAFFIC_JAM. מקטעי המסלול והחלקים המנורמלים משתמשים כל אחד בקו שלו ובאינדקסי נקודות עצמאיים. הטווחים של Google הם [start,end); גאומטריית המקטע שומרת את קודקוד הגבול הסופי המשותף כדי לכלול את הצלע האחרונה. כיסוי חסר או לא תקין מדווח במפורש, בלי להמציא תנועה רגילה.
+- segmentMetadata.retrievedAt הוא זמן אחזור התשובה המקומי, ולא זמן תצפית התנועה של הספק; trafficObservedAt הוא null משום ש־Routes אינו מחזיר אותו. גם roadCategory ו־speedLimit הם null, כי תשובת Routes זו אינה מספקת אותם. אין קריאות משתמעות ל־Roads או מכפילי משך בצד הלקוח; הזמנים נשארים תחזיות Google.
+- מקטעי תנועה מופעלים במפורש ומוגבלים לנהיגה בתוכנית זו. האפשרות מבקשת קווים עם מידע תנועה ומפעילה חיוב Compute Routes Enterprise. [מפרט הטווחים](https://developers.google.com/maps/documentation/routes/traffic_on_polylines); [תנאי הפעלת התעריפים העדכניים](https://developers.google.com/maps/billing-and-pricing/sku-details/routes).
+
+**מקורות ראשוניים:** <https://developers.google.com/maps/billing-and-pricing/sku-details/routes>, <https://developers.google.com/maps/documentation/routes/traffic_on_polylines>
 
 ### תוצאה
 
-אובייקט עם `routes`, `summary`, `total_distance` (במטרים), `total_duration` (בשניות) ואינדקסי אופטימיזציה אופציונליים. מסלולים כוללים מקטעים, צעדים, קו מקודד ואזהרות נבחרים.
+אובייקט עם `routes`, `summary`, `total_distance` (במטרים), `total_duration` (בשניות) ואינדקסי אופטימיזציה אופציונליים. מסלולים כוללים מקטעים, צעדים, קו מקודד ואזהרות נבחרים. כאשר trafficSegments=true, המסלולים והחלקים כוללים גם segments מנורמלים ו־segmentMetadata.
 
 ### דוגמה
 
@@ -1939,16 +1945,22 @@ mcp-gmap-rs call maps_explore_area --args '{"location":"48.8584,2.2945","types":
 | `mode` / `--mode` | מחרוזת; ערכים: `driving`, `walking`, `bicycling`, `transit` | לא | <bdi dir="auto">driving</bdi> | אופן נסיעה. נהיגה משתמשת בניתוב המתחשב בתנועה. |
 | `optimize` / `--optimize` | בוליאני | לא | <bdi dir="auto">true, בכפוף לתנאים אלה</bdi> | בקשת אופטימיזציה לעצירות ביניים כשיש יותר משלוש עצירות בסך הכול והמצב אינו transit. |
 | `stops` / `--stops` | מערך מחרוזות; `2–27` פריטים; כל פריט לפחות 1 תווים | כן | <bdi dir="auto">—</bdi> | כתובות או אתרים לציון מסודרים, או מחרוזות latitude,longitude מדויקות; הראשון והאחרון נשארים נקודות קצה. |
+| `trafficSegments` / `--traffic-segments` | בוליאני | לא | <bdi dir="auto">false</bdi> | אפשרות בוליאנית לבחירה מפורשת, לנהיגה בלבד. מבקשת TRAFFIC_ON_POLYLINE עם גאומטריה מסוג HIGH_QUALITY ו־ENCODED_POLYLINE. מידע תנועה לאורך קווים מפעיל את תעריף Compute Routes Enterprise היקר יותר; יש להשאיר false כשאין צורך בפירוט מקטעים. |
 
 ### התנהגות ומגבלות
 
 - תחבורה ציבורית תומכת רק בשתי נקודות קצה, ללא עצירות ביניים.
 - האופטימיזציה חלה רק מארבע עצירות בסך הכול (לפחות שתי עצירות ביניים).
 - הכלי ממטב סדר עצירות במסלול יחיד, ולא שיוך כלי רכב או משימות בצי.
+- כאשר trafficSegments=true, ‏Routes מחזיר טווחי NORMAL, ‏SLOW או TRAFFIC_JAM. מקטעי המסלול והחלקים המנורמלים משתמשים כל אחד בקו שלו ובאינדקסי נקודות עצמאיים. הטווחים של Google הם [start,end); גאומטריית המקטע שומרת את קודקוד הגבול הסופי המשותף כדי לכלול את הצלע האחרונה. כיסוי חסר או לא תקין מדווח במפורש, בלי להמציא תנועה רגילה.
+- segmentMetadata.retrievedAt הוא זמן אחזור התשובה המקומי, ולא זמן תצפית התנועה של הספק; trafficObservedAt הוא null משום ש־Routes אינו מחזיר אותו. גם roadCategory ו־speedLimit הם null, כי תשובת Routes זו אינה מספקת אותם. אין קריאות משתמעות ל־Roads או מכפילי משך בצד הלקוח; הזמנים נשארים תחזיות Google.
+- מקטעי תנועה מופעלים במפורש ומוגבלים לנהיגה בתוכנית זו. האפשרות מבקשת קווים עם מידע תנועה ומפעילה חיוב Compute Routes Enterprise. [מפרט הטווחים](https://developers.google.com/maps/documentation/routes/traffic_on_polylines); [תנאי הפעלת התעריפים העדכניים](https://developers.google.com/maps/billing-and-pricing/sku-details/routes).
+
+**מקורות ראשוניים:** <https://developers.google.com/maps/billing-and-pricing/sku-details/routes>, <https://developers.google.com/maps/documentation/routes/traffic_on_polylines>
 
 ### תוצאה
 
-אובייקט עם `mode`, ערך `optimized` אפקטיבי, `stops` פתורים ומסודרים, `legs` להצגה, total_distance, total_duration, polyline ואזהרות. durationSeconds של מקטע הוא מספר שניות.
+אובייקט עם `mode`, ערך `optimized` אפקטיבי, `stops` פתורים ומסודרים, `legs` להצגה, total_distance, total_duration, polyline ואזהרות. durationSeconds של מקטע הוא מספר שניות. כאשר trafficSegments=true, המסלולים והחלקים כוללים גם segments מנורמלים ו־segmentMetadata.
 
 ### דוגמה
 

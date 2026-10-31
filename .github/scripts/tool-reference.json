@@ -453,9 +453,13 @@
       "arrival_time": {
         "description": "Desired arrival as RFC 3339 with timezone; transit mode only.",
         "default": "Not supplied"
+      },
+      "trafficSegments": {
+        "description": "Boolean opt-in for driving only. Requests TRAFFIC_ON_POLYLINE with HIGH_QUALITY and ENCODED_POLYLINE geometry. Traffic on polylines triggers the higher-priced Compute Routes Enterprise SKU; leave false unless segment detail is needed.",
+        "default": "false"
       }
     },
-    "result": "An object containing `routes`, `summary`, `total_distance` (value in metres), `total_duration` (value in seconds) and optional optimization indices. Route entries contain selected legs, steps, polyline and warnings.",
+    "result": "An object containing `routes`, `summary`, `total_distance` (value in metres), `total_duration` (value in seconds) and optional optimization indices. Route entries contain selected legs, steps, polyline and warnings. When trafficSegments is true, route and leg results additionally include normalized segments and segmentMetadata.",
     "example": {
       "origin": "48.8584,2.2945",
       "destination": "48.8606,2.3376",
@@ -464,7 +468,10 @@
     "notes": [
       "departure_time and arrival_time cannot both be supplied. arrival_time is accepted only for transit.",
       "Avoidance flags require driving. Google applies additional travel-mode/time/region restrictions.",
-      "No available route is an explicit error."
+      "No available route is an explicit error.",
+      "With trafficSegments=true, Routes supplies NORMAL, SLOW or TRAFFIC_JAM intervals. Normalized route and leg segments use the corresponding route or leg polyline, with independent point indices. Google intervals are [start,end); each segment geometry retains the shared end boundary vertex to cover the final edge. Missing or invalid coverage is reported explicitly rather than invented as normal traffic.",
+      "segmentMetadata.retrievedAt is the local response-fetch time, not a provider traffic observation time; trafficObservedAt is null because Routes does not return it. roadCategory and speedLimit are null because this Routes response supplies neither. No implicit Roads API calls or client-side duration multipliers are applied; durations remain Google predictions.",
+      "Traffic segments are optional and driving-only in this executable. This requests traffic-aware polylines and triggers Compute Routes Enterprise billing. [Traffic interval contract](https://developers.google.com/maps/documentation/routes/traffic_on_polylines); [current SKU triggers](https://developers.google.com/maps/billing-and-pricing/sku-details/routes)."
     ],
     "authentication": "Routes/Places accept API key or OAuth. Named-location resolution also needs an API key for Geocoding; exact coordinate strings avoid that lookup."
   },
@@ -770,9 +777,13 @@
       "optimize": {
         "description": "Request intermediate-stop optimization when more than three total stops and mode is not transit.",
         "default": "true, subject to those conditions"
+      },
+      "trafficSegments": {
+        "description": "Boolean opt-in for driving only. Requests TRAFFIC_ON_POLYLINE with HIGH_QUALITY and ENCODED_POLYLINE geometry. Traffic on polylines triggers the higher-priced Compute Routes Enterprise SKU; leave false unless segment detail is needed.",
+        "default": "false"
       }
     },
-    "result": "An object with `mode`, effective `optimized`, ordered resolved `stops`, display `legs`, total_distance, total_duration, polyline and warnings. Leg durationSeconds is numeric seconds.",
+    "result": "An object with `mode`, effective `optimized`, ordered resolved `stops`, display `legs`, total_distance, total_duration, polyline and warnings. Leg durationSeconds is numeric seconds. When trafficSegments is true, route and leg results additionally include normalized segments and segmentMetadata.",
     "example": {
       "stops": [
         "48.8584,2.2945",
@@ -785,7 +796,10 @@
     "notes": [
       "Transit supports only two endpoints and no intermediate stops.",
       "Optimization takes effect only for four or more total stops (at least two intermediate stops).",
-      "This optimizes stop order for one route, not vehicle/task assignment across a fleet."
+      "This optimizes stop order for one route, not vehicle/task assignment across a fleet.",
+      "With trafficSegments=true, Routes supplies NORMAL, SLOW or TRAFFIC_JAM intervals. Normalized route and leg segments use the corresponding route or leg polyline, with independent point indices. Google intervals are [start,end); each segment geometry retains the shared end boundary vertex to cover the final edge. Missing or invalid coverage is reported explicitly rather than invented as normal traffic.",
+      "segmentMetadata.retrievedAt is the local response-fetch time, not a provider traffic observation time; trafficObservedAt is null because Routes does not return it. roadCategory and speedLimit are null because this Routes response supplies neither. No implicit Roads API calls or client-side duration multipliers are applied; durations remain Google predictions.",
+      "Traffic segments are optional and driving-only in this executable. This requests traffic-aware polylines and triggers Compute Routes Enterprise billing. [Traffic interval contract](https://developers.google.com/maps/documentation/routes/traffic_on_polylines); [current SKU triggers](https://developers.google.com/maps/billing-and-pricing/sku-details/routes)."
     ],
     "authentication": "Routes/Places accept API key or OAuth. Named-location resolution also needs an API key for Geocoding; exact coordinate strings avoid that lookup."
   },

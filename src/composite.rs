@@ -83,10 +83,33 @@ impl MapsClient {
         if legs.len() != order.len() - 1 {
             return Err(Error::Response);
         }
-        let display_legs=legs.iter().enumerate().map(|(i,leg)|json!({"from":order[i].original,"to":order[i+1].original,"distanceMeters":leg["distanceMeters"],"durationSeconds":duration_seconds(&leg["duration"]),"steps":leg["steps"]})).collect::<Vec<_>>();
-        Ok(
-            json!({"mode":a["mode"].as_str().unwrap_or("driving"),"optimized":optimize,"stops":order.iter().map(|s|s.display()).collect::<Vec<_>>(),"legs":display_legs,"total_distance":data["total_distance"],"total_duration":data["total_duration"],"polyline":route["polyline"],"warnings":route["warnings"]}),
-        )
+        let traffic_segments = a["trafficSegments"] == true;
+        let display_legs = legs.iter().enumerate().map(|(i, leg)| {
+            let mut result = json!({"from":order[i].original,"to":order[i+1].original,"distanceMeters":leg["distanceMeters"],"durationSeconds":duration_seconds(&leg["duration"]),"steps":leg["steps"]});
+            if traffic_segments {
+                for field in ["polyline", "travelAdvisory", "segments", "segmentMetadata", "staticDuration"] {
+                    if let Some(value) = leg.get(field) { result[field] = value.clone(); }
+                }
+            }
+            result
+        }).collect::<Vec<_>>();
+        let mut result = json!({"mode":a["mode"].as_str().unwrap_or("driving"),"optimized":optimize,"stops":order.iter().map(|s|s.display()).collect::<Vec<_>>(),"legs":display_legs,"total_distance":data["total_distance"],"total_duration":data["total_duration"],"polyline":route["polyline"],"warnings":route["warnings"]});
+        if traffic_segments {
+            for field in [
+                "travelAdvisory",
+                "segments",
+                "segmentMetadata",
+                "staticDuration",
+            ] {
+                if let Some(value) = route.get(field) {
+                    result[field] = value.clone();
+                }
+            }
+            if let Some(value) = data.get("fallbackInfo") {
+                result["fallbackInfo"] = value.clone();
+            }
+        }
+        Ok(result)
     }
 
     pub async fn compare(&self, a: &Value) -> Result<Value> {

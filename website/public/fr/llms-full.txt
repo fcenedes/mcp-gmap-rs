@@ -1298,16 +1298,22 @@ Calculer un itinéraire entre deux extrémités et exposer les données de traje
 | `destination` / `--destination` | chaîne; au moins 1 caractère(s) | Oui | — | Adresse/lieu connu d’arrivée ou chaîne latitude,longitude exacte. |
 | `mode` / `--mode` | chaîne; valeurs : `driving`, `walking`, `bicycling`, `transit` | Non | driving | Mode de déplacement. La conduite utilise un calcul tenant compte du trafic. |
 | `origin` / `--origin` | chaîne; au moins 1 caractère(s) | Oui | — | Adresse/lieu connu de départ ou chaîne latitude,longitude exacte. |
+| `trafficSegments` / `--traffic-segments` | booléen | Non | false | Option booléenne réservée à la conduite. Demande TRAFFIC_ON_POLYLINE avec une géométrie HIGH_QUALITY et ENCODED_POLYLINE. Le trafic sur les polylignes déclenche le SKU Compute Routes Enterprise, plus cher ; laisser false si ce détail est inutile. |
 
 ### Comportement et restrictions
 
 - departure_time et arrival_time ne peuvent pas être fournis ensemble. arrival_time est accepté uniquement pour transit.
 - Les options d’évitement nécessitent driving. Google applique aussi des restrictions de mode, d’horaire et de région.
 - L’absence d’itinéraire disponible produit une erreur explicite.
+- Avec trafficSegments=true, Routes fournit les intervalles NORMAL, SLOW ou TRAFFIC_JAM. Les segments normalisés de chaque itinéraire ou tronçon utilisent leur propre polyligne et des indices indépendants. Les intervalles Google sont [start,end) ; la géométrie conserve le sommet de frontière final partagé pour couvrir la dernière arête. Une couverture absente ou invalide est signalée, sans inventer un trafic normal.
+- segmentMetadata.retrievedAt est l’heure locale de récupération de la réponse, pas l’heure d’observation du trafic par le fournisseur ; trafficObservedAt vaut null, car Routes ne la renvoie pas. roadCategory et speedLimit valent null, car cette réponse Routes ne les fournit pas. Aucun appel implicite à Roads ni multiplicateur local de durée : les durées restent les prévisions Google.
+- Les segments de trafic sont facultatifs et réservés à la conduite dans cet exécutable. Cette option demande des polylignes avec trafic et déclenche la facturation Compute Routes Enterprise. [Contrat des intervalles](https://developers.google.com/maps/documentation/routes/traffic_on_polylines) ; [déclencheurs des SKU actuels](https://developers.google.com/maps/billing-and-pricing/sku-details/routes).
+
+**Sources primaires:** <https://developers.google.com/maps/billing-and-pricing/sku-details/routes>, <https://developers.google.com/maps/documentation/routes/traffic_on_polylines>
 
 ### Résultat
 
-Objet contenant `routes`, `summary`, `total_distance` (valeur en mètres), `total_duration` (valeur en secondes) et d’éventuels indices d’optimisation. Les itinéraires contiennent les tronçons, étapes, polylignes et avertissements sélectionnés.
+Objet contenant `routes`, `summary`, `total_distance` (valeur en mètres), `total_duration` (valeur en secondes) et d’éventuels indices d’optimisation. Les itinéraires contiennent les tronçons, étapes, polylignes et avertissements sélectionnés. Si trafficSegments vaut true, les itinéraires et tronçons incluent aussi des segments normalisés et segmentMetadata.
 
 ### Exemple
 
@@ -1726,16 +1732,22 @@ Planifier un itinéraire unique avec des arrêts ordonnés, en demandant éventu
 | `mode` / `--mode` | chaîne; valeurs : `driving`, `walking`, `bicycling`, `transit` | Non | driving | Mode de déplacement. La conduite utilise un calcul tenant compte du trafic. |
 | `optimize` / `--optimize` | booléen | Non | true, sous réserve de ces conditions | Demander l’optimisation des arrêts intermédiaires si le total dépasse trois arrêts et si le mode n’est pas transit. |
 | `stops` / `--stops` | tableau de chaînes; 2–27 éléments; chaque élément contient au moins 1 caractère(s) | Oui | — | Adresses/lieux connus ou chaînes latitude,longitude exactes dans l’ordre ; les premier/dernier restent les extrémités. |
+| `trafficSegments` / `--traffic-segments` | booléen | Non | false | Option booléenne réservée à la conduite. Demande TRAFFIC_ON_POLYLINE avec une géométrie HIGH_QUALITY et ENCODED_POLYLINE. Le trafic sur les polylignes déclenche le SKU Compute Routes Enterprise, plus cher ; laisser false si ce détail est inutile. |
 
 ### Comportement et restrictions
 
 - Transit accepte seulement deux extrémités, sans arrêt intermédiaire.
 - L’optimisation s’applique uniquement à partir de quatre arrêts au total, soit au moins deux intermédiaires.
 - Cet outil optimise l’ordre des arrêts d’un itinéraire, pas l’affectation de véhicules ou de tâches à une flotte.
+- Avec trafficSegments=true, Routes fournit les intervalles NORMAL, SLOW ou TRAFFIC_JAM. Les segments normalisés de chaque itinéraire ou tronçon utilisent leur propre polyligne et des indices indépendants. Les intervalles Google sont [start,end) ; la géométrie conserve le sommet de frontière final partagé pour couvrir la dernière arête. Une couverture absente ou invalide est signalée, sans inventer un trafic normal.
+- segmentMetadata.retrievedAt est l’heure locale de récupération de la réponse, pas l’heure d’observation du trafic par le fournisseur ; trafficObservedAt vaut null, car Routes ne la renvoie pas. roadCategory et speedLimit valent null, car cette réponse Routes ne les fournit pas. Aucun appel implicite à Roads ni multiplicateur local de durée : les durées restent les prévisions Google.
+- Les segments de trafic sont facultatifs et réservés à la conduite dans cet exécutable. Cette option demande des polylignes avec trafic et déclenche la facturation Compute Routes Enterprise. [Contrat des intervalles](https://developers.google.com/maps/documentation/routes/traffic_on_polylines) ; [déclencheurs des SKU actuels](https://developers.google.com/maps/billing-and-pricing/sku-details/routes).
+
+**Sources primaires:** <https://developers.google.com/maps/billing-and-pricing/sku-details/routes>, <https://developers.google.com/maps/documentation/routes/traffic_on_polylines>
 
 ### Résultat
 
-Objet contenant `mode`, la valeur effective `optimized`, les `stops` résolus et ordonnés, les `legs` d’affichage, total_distance, total_duration, polyline et warnings. durationSeconds d’un tronçon est un nombre de secondes.
+Objet contenant `mode`, la valeur effective `optimized`, les `stops` résolus et ordonnés, les `legs` d’affichage, total_distance, total_duration, polyline et warnings. durationSeconds d’un tronçon est un nombre de secondes. Si trafficSegments vaut true, les itinéraires et tronçons incluent aussi des segments normalisés et segmentMetadata.
 
 ### Exemple
 

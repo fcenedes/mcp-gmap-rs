@@ -1508,16 +1508,22 @@ Calcular una ruta entre dos extremos y exponer datos Google seleccionados junto 
 | `destination` / `--destination` | cadena; al menos 1 carácter(es) | Sí | — | Dirección/lugar de destino o cadena latitude,longitude exacta. |
 | `mode` / `--mode` | cadena; valores: `driving`, `walking`, `bicycling`, `transit` | No | driving | Modo de desplazamiento. La conducción tiene en cuenta el tráfico. |
 | `origin` / `--origin` | cadena; al menos 1 carácter(es) | Sí | — | Dirección/lugar de origen o cadena latitude,longitude exacta. |
+| `trafficSegments` / `--traffic-segments` | booleano | No | false | Opción booleana solo para conducción. Solicita TRAFFIC_ON_POLYLINE con geometría HIGH_QUALITY y ENCODED_POLYLINE. El tráfico en polilíneas activa el SKU Compute Routes Enterprise, de mayor precio; mantener false si no se necesitan estos detalles. |
 
 ### Comportamiento y restricciones
 
 - departure_time y arrival_time no pueden proporcionarse juntos. arrival_time solo se acepta en transit.
 - Las opciones de evitación exigen driving. Google aplica restricciones adicionales de modo, horario y región.
 - La ausencia de ruta disponible es un error explícito.
+- Con trafficSegments=true, Routes devuelve intervalos NORMAL, SLOW o TRAFFIC_JAM. Los segmentos normalizados de cada ruta o etapa usan su propia polilínea e índices de puntos independientes. Los intervalos de Google son [start,end); la geometría conserva el vértice final compartido para cubrir la última arista. La cobertura ausente o inválida se indica expresamente, sin inventar tráfico normal.
+- segmentMetadata.retrievedAt es la hora local de obtención de la respuesta, no la hora de observación del tráfico del proveedor; trafficObservedAt es null porque Routes no la devuelve. roadCategory y speedLimit son null porque esta respuesta de Routes no los proporciona. No se realizan llamadas implícitas a Roads ni se aplican multiplicadores locales de duración; los tiempos siguen siendo predicciones de Google.
+- Los segmentos de tráfico son opcionales y se limitan a conducción en este ejecutable. Solicitarlos activa polilíneas con tráfico y facturación Compute Routes Enterprise. [Contrato de intervalos](https://developers.google.com/maps/documentation/routes/traffic_on_polylines); [activadores de SKU actuales](https://developers.google.com/maps/billing-and-pricing/sku-details/routes).
+
+**Fuentes primarias:** <https://developers.google.com/maps/billing-and-pricing/sku-details/routes>, <https://developers.google.com/maps/documentation/routes/traffic_on_polylines>
 
 ### Resultado
 
-Objeto con `routes`, `summary`, `total_distance` (metros), `total_duration` (segundos) e índices opcionales de optimización. Las rutas incluyen etapas, pasos, polilínea y avisos seleccionados.
+Objeto con `routes`, `summary`, `total_distance` (metros), `total_duration` (segundos) e índices opcionales de optimización. Las rutas incluyen etapas, pasos, polilínea y avisos seleccionados. Con trafficSegments=true, las rutas y etapas incluyen además segments normalizados y segmentMetadata.
 
 ### Ejemplo
 
@@ -1936,16 +1942,22 @@ Planificar una ruta única con paradas ordenadas, solicitando opcionalmente reor
 | `mode` / `--mode` | cadena; valores: `driving`, `walking`, `bicycling`, `transit` | No | driving | Modo de desplazamiento. La conducción tiene en cuenta el tráfico. |
 | `optimize` / `--optimize` | booleano | No | true, sujeto a esas condiciones | Solicitar optimización intermedia cuando hay más de tres paradas totales y el modo no es transit. |
 | `stops` / `--stops` | array de cadenas; 2–27 elementos; cada elemento al menos 1 carácter(es) | Sí | — | Direcciones/lugares o cadenas latitude,longitude exactas ordenadas; primera/última siguen siendo extremos. |
+| `trafficSegments` / `--traffic-segments` | booleano | No | false | Opción booleana solo para conducción. Solicita TRAFFIC_ON_POLYLINE con geometría HIGH_QUALITY y ENCODED_POLYLINE. El tráfico en polilíneas activa el SKU Compute Routes Enterprise, de mayor precio; mantener false si no se necesitan estos detalles. |
 
 ### Comportamiento y restricciones
 
 - Transit admite solo dos extremos, sin paradas intermedias.
 - La optimización solo actúa con cuatro paradas totales o más, al menos dos intermedias.
 - Optimiza el orden de paradas de una ruta, no la asignación de vehículos/tareas de una flota.
+- Con trafficSegments=true, Routes devuelve intervalos NORMAL, SLOW o TRAFFIC_JAM. Los segmentos normalizados de cada ruta o etapa usan su propia polilínea e índices de puntos independientes. Los intervalos de Google son [start,end); la geometría conserva el vértice final compartido para cubrir la última arista. La cobertura ausente o inválida se indica expresamente, sin inventar tráfico normal.
+- segmentMetadata.retrievedAt es la hora local de obtención de la respuesta, no la hora de observación del tráfico del proveedor; trafficObservedAt es null porque Routes no la devuelve. roadCategory y speedLimit son null porque esta respuesta de Routes no los proporciona. No se realizan llamadas implícitas a Roads ni se aplican multiplicadores locales de duración; los tiempos siguen siendo predicciones de Google.
+- Los segmentos de tráfico son opcionales y se limitan a conducción en este ejecutable. Solicitarlos activa polilíneas con tráfico y facturación Compute Routes Enterprise. [Contrato de intervalos](https://developers.google.com/maps/documentation/routes/traffic_on_polylines); [activadores de SKU actuales](https://developers.google.com/maps/billing-and-pricing/sku-details/routes).
+
+**Fuentes primarias:** <https://developers.google.com/maps/billing-and-pricing/sku-details/routes>, <https://developers.google.com/maps/documentation/routes/traffic_on_polylines>
 
 ### Resultado
 
-Objeto con `mode`, `optimized` efectivo, `stops` resueltas en orden, `legs` para mostrar, total_distance, total_duration, polilínea y avisos. durationSeconds de una etapa son segundos numéricos.
+Objeto con `mode`, `optimized` efectivo, `stops` resueltas en orden, `legs` para mostrar, total_distance, total_duration, polilínea y avisos. durationSeconds de una etapa son segundos numéricos. Con trafficSegments=true, las rutas y etapas incluyen además segments normalizados y segmentMetadata.
 
 ### Ejemplo
 
