@@ -465,8 +465,12 @@
         "default": "Non fourni"
       },
       "trafficSegments": {
-        "description": "Option booléenne réservée à la conduite. Demande TRAFFIC_ON_POLYLINE avec une géométrie HIGH_QUALITY et ENCODED_POLYLINE. Le trafic sur les polylignes déclenche le SKU Compute Routes Enterprise, plus cher ; laisser false si ce détail est inutile.",
+        "description": "Option booléenne réservée à la conduite. Demande TRAFFIC_ON_POLYLINE avec une géométrie ENCODED_POLYLINE ; HIGH_QUALITY par défaut, sauf si polylineQuality est explicite. Le trafic sur les polylignes déclenche le SKU Compute Routes Enterprise, plus cher ; laisser false si ce détail est inutile.",
         "default": "false"
+      },
+      "polylineQuality": {
+        "description": "Qualité géométrique : OVERVIEW ou HIGH_QUALITY. Un choix explicite est toujours prioritaire, y compris OVERVIEW avec trafficSegments=true. Contrôle la densité des points indépendamment des calculs de trafic.",
+        "default": "HIGH_QUALITY si trafficSegments=true ; sinon Google utilise OVERVIEW par défaut"
       }
     },
     "result": "Objet contenant `routes`, `summary`, `total_distance` (valeur en mètres), `total_duration` (valeur en secondes) et d’éventuels indices d’optimisation. Les itinéraires contiennent les tronçons, étapes, polylignes et avertissements sélectionnés. Si trafficSegments vaut true, les itinéraires et tronçons incluent aussi des segments normalisés et segmentMetadata.",
@@ -481,7 +485,8 @@
       "L’absence d’itinéraire disponible produit une erreur explicite.",
       "Avec trafficSegments=true, Routes fournit les intervalles NORMAL, SLOW ou TRAFFIC_JAM. Les segments normalisés de chaque itinéraire ou tronçon utilisent leur propre polyligne et des indices indépendants. Les intervalles Google sont [start,end) ; la géométrie conserve le sommet de frontière final partagé pour couvrir la dernière arête. Une couverture absente ou invalide est signalée, sans inventer un trafic normal.",
       "segmentMetadata.retrievedAt est l’heure locale de récupération de la réponse, pas l’heure d’observation du trafic par le fournisseur ; trafficObservedAt vaut null, car Routes ne la renvoie pas. roadCategory et speedLimit valent null, car cette réponse Routes ne les fournit pas. Aucun appel implicite à Roads ni multiplicateur local de durée : les durées restent les prévisions Google.",
-      "Les segments de trafic sont facultatifs et réservés à la conduite dans cet exécutable. Cette option demande des polylignes avec trafic et déclenche la facturation Compute Routes Enterprise. [Contrat des intervalles](https://developers.google.com/maps/documentation/routes/traffic_on_polylines) ; [déclencheurs des SKU actuels](https://developers.google.com/maps/billing-and-pricing/sku-details/routes)."
+      "Les segments de trafic sont facultatifs et réservés à la conduite dans cet exécutable. Cette option demande des polylignes avec trafic et déclenche la facturation Compute Routes Enterprise. [Contrat des intervalles](https://developers.google.com/maps/documentation/routes/traffic_on_polylines) ; [déclencheurs des SKU actuels](https://developers.google.com/maps/billing-and-pricing/sku-details/routes).",
+      "polylineQuality choisit le détail géométrique fourni par Google : HIGH_QUALITY utilise davantage de points, augmente la taille de réponse et peut accroître la latence. OVERVIEW explicite reste valable avec trafficSegments=true. Sans valeur explicite, les segments de trafic utilisent HIGH_QUALITY ; sinon Google utilise OVERVIEW. Le programme ne synthétise ni n’interpole de détail supplémentaire. La qualité géométrique est indépendante de extraComputations : HIGH_QUALITY seul n’active pas TRAFFIC_ON_POLYLINE. [Définition officielle de PolylineQuality](https://developers.google.com/maps/documentation/routes/reference/rest/v2/TopLevel/computeRoutes#PolylineQuality)."
     ],
     "authentication": "Routes/Places acceptent une clé API ou OAuth. La résolution des lieux nommés nécessite aussi une clé pour Geocoding ; des chaînes de coordonnées exactes évitent cette recherche.",
     "summary": "Obtenir un itinéraire, sa géométrie, les instructions de navigation et la durée du trajet."
@@ -798,8 +803,12 @@
         "default": "true, sous réserve de ces conditions"
       },
       "trafficSegments": {
-        "description": "Option booléenne réservée à la conduite. Demande TRAFFIC_ON_POLYLINE avec une géométrie HIGH_QUALITY et ENCODED_POLYLINE. Le trafic sur les polylignes déclenche le SKU Compute Routes Enterprise, plus cher ; laisser false si ce détail est inutile.",
+        "description": "Option booléenne réservée à la conduite. Demande TRAFFIC_ON_POLYLINE avec une géométrie ENCODED_POLYLINE ; HIGH_QUALITY par défaut, sauf si polylineQuality est explicite. Le trafic sur les polylignes déclenche le SKU Compute Routes Enterprise, plus cher ; laisser false si ce détail est inutile.",
         "default": "false"
+      },
+      "polylineQuality": {
+        "description": "Qualité géométrique : OVERVIEW ou HIGH_QUALITY. Un choix explicite est toujours prioritaire, y compris OVERVIEW avec trafficSegments=true. Contrôle la densité des points indépendamment des calculs de trafic.",
+        "default": "HIGH_QUALITY si trafficSegments=true ; sinon Google utilise OVERVIEW par défaut"
       }
     },
     "result": "Objet contenant `mode`, la valeur effective `optimized`, les `stops` résolus et ordonnés, les `legs` d’affichage, total_distance, total_duration, polyline et warnings. durationSeconds d’un tronçon est un nombre de secondes. Si trafficSegments vaut true, les itinéraires et tronçons incluent aussi des segments normalisés et segmentMetadata.",
@@ -818,7 +827,8 @@
       "Cet outil optimise l’ordre des arrêts d’un itinéraire, pas l’affectation de véhicules ou de tâches à une flotte.",
       "Avec trafficSegments=true, Routes fournit les intervalles NORMAL, SLOW ou TRAFFIC_JAM. Les segments normalisés de chaque itinéraire ou tronçon utilisent leur propre polyligne et des indices indépendants. Les intervalles Google sont [start,end) ; la géométrie conserve le sommet de frontière final partagé pour couvrir la dernière arête. Une couverture absente ou invalide est signalée, sans inventer un trafic normal.",
       "segmentMetadata.retrievedAt est l’heure locale de récupération de la réponse, pas l’heure d’observation du trafic par le fournisseur ; trafficObservedAt vaut null, car Routes ne la renvoie pas. roadCategory et speedLimit valent null, car cette réponse Routes ne les fournit pas. Aucun appel implicite à Roads ni multiplicateur local de durée : les durées restent les prévisions Google.",
-      "Les segments de trafic sont facultatifs et réservés à la conduite dans cet exécutable. Cette option demande des polylignes avec trafic et déclenche la facturation Compute Routes Enterprise. [Contrat des intervalles](https://developers.google.com/maps/documentation/routes/traffic_on_polylines) ; [déclencheurs des SKU actuels](https://developers.google.com/maps/billing-and-pricing/sku-details/routes)."
+      "Les segments de trafic sont facultatifs et réservés à la conduite dans cet exécutable. Cette option demande des polylignes avec trafic et déclenche la facturation Compute Routes Enterprise. [Contrat des intervalles](https://developers.google.com/maps/documentation/routes/traffic_on_polylines) ; [déclencheurs des SKU actuels](https://developers.google.com/maps/billing-and-pricing/sku-details/routes).",
+      "polylineQuality choisit le détail géométrique fourni par Google : HIGH_QUALITY utilise davantage de points, augmente la taille de réponse et peut accroître la latence. OVERVIEW explicite reste valable avec trafficSegments=true. Sans valeur explicite, les segments de trafic utilisent HIGH_QUALITY ; sinon Google utilise OVERVIEW. Le programme ne synthétise ni n’interpole de détail supplémentaire. La qualité géométrique est indépendante de extraComputations : HIGH_QUALITY seul n’active pas TRAFFIC_ON_POLYLINE. [Définition officielle de PolylineQuality](https://developers.google.com/maps/documentation/routes/reference/rest/v2/TopLevel/computeRoutes#PolylineQuality)."
     ],
     "authentication": "Routes/Places acceptent une clé API ou OAuth. La résolution des lieux nommés nécessite aussi une clé pour Geocoding ; des chaînes de coordonnées exactes évitent cette recherche.",
     "summary": "Planifier un itinéraire de 2 à 27 arrêts. Optimiser 2 à 25 arrêts intermédiaires, sauf en transport en commun. Les coordonnées exactes sont préservées."

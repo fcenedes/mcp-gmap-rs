@@ -128,18 +128,22 @@ fn builtin_definitions() -> Vec<(&'static str, &'static str, Value)> {
         &["latitude", "longitude"],
     );
     let route_options = json!({"mode":travel(),"departure_time":string(),"avoid_tolls":boolean(),"avoid_highways":boolean()});
+    let traffic_segments = json!({"type":"boolean","description":"Opt into driving traffic intervals and higher-priced Compute Routes Enterprise billing. Defaults to false. Omitted polylineQuality defaults to HIGH_QUALITY when enabled; an explicit quality wins."});
+    let polyline_quality = json!({"type":"string","enum":["OVERVIEW","HIGH_QUALITY"],"description":"Provider geometry detail. HIGH_QUALITY returns more points, with larger responses and potentially higher latency. If omitted, trafficSegments=true selects HIGH_QUALITY; other calls retain Google's OVERVIEW default. Explicit selection wins and does not enable traffic interval calculations."});
     let mut directions = route_options.clone();
     directions["origin"] = string();
     directions["destination"] = string();
     directions["arrival_time"] = string();
-    directions["trafficSegments"] = boolean();
+    directions["trafficSegments"] = traffic_segments.clone();
+    directions["polylineQuality"] = polyline_quality.clone();
     let mut matrix = route_options.clone();
     matrix["origins"] = array(string(), 1, 50);
     matrix["destinations"] = array(string(), 1, 50);
     let mut plan = route_options;
     plan["stops"] = array(string(), 2, 27);
     plan["optimize"] = boolean();
-    plan["trafficSegments"] = boolean();
+    plan["trafficSegments"] = traffic_segments;
+    plan["polylineQuality"] = polyline_quality;
     vec![
         (
             "maps_geocode",

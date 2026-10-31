@@ -14,6 +14,84 @@ fn traffic_route() -> Value {
 }
 
 #[tokio::test]
+async fn route_quality_can_be_selected_without_requesting_traffic_segments() {
+    let fixture = Fixture::new().await;
+    fixture.override_response(ENDPOINT, StatusCode::OK, traffic_route());
+    for quality in ["HIGH_QUALITY", "OVERVIEW"] {
+        for (tool, mut args) in [
+            (
+                "maps_directions",
+                json!({"origin":"38.5,-120.2","destination":"43.252,-126.453","mode":"walking"}),
+            ),
+            (
+                "maps_plan_route",
+                json!({"stops":["38.5,-120.2","43.252,-126.453"],"mode":"walking"}),
+            ),
+        ] {
+            args["polylineQuality"] = json!(quality);
+            let output = fixture.call(tool, args).await;
+            let route = if tool == "maps_directions" {
+                &output["routes"][0]
+            } else {
+                &output
+            };
+            assert_eq!(route["polyline"]["encodedPolyline"], LINE);
+            assert!(route.get("segments").is_none());
+            let request = fixture.records().pop().unwrap();
+            assert_eq!(request.body["polylineQuality"], quality);
+            assert_eq!(request.body["travelMode"], "WALK");
+            assert!(request.body.get("extraComputations").is_none());
+            assert!(
+                !request.headers["x-goog-fieldmask"]
+                    .to_str()
+                    .unwrap()
+                    .contains("routes.travelAdvisory.speedReadingIntervals")
+            );
+        }
+    }
+    assert_eq!(fixture.records().len(), 4);
+}
+
+#[tokio::test]
+async fn explicit_overview_quality_is_honored_with_traffic_and_optimized_stops() {
+    let fixture = Fixture::new().await;
+    let mut native = traffic_route();
+    native["routes"][0]["optimizedIntermediateWaypointIndex"] = json!([1, 0]);
+    let leg = native["routes"][0]["legs"][0].clone();
+    native["routes"][0]["legs"] = json!([leg, leg, leg]);
+    fixture.override_response(ENDPOINT, StatusCode::OK, native);
+    let output = fixture.call("maps_plan_route", json!({"stops":["38.5,-120.2","39,-121","40,-122","43.252,-126.453"],"optimize":true,"trafficSegments":true,"polylineQuality":"OVERVIEW"})).await;
+    let requests = fixture.records();
+    assert_eq!(requests.len(), 1);
+    assert_eq!(requests[0].body["polylineQuality"], "OVERVIEW");
+    assert_eq!(
+        requests[0].body["extraComputations"],
+        json!(["TRAFFIC_ON_POLYLINE"])
+    );
+    assert_eq!(requests[0].body["optimizeWaypointOrder"], true);
+    assert_eq!(output["segments"][0]["endPolylinePointIndex"], 1);
+    assert_eq!(output["legs"][2]["segmentMetadata"]["legIndex"], 2);
+}
+
+#[tokio::test]
+async fn invalid_quality_values_fail_schema_validation_before_google_calls() {
+    let fixture = Fixture::new().await;
+    for quality in [json!("HIGH"), json!("high_quality"), json!(null), json!(42)] {
+        for (tool, mut args) in [
+            (
+                "maps_directions",
+                json!({"origin":"Paris","destination":"Lyon"}),
+            ),
+            ("maps_plan_route", json!({"stops":["Paris","Lyon"]})),
+        ] {
+            args["polylineQuality"] = quality.clone();
+            assert!(fixture.engine.call(tool, args).await.is_err());
+        }
+    }
+    assert!(fixture.records().is_empty());
+}
+
+#[tokio::test]
 async fn traffic_segments_are_opt_in_and_use_one_routes_call_with_native_indices() {
     let fixture = Fixture::new().await;
     fixture.override_response(ENDPOINT, StatusCode::OK, traffic_route());

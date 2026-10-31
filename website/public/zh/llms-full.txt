@@ -1508,7 +1508,8 @@ mcp-gmap-rs call maps_place_details --args '{"placeId":"ChIJLU7jZClu5kcR4PcOOO6p
 | `destination` / `--destination` | 字符串; 至少 1 个字符 | 是 | — | 终点地址/地标或精确 latitude,longitude 字符串。 |
 | `mode` / `--mode` | 字符串; 可选值： `driving`, `walking`, `bicycling`, `transit` | 否 | driving | 出行方式。驾车采用考虑交通状况的路线。 |
 | `origin` / `--origin` | 字符串; 至少 1 个字符 | 是 | — | 起点地址/地标或精确 latitude,longitude 字符串。 |
-| `trafficSegments` / `--traffic-segments` | 布尔值 | 否 | false | 仅适用于驾车的布尔可选项。请求 TRAFFIC_ON_POLYLINE，并使用 HIGH_QUALITY、ENCODED_POLYLINE 几何。折线交通数据会触发价格更高的 Compute Routes Enterprise 计费项；无需分段详情时保持 false。 |
+| `polylineQuality` / `--polyline-quality` | 字符串; 可选值： `OVERVIEW`, `HIGH_QUALITY` | 否 | trafficSegments=true 时为 HIGH_QUALITY；否则使用 Google 默认的 OVERVIEW | 几何质量：OVERVIEW 或 HIGH_QUALITY。显式选择始终优先，包括与 trafficSegments=true 同时使用 OVERVIEW。点密度与交通计算独立控制。 |
+| `trafficSegments` / `--traffic-segments` | 布尔值 | 否 | false | 仅适用于驾车的布尔可选项。请求 TRAFFIC_ON_POLYLINE 和 ENCODED_POLYLINE 几何；未显式指定 polylineQuality 时默认 HIGH_QUALITY。折线交通数据触发价格更高的 Compute Routes Enterprise 计费项；无需分段详情时保持 false。 |
 
 ### 行为与限制
 
@@ -1518,8 +1519,9 @@ mcp-gmap-rs call maps_place_details --args '{"placeId":"ChIJLU7jZClu5kcR4PcOOO6p
 - trafficSegments=true 时，Routes 返回 NORMAL、SLOW、TRAFFIC_JAM 交通区间。路线及各路段的标准化分段分别引用自己的折线，点索引互相独立。Google 区间为 [start,end)；分段几何保留共享的结束边界顶点，以覆盖最后一条边。覆盖缺失或无效会明确报告，不会臆造正常交通。
 - segmentMetadata.retrievedAt 是本地取得响应的时间，不是提供方观测交通的时间；Routes 不返回该观测时间，因此 trafficObservedAt 为 null。该 Routes 响应也不返回道路类别和限速，因此 roadCategory、speedLimit 为 null。不隐式调用 Roads，不在客户端乘以时长系数；时长保持 Google 的预测值。
 - 本程序的交通分段需显式开启且仅支持驾车。此选项请求含交通信息的折线，并触发 Compute Routes Enterprise 计费。[交通区间约定](https://developers.google.com/maps/documentation/routes/traffic_on_polylines)；[当前计费触发条件](https://developers.google.com/maps/billing-and-pricing/sku-details/routes)。
+- polylineQuality 选择 Google 返回的几何细节：HIGH_QUALITY 使用更多点，响应更大且延迟可能更高。trafficSegments=true 时仍可显式选择 OVERVIEW。省略质量时，交通分段默认 HIGH_QUALITY；否则使用 Google 的 OVERVIEW。程序不合成或插值补充细节。几何质量独立于 extraComputations：仅选择 HIGH_QUALITY 不会启用 TRAFFIC_ON_POLYLINE。[PolylineQuality 官方定义](https://developers.google.com/maps/documentation/routes/reference/rest/v2/TopLevel/computeRoutes#PolylineQuality)。
 
-**官方来源:** <https://developers.google.com/maps/billing-and-pricing/sku-details/routes>, <https://developers.google.com/maps/documentation/routes/traffic_on_polylines>
+**官方来源:** <https://developers.google.com/maps/billing-and-pricing/sku-details/routes>, <https://developers.google.com/maps/documentation/routes/reference/rest/v2/TopLevel/computeRoutes#PolylineQuality>, <https://developers.google.com/maps/documentation/routes/traffic_on_polylines>
 
 ### 结果
 
@@ -1941,8 +1943,9 @@ mcp-gmap-rs call maps_explore_area --args '{"location":"48.8584,2.2945","types":
 | `departure_time` / `--departure-time` | 字符串; 至少 1 个字符 | 否 | 不提供 | 出发时间，RFC 3339 格式，包含 Z 或显式 UTC 偏移。 |
 | `mode` / `--mode` | 字符串; 可选值： `driving`, `walking`, `bicycling`, `transit` | 否 | driving | 出行方式。驾车采用考虑交通状况的路线。 |
 | `optimize` / `--optimize` | 布尔值 | 否 | true，但受上述条件限制 | 当总停靠点超过三个且模式不是 transit 时请求优化中间点。 |
+| `polylineQuality` / `--polyline-quality` | 字符串; 可选值： `OVERVIEW`, `HIGH_QUALITY` | 否 | trafficSegments=true 时为 HIGH_QUALITY；否则使用 Google 默认的 OVERVIEW | 几何质量：OVERVIEW 或 HIGH_QUALITY。显式选择始终优先，包括与 trafficSegments=true 同时使用 OVERVIEW。点密度与交通计算独立控制。 |
 | `stops` / `--stops` | 字符串数组; 2–27 项; 每项至少 1 个字符 | 是 | — | 有序地址/地标或精确 latitude,longitude 字符串；首尾保持为端点。 |
-| `trafficSegments` / `--traffic-segments` | 布尔值 | 否 | false | 仅适用于驾车的布尔可选项。请求 TRAFFIC_ON_POLYLINE，并使用 HIGH_QUALITY、ENCODED_POLYLINE 几何。折线交通数据会触发价格更高的 Compute Routes Enterprise 计费项；无需分段详情时保持 false。 |
+| `trafficSegments` / `--traffic-segments` | 布尔值 | 否 | false | 仅适用于驾车的布尔可选项。请求 TRAFFIC_ON_POLYLINE 和 ENCODED_POLYLINE 几何；未显式指定 polylineQuality 时默认 HIGH_QUALITY。折线交通数据触发价格更高的 Compute Routes Enterprise 计费项；无需分段详情时保持 false。 |
 
 ### 行为与限制
 
@@ -1952,8 +1955,9 @@ mcp-gmap-rs call maps_explore_area --args '{"location":"48.8584,2.2945","types":
 - trafficSegments=true 时，Routes 返回 NORMAL、SLOW、TRAFFIC_JAM 交通区间。路线及各路段的标准化分段分别引用自己的折线，点索引互相独立。Google 区间为 [start,end)；分段几何保留共享的结束边界顶点，以覆盖最后一条边。覆盖缺失或无效会明确报告，不会臆造正常交通。
 - segmentMetadata.retrievedAt 是本地取得响应的时间，不是提供方观测交通的时间；Routes 不返回该观测时间，因此 trafficObservedAt 为 null。该 Routes 响应也不返回道路类别和限速，因此 roadCategory、speedLimit 为 null。不隐式调用 Roads，不在客户端乘以时长系数；时长保持 Google 的预测值。
 - 本程序的交通分段需显式开启且仅支持驾车。此选项请求含交通信息的折线，并触发 Compute Routes Enterprise 计费。[交通区间约定](https://developers.google.com/maps/documentation/routes/traffic_on_polylines)；[当前计费触发条件](https://developers.google.com/maps/billing-and-pricing/sku-details/routes)。
+- polylineQuality 选择 Google 返回的几何细节：HIGH_QUALITY 使用更多点，响应更大且延迟可能更高。trafficSegments=true 时仍可显式选择 OVERVIEW。省略质量时，交通分段默认 HIGH_QUALITY；否则使用 Google 的 OVERVIEW。程序不合成或插值补充细节。几何质量独立于 extraComputations：仅选择 HIGH_QUALITY 不会启用 TRAFFIC_ON_POLYLINE。[PolylineQuality 官方定义](https://developers.google.com/maps/documentation/routes/reference/rest/v2/TopLevel/computeRoutes#PolylineQuality)。
 
-**官方来源:** <https://developers.google.com/maps/billing-and-pricing/sku-details/routes>, <https://developers.google.com/maps/documentation/routes/traffic_on_polylines>
+**官方来源:** <https://developers.google.com/maps/billing-and-pricing/sku-details/routes>, <https://developers.google.com/maps/documentation/routes/reference/rest/v2/TopLevel/computeRoutes#PolylineQuality>, <https://developers.google.com/maps/documentation/routes/traffic_on_polylines>
 
 ### 结果
 

@@ -123,10 +123,14 @@ impl MapsClient {
             body["optimizeWaypointOrder"] = json!(true);
         }
         let traffic_segments = options["trafficSegments"].as_bool().unwrap_or(false);
+        if let Some(quality) = options["polylineQuality"].as_str() {
+            body["polylineQuality"] = json!(quality);
+        } else if traffic_segments {
+            body["polylineQuality"] = json!("HIGH_QUALITY");
+        }
         let traffic_mask;
         let mask = if traffic_segments {
             body["extraComputations"] = json!(["TRAFFIC_ON_POLYLINE"]);
-            body["polylineQuality"] = json!("HIGH_QUALITY");
             body["polylineEncoding"] = json!("ENCODED_POLYLINE");
             // TRAFFIC_AWARE remains compatible with waypoint optimization.
             traffic_mask = format!(

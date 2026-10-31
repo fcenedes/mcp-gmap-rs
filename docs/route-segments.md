@@ -49,10 +49,33 @@ calls; coordinate inputs avoid that extra resolution. An optional
 `departure_time` uses RFC 3339 with a timezone. Without it, Google chooses the
 departure time according to its request defaults.
 
+## Choose geometry quality independently
+
+Both tools accept `polylineQuality: "HIGH_QUALITY"` or `"OVERVIEW"`.
+Use the CLI flag `--polyline-quality HIGH_QUALITY` when a consumer needs a more
+detailed road path, including when it does not request traffic segments:
+
+```sh
+mcp-gmap-rs directions --origin '37.422,-122.084' \
+  --destination '37.7749,-122.4194' --polyline-quality HIGH_QUALITY
+```
+
+An explicit quality is honored. Without it, ordinary route calls retain Google's
+`OVERVIEW` default and `trafficSegments:true` defaults to `HIGH_QUALITY`.
+High quality contains more provider points and can increase response size and
+latency. It does not guarantee lane-level or survey accuracy. The executable
+preserves Google's returned geometry; it does not interpolate points to imply
+missing road detail. Traffic indexes always refer to the exact returned geometry,
+including when the caller explicitly chooses `OVERVIEW` with traffic enabled.
+Quality selection by itself does not request `TRAFFIC_ON_POLYLINE`; that separate
+extra computation remains opt-in and has its documented billing implications.
+See Google's [polyline quality values](https://developers.google.com/maps/documentation/routes/reference/rest/v2/TopLevel/computeRoutes#PolylineQuality).
+
 ## What is requested from Google
 
 When enabled, the executable sends `TRAFFIC_AWARE` routing, the extra computation
-`TRAFFIC_ON_POLYLINE`, `HIGH_QUALITY` geometry and `ENCODED_POLYLINE` encoding.
+`TRAFFIC_ON_POLYLINE`, `ENCODED_POLYLINE` encoding and `HIGH_QUALITY` geometry
+unless an explicit `polylineQuality` overrides that default.
 It requests matching route and leg polylines and their
 `travelAdvisory.speedReadingIntervals`. `TRAFFIC_AWARE` also remains compatible
 with intermediate-waypoint optimization. Google does not supply traffic

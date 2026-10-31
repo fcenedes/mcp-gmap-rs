@@ -1,5 +1,25 @@
 # Validation record
 
+## Independent geometry-quality validation: 2026-11-01
+
+Directions and route planning accept an explicit polylineQuality choice,
+OVERVIEW or HIGH_QUALITY, independently of traffic segments. Explicit selection
+wins; omitted quality retains Google’s overview default for ordinary calls and
+high quality for traffic-segment calls. The current catalog has 42 tools and
+329 parameter paths. All 99 offline tests pass, with 31 live tests opt-in.
+
+Fixture checks cover both qualities on both tools without traffic, walking
+routes, explicit overview with traffic/optimized stops, invalid enum values
+before resolution, original provider geometry and CLI flag/JSON parity.
+
+Two API-key driving requests for the same California endpoints returned the
+same 56,928 m route distance: OVERVIEW had 267 vertices (1,031 encoded bytes),
+HIGH_QUALITY had 3,110 vertices (7,688 encoded bytes). Neither response included
+normalized traffic segments. These counts describe that observed response, not
+a promised density ratio or lane-level accuracy. No Roads call or interpolation
+was used. The repeatable high-quality live test is
+`live_maps_directions_high_quality_without_traffic_intervals`.
+
 ## Opt-in traffic segment validation: 2026-11-01
 
 Directions and route planning now expose `trafficSegments` (false by default),
@@ -25,15 +45,15 @@ made. See [the generic segment contract](route-segments.md).
 ## Unreleased service expansion: 2026-11-01
 
 The source catalog now exposes 42 tools across 20 server-side API families and
-327 documented parameter paths. The credential-free reference validator exercises
+329 documented parameter paths. The credential-free reference validator exercises
 every example through the executable and checks the missing-key or OAuth-required
-boundary. The 95 offline tests and compile-checked documentation example pass locally.
+boundary. The 99 offline tests and compile-checked documentation example pass locally.
 Strict Clippy and rustdoc with docs.rs configuration pass; the Cargo package
 audit excludes local credentials and includes the expanded manuals/skill.
 New offline fixtures exercise native payloads, verbs, user-scoped OAuth,
 write retries, upload bytes, binary MIME/cache headers and fixed-origin resources.
-The nine-language manual builds and verifies 135 pages, 327 parameter paths per
-language and 11,148 internal links/assets. Browser checks at 320px found all
+The nine-language manual builds and verifies 135 pages, 329 parameter paths per
+language and 11,148 internal links/assets. Prior browser checks at 320px found all
 42 tool anchors and no document overflow in all nine locales, including Arabic
 and Hebrew RTL. Earlier records below describe their dated releases, not this
 expanded catalog.

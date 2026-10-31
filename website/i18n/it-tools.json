@@ -465,8 +465,12 @@
         "default": "Non fornito"
       },
       "trafficSegments": {
-        "description": "Opzione booleana solo per la guida. Richiede TRAFFIC_ON_POLYLINE con geometria HIGH_QUALITY ed ENCODED_POLYLINE. Il traffico sulle polilinee attiva lo SKU Compute Routes Enterprise, più costoso; lasciare false se il dettaglio non serve.",
+        "description": "Opzione booleana solo per la guida. Richiede TRAFFIC_ON_POLYLINE con geometria ENCODED_POLYLINE; usa HIGH_QUALITY salvo polylineQuality esplicita. Il traffico sulle polilinee attiva lo SKU Compute Routes Enterprise, più costoso; lasciare false se il dettaglio non serve.",
         "default": "false"
+      },
+      "polylineQuality": {
+        "description": "Qualità geometrica: OVERVIEW o HIGH_QUALITY. La scelta esplicita ha sempre precedenza, anche OVERVIEW insieme a trafficSegments=true. Controlla la densità dei punti indipendentemente dai calcoli del traffico.",
+        "default": "HIGH_QUALITY con trafficSegments=true; altrimenti Google usa OVERVIEW per impostazione predefinita"
       }
     },
     "result": "Un oggetto con `routes`, `summary`, `total_distance` (valore in metri), `total_duration` (valore in secondi) ed eventuali indici di ottimizzazione. Le voci di percorso contengono tratte, passi, polilinea e avvertenze selezionati. Con trafficSegments=true, percorsi e tratte includono anche segments normalizzati e segmentMetadata.",
@@ -481,7 +485,8 @@
       "L’assenza di un percorso disponibile produce un errore esplicito.",
       "Con trafficSegments=true, Routes fornisce intervalli NORMAL, SLOW o TRAFFIC_JAM. I segmenti normalizzati di percorso e tratta usano la rispettiva polilinea, con indici dei punti indipendenti. Gli intervalli Google sono [start,end); la geometria conserva il vertice finale condiviso per coprire l’ultimo arco. La copertura assente o non valida viene segnalata, senza inventare traffico normale.",
       "segmentMetadata.retrievedAt è l’ora locale di ricezione della risposta, non l’ora di osservazione del traffico del fornitore; trafficObservedAt è null perché Routes non la restituisce. roadCategory e speedLimit sono null perché questa risposta Routes non li fornisce. Nessuna chiamata implicita a Roads né moltiplicatore locale della durata: le durate restano previsioni Google.",
-      "I segmenti di traffico sono facoltativi e limitati alla guida in questo eseguibile. Richiederli attiva le polilinee con traffico e la fatturazione Compute Routes Enterprise. [Contratto degli intervalli](https://developers.google.com/maps/documentation/routes/traffic_on_polylines); [attivazione degli SKU attuali](https://developers.google.com/maps/billing-and-pricing/sku-details/routes)."
+      "I segmenti di traffico sono facoltativi e limitati alla guida in questo eseguibile. Richiederli attiva le polilinee con traffico e la fatturazione Compute Routes Enterprise. [Contratto degli intervalli](https://developers.google.com/maps/documentation/routes/traffic_on_polylines); [attivazione degli SKU attuali](https://developers.google.com/maps/billing-and-pricing/sku-details/routes).",
+      "polylineQuality seleziona il dettaglio geometrico fornito da Google: HIGH_QUALITY usa più punti, aumenta la risposta e può aumentare la latenza. OVERVIEW esplicito resta valido con trafficSegments=true. Se omesso, i segmenti di traffico usano HIGH_QUALITY; altrimenti Google usa OVERVIEW. Il programma non sintetizza né interpola dettagli aggiuntivi. La qualità è indipendente da extraComputations: HIGH_QUALITY da solo non attiva TRAFFIC_ON_POLYLINE. [Definizione ufficiale di PolylineQuality](https://developers.google.com/maps/documentation/routes/reference/rest/v2/TopLevel/computeRoutes#PolylineQuality)."
     ],
     "authentication": "Routes e Places accettano chiave API oppure OAuth. La risoluzione di luoghi per nome richiede anche una chiave API per Geocoding; le stringhe di coordinate esatte evitano tale ricerca.",
     "summary": "Ottiene indicazioni, geometria del percorso, istruzioni di navigazione e durata del viaggio."
@@ -798,8 +803,12 @@
         "default": "true, alle condizioni indicate"
       },
       "trafficSegments": {
-        "description": "Opzione booleana solo per la guida. Richiede TRAFFIC_ON_POLYLINE con geometria HIGH_QUALITY ed ENCODED_POLYLINE. Il traffico sulle polilinee attiva lo SKU Compute Routes Enterprise, più costoso; lasciare false se il dettaglio non serve.",
+        "description": "Opzione booleana solo per la guida. Richiede TRAFFIC_ON_POLYLINE con geometria ENCODED_POLYLINE; usa HIGH_QUALITY salvo polylineQuality esplicita. Il traffico sulle polilinee attiva lo SKU Compute Routes Enterprise, più costoso; lasciare false se il dettaglio non serve.",
         "default": "false"
+      },
+      "polylineQuality": {
+        "description": "Qualità geometrica: OVERVIEW o HIGH_QUALITY. La scelta esplicita ha sempre precedenza, anche OVERVIEW insieme a trafficSegments=true. Controlla la densità dei punti indipendentemente dai calcoli del traffico.",
+        "default": "HIGH_QUALITY con trafficSegments=true; altrimenti Google usa OVERVIEW per impostazione predefinita"
       }
     },
     "result": "Un oggetto con `mode`, valore effettivo di `optimized`, `stops` risolte e ordinate, `legs` per la visualizzazione, total_distance, total_duration, polyline e warnings. durationSeconds delle tratte è un numero di secondi. Con trafficSegments=true, percorsi e tratte includono anche segments normalizzati e segmentMetadata.",
@@ -818,7 +827,8 @@
       "Ottimizza l’ordine delle tappe di un percorso, non l’assegnazione di veicoli o incarichi a una flotta.",
       "Con trafficSegments=true, Routes fornisce intervalli NORMAL, SLOW o TRAFFIC_JAM. I segmenti normalizzati di percorso e tratta usano la rispettiva polilinea, con indici dei punti indipendenti. Gli intervalli Google sono [start,end); la geometria conserva il vertice finale condiviso per coprire l’ultimo arco. La copertura assente o non valida viene segnalata, senza inventare traffico normale.",
       "segmentMetadata.retrievedAt è l’ora locale di ricezione della risposta, non l’ora di osservazione del traffico del fornitore; trafficObservedAt è null perché Routes non la restituisce. roadCategory e speedLimit sono null perché questa risposta Routes non li fornisce. Nessuna chiamata implicita a Roads né moltiplicatore locale della durata: le durate restano previsioni Google.",
-      "I segmenti di traffico sono facoltativi e limitati alla guida in questo eseguibile. Richiederli attiva le polilinee con traffico e la fatturazione Compute Routes Enterprise. [Contratto degli intervalli](https://developers.google.com/maps/documentation/routes/traffic_on_polylines); [attivazione degli SKU attuali](https://developers.google.com/maps/billing-and-pricing/sku-details/routes)."
+      "I segmenti di traffico sono facoltativi e limitati alla guida in questo eseguibile. Richiederli attiva le polilinee con traffico e la fatturazione Compute Routes Enterprise. [Contratto degli intervalli](https://developers.google.com/maps/documentation/routes/traffic_on_polylines); [attivazione degli SKU attuali](https://developers.google.com/maps/billing-and-pricing/sku-details/routes).",
+      "polylineQuality seleziona il dettaglio geometrico fornito da Google: HIGH_QUALITY usa più punti, aumenta la risposta e può aumentare la latenza. OVERVIEW esplicito resta valido con trafficSegments=true. Se omesso, i segmenti di traffico usano HIGH_QUALITY; altrimenti Google usa OVERVIEW. Il programma non sintetizza né interpola dettagli aggiuntivi. La qualità è indipendente da extraComputations: HIGH_QUALITY da solo non attiva TRAFFIC_ON_POLYLINE. [Definizione ufficiale di PolylineQuality](https://developers.google.com/maps/documentation/routes/reference/rest/v2/TopLevel/computeRoutes#PolylineQuality)."
     ],
     "authentication": "Routes e Places accettano chiave API oppure OAuth. La risoluzione di luoghi per nome richiede anche una chiave API per Geocoding; le stringhe di coordinate esatte evitano tale ricerca.",
     "summary": "Pianifica un percorso di 2–27 tappe. Ottimizza 2–25 tappe intermedie, escluso transit. Le coordinate esatte vengono mantenute."

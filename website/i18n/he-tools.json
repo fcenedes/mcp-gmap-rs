@@ -465,8 +465,12 @@
         "default": "לא מסופק"
       },
       "trafficSegments": {
-        "description": "אפשרות בוליאנית לבחירה מפורשת, לנהיגה בלבד. מבקשת TRAFFIC_ON_POLYLINE עם גאומטריה מסוג HIGH_QUALITY ו־ENCODED_POLYLINE. מידע תנועה לאורך קווים מפעיל את תעריף Compute Routes Enterprise היקר יותר; יש להשאיר false כשאין צורך בפירוט מקטעים.",
+        "description": "אפשרות בוליאנית לבחירה מפורשת, לנהיגה בלבד. מבקשת TRAFFIC_ON_POLYLINE עם גאומטריה מסוג ENCODED_POLYLINE; ברירת המחדל HIGH_QUALITY חלה אלא אם polylineQuality נבחרה במפורש. מידע תנועה לאורך קווים מפעיל את תעריף Compute Routes Enterprise היקר יותר; יש להשאיר false כשאין צורך בפירוט מקטעים.",
         "default": "false"
+      },
+      "polylineQuality": {
+        "description": "איכות הגאומטריה: OVERVIEW או HIGH_QUALITY. בחירה מפורשת תמיד קודמת, גם OVERVIEW יחד עם trafficSegments=true. שולטת בצפיפות הנקודות בנפרד מחישובי התנועה.",
+        "default": "HIGH_QUALITY כאשר trafficSegments=true; אחרת ברירת המחדל של Google היא OVERVIEW"
       }
     },
     "result": "אובייקט עם `routes`, `summary`, `total_distance` (במטרים), `total_duration` (בשניות) ואינדקסי אופטימיזציה אופציונליים. מסלולים כוללים מקטעים, צעדים, קו מקודד ואזהרות נבחרים. כאשר trafficSegments=true, המסלולים והחלקים כוללים גם segments מנורמלים ו־segmentMetadata.",
@@ -481,7 +485,8 @@
       "אין מסלול זמין הוא שגיאה מפורשת.",
       "כאשר trafficSegments=true, ‏Routes מחזיר טווחי NORMAL, ‏SLOW או TRAFFIC_JAM. מקטעי המסלול והחלקים המנורמלים משתמשים כל אחד בקו שלו ובאינדקסי נקודות עצמאיים. הטווחים של Google הם [start,end); גאומטריית המקטע שומרת את קודקוד הגבול הסופי המשותף כדי לכלול את הצלע האחרונה. כיסוי חסר או לא תקין מדווח במפורש, בלי להמציא תנועה רגילה.",
       "segmentMetadata.retrievedAt הוא זמן אחזור התשובה המקומי, ולא זמן תצפית התנועה של הספק; trafficObservedAt הוא null משום ש־Routes אינו מחזיר אותו. גם roadCategory ו־speedLimit הם null, כי תשובת Routes זו אינה מספקת אותם. אין קריאות משתמעות ל־Roads או מכפילי משך בצד הלקוח; הזמנים נשארים תחזיות Google.",
-      "מקטעי תנועה מופעלים במפורש ומוגבלים לנהיגה בתוכנית זו. האפשרות מבקשת קווים עם מידע תנועה ומפעילה חיוב Compute Routes Enterprise. [מפרט הטווחים](https://developers.google.com/maps/documentation/routes/traffic_on_polylines); [תנאי הפעלת התעריפים העדכניים](https://developers.google.com/maps/billing-and-pricing/sku-details/routes)."
+      "מקטעי תנועה מופעלים במפורש ומוגבלים לנהיגה בתוכנית זו. האפשרות מבקשת קווים עם מידע תנועה ומפעילה חיוב Compute Routes Enterprise. [מפרט הטווחים](https://developers.google.com/maps/documentation/routes/traffic_on_polylines); [תנאי הפעלת התעריפים העדכניים](https://developers.google.com/maps/billing-and-pricing/sku-details/routes).",
+      "polylineQuality בוחרת את פירוט הגאומטריה שמחזירה Google: ‏HIGH_QUALITY משתמשת ביותר נקודות, מגדילה את התשובה ועלולה להגדיל את ההשהיה. בחירה מפורשת של OVERVIEW תקפה גם עם trafficSegments=true. כשאיכות אינה מצוינת, מקטעי תנועה משתמשים ב־HIGH_QUALITY; אחרת Google משתמשת ב־OVERVIEW. התוכנית אינה מייצרת פרטים נוספים ואינה משלימה אותם באמצעות אינטרפולציה. האיכות נפרדת מ־extraComputations: בחירת HIGH_QUALITY בלבד אינה מפעילה TRAFFIC_ON_POLYLINE. [ההגדרה הרשמית של PolylineQuality](https://developers.google.com/maps/documentation/routes/reference/rest/v2/TopLevel/computeRoutes#PolylineQuality)."
     ],
     "authentication": "Routes ו-Places מקבלים מפתח API או OAuth. פתרון מיקומים בשמות דורש גם מפתח API ל-Geocoding; מחרוזות קואורדינטות מדויקות מונעות זאת.",
     "summary": "קבלת הוראות, גאומטריית מסלול, צעדי ניווט ומשך נסיעה."
@@ -798,8 +803,12 @@
         "default": "true, בכפוף לתנאים אלה"
       },
       "trafficSegments": {
-        "description": "אפשרות בוליאנית לבחירה מפורשת, לנהיגה בלבד. מבקשת TRAFFIC_ON_POLYLINE עם גאומטריה מסוג HIGH_QUALITY ו־ENCODED_POLYLINE. מידע תנועה לאורך קווים מפעיל את תעריף Compute Routes Enterprise היקר יותר; יש להשאיר false כשאין צורך בפירוט מקטעים.",
+        "description": "אפשרות בוליאנית לבחירה מפורשת, לנהיגה בלבד. מבקשת TRAFFIC_ON_POLYLINE עם גאומטריה מסוג ENCODED_POLYLINE; ברירת המחדל HIGH_QUALITY חלה אלא אם polylineQuality נבחרה במפורש. מידע תנועה לאורך קווים מפעיל את תעריף Compute Routes Enterprise היקר יותר; יש להשאיר false כשאין צורך בפירוט מקטעים.",
         "default": "false"
+      },
+      "polylineQuality": {
+        "description": "איכות הגאומטריה: OVERVIEW או HIGH_QUALITY. בחירה מפורשת תמיד קודמת, גם OVERVIEW יחד עם trafficSegments=true. שולטת בצפיפות הנקודות בנפרד מחישובי התנועה.",
+        "default": "HIGH_QUALITY כאשר trafficSegments=true; אחרת ברירת המחדל של Google היא OVERVIEW"
       }
     },
     "result": "אובייקט עם `mode`, ערך `optimized` אפקטיבי, `stops` פתורים ומסודרים, `legs` להצגה, total_distance, total_duration, polyline ואזהרות. durationSeconds של מקטע הוא מספר שניות. כאשר trafficSegments=true, המסלולים והחלקים כוללים גם segments מנורמלים ו־segmentMetadata.",
@@ -818,7 +827,8 @@
       "הכלי ממטב סדר עצירות במסלול יחיד, ולא שיוך כלי רכב או משימות בצי.",
       "כאשר trafficSegments=true, ‏Routes מחזיר טווחי NORMAL, ‏SLOW או TRAFFIC_JAM. מקטעי המסלול והחלקים המנורמלים משתמשים כל אחד בקו שלו ובאינדקסי נקודות עצמאיים. הטווחים של Google הם [start,end); גאומטריית המקטע שומרת את קודקוד הגבול הסופי המשותף כדי לכלול את הצלע האחרונה. כיסוי חסר או לא תקין מדווח במפורש, בלי להמציא תנועה רגילה.",
       "segmentMetadata.retrievedAt הוא זמן אחזור התשובה המקומי, ולא זמן תצפית התנועה של הספק; trafficObservedAt הוא null משום ש־Routes אינו מחזיר אותו. גם roadCategory ו־speedLimit הם null, כי תשובת Routes זו אינה מספקת אותם. אין קריאות משתמעות ל־Roads או מכפילי משך בצד הלקוח; הזמנים נשארים תחזיות Google.",
-      "מקטעי תנועה מופעלים במפורש ומוגבלים לנהיגה בתוכנית זו. האפשרות מבקשת קווים עם מידע תנועה ומפעילה חיוב Compute Routes Enterprise. [מפרט הטווחים](https://developers.google.com/maps/documentation/routes/traffic_on_polylines); [תנאי הפעלת התעריפים העדכניים](https://developers.google.com/maps/billing-and-pricing/sku-details/routes)."
+      "מקטעי תנועה מופעלים במפורש ומוגבלים לנהיגה בתוכנית זו. האפשרות מבקשת קווים עם מידע תנועה ומפעילה חיוב Compute Routes Enterprise. [מפרט הטווחים](https://developers.google.com/maps/documentation/routes/traffic_on_polylines); [תנאי הפעלת התעריפים העדכניים](https://developers.google.com/maps/billing-and-pricing/sku-details/routes).",
+      "polylineQuality בוחרת את פירוט הגאומטריה שמחזירה Google: ‏HIGH_QUALITY משתמשת ביותר נקודות, מגדילה את התשובה ועלולה להגדיל את ההשהיה. בחירה מפורשת של OVERVIEW תקפה גם עם trafficSegments=true. כשאיכות אינה מצוינת, מקטעי תנועה משתמשים ב־HIGH_QUALITY; אחרת Google משתמשת ב־OVERVIEW. התוכנית אינה מייצרת פרטים נוספים ואינה משלימה אותם באמצעות אינטרפולציה. האיכות נפרדת מ־extraComputations: בחירת HIGH_QUALITY בלבד אינה מפעילה TRAFFIC_ON_POLYLINE. [ההגדרה הרשמית של PolylineQuality](https://developers.google.com/maps/documentation/routes/reference/rest/v2/TopLevel/computeRoutes#PolylineQuality)."
     ],
     "authentication": "Routes ו-Places מקבלים מפתח API או OAuth. פתרון מיקומים בשמות דורש גם מפתח API ל-Geocoding; מחרוזות קואורדינטות מדויקות מונעות זאת.",
     "summary": "תכנון מסלול דרך 2–27 עצירות. אופטימיזציה של 2–25 עצירות ביניים, למעט תחבורה ציבורית. קואורדינטות מדויקות נשמרות."

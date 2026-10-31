@@ -151,6 +151,9 @@ fn command(catalog: &Catalog) -> Command {
                         Some("number" | "integer") => "NUMBER",
                         _ => "TEXT",
                     });
+                if let Some(description) = schema["description"].as_str() {
+                    arg = arg.help(description.to_owned());
+                }
                 if schema["type"] == "boolean" {
                     arg = arg
                         .num_args(0..=1)

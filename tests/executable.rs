@@ -251,3 +251,46 @@ async fn traffic_segments_cli_flag_and_generic_json_share_mode_validation() {
         assert!(output.stdout.is_empty());
     }
 }
+
+#[tokio::test]
+async fn polyline_quality_cli_flag_and_json_alias_reach_shared_schema_validation() {
+    for args in [
+        vec![
+            "directions",
+            "--origin",
+            "Paris",
+            "--destination",
+            "Lyon",
+            "--polyline-quality",
+            "HIGH_QUALITY",
+        ],
+        vec![
+            "call",
+            "maps_directions",
+            "--args",
+            r#"{"origin":"Paris","destination":"Lyon","polylineQuality":"HIGH_QUALITY"}"#,
+        ],
+    ] {
+        let output = binary().args(args).output().await.unwrap();
+        assert!(!output.status.success());
+        assert!(
+            String::from_utf8_lossy(&output.stderr).contains("GOOGLE_MAPS_API_KEY is required")
+        );
+        assert!(output.stdout.is_empty());
+    }
+    let output = binary()
+        .args([
+            "directions",
+            "--origin",
+            "Paris",
+            "--destination",
+            "Lyon",
+            "--polyline-quality",
+            "DENSE",
+        ])
+        .output()
+        .await
+        .unwrap();
+    assert!(!output.status.success());
+    assert!(String::from_utf8_lossy(&output.stderr).contains("invalid arguments"));
+}

@@ -465,8 +465,12 @@
         "default": "غير مزوّد"
       },
       "trafficSegments": {
-        "description": "خيار منطقي اختياري للقيادة فقط. يطلب TRAFFIC_ON_POLYLINE بهندسة HIGH_QUALITY وENCODED_POLYLINE. تفعّل حركة المرور على الخطوط تسعير Compute Routes Enterprise الأعلى تكلفة؛ اتركه false إذا لم تحتج تفاصيل المقاطع.",
+        "description": "خيار منطقي اختياري للقيادة فقط. يطلب TRAFFIC_ON_POLYLINE بهندسة ENCODED_POLYLINE؛ ويستخدم HIGH_QUALITY افتراضيًا ما لم تحدد polylineQuality صراحةً. تفعّل حركة المرور على الخطوط تسعير Compute Routes Enterprise الأعلى تكلفة؛ اتركه false إذا لم تحتج تفاصيل المقاطع.",
         "default": "false"
+      },
+      "polylineQuality": {
+        "description": "جودة الهندسة: OVERVIEW أو HIGH_QUALITY. يتقدم الاختيار الصريح دائمًا، بما فيه OVERVIEW مع trafficSegments=true. يتحكم بكثافة النقاط بصورة مستقلة عن حسابات حركة المرور.",
+        "default": "HIGH_QUALITY عندما trafficSegments=true؛ وإلا تستخدم Google القيمة الافتراضية OVERVIEW"
       }
     },
     "result": "كائن يحتوي `routes` و`summary` و`total_distance` (بالأمتار) و`total_duration` (بالثواني) وفهارس تحسين اختيارية. تتضمن المسارات مقاطع وخطوات وخطًا مشفرًا وتحذيرات مختارة. عند trafficSegments=true، تتضمن المسارات والأجزاء أيضًا segments موحّدة وsegmentMetadata.",
@@ -481,7 +485,8 @@
       "عدم وجود مسار متاح خطأ صريح.",
       "عند trafficSegments=true يعيد Routes فترات NORMAL أو SLOW أو TRAFFIC_JAM. تستخدم المقاطع الموحّدة لكل مسار أو جزء خطه الخاص وفهارس نقاط مستقلة. فترات Google هي [start,end)؛ وتحتفظ هندسة المقطع برأس الحدود النهائي المشترك لتغطية الحافة الأخيرة. يُبلّغ عن التغطية المفقودة أو غير الصالحة بوضوح، ولا تُختلق حركة مرور عادية.",
       "يمثل segmentMetadata.retrievedAt وقت جلب الاستجابة محليًا، وليس وقت رصد حركة المرور لدى المزود؛ تكون trafficObservedAt بقيمة null لأن Routes لا يعيدها. وتكون roadCategory وspeedLimit بقيمة null لأن استجابة Routes هذه لا توفرهما. لا تحدث استدعاءات ضمنية إلى Roads ولا تُطبّق معاملات محلية على المدة؛ تظل المدد توقعات Google.",
-      "مقاطع حركة المرور اختيارية وتقتصر على القيادة في هذا البرنامج. يطلب الخيار خطوطًا تتضمن حركة المرور ويُفعّل فوترة Compute Routes Enterprise. [مواصفات الفترات](https://developers.google.com/maps/documentation/routes/traffic_on_polylines)؛ [شروط تفعيل بنود التسعير الحالية](https://developers.google.com/maps/billing-and-pricing/sku-details/routes)."
+      "مقاطع حركة المرور اختيارية وتقتصر على القيادة في هذا البرنامج. يطلب الخيار خطوطًا تتضمن حركة المرور ويُفعّل فوترة Compute Routes Enterprise. [مواصفات الفترات](https://developers.google.com/maps/documentation/routes/traffic_on_polylines)؛ [شروط تفعيل بنود التسعير الحالية](https://developers.google.com/maps/billing-and-pricing/sku-details/routes).",
+      "تختار polylineQuality تفاصيل الهندسة التي تعيدها Google: تستخدم HIGH_QUALITY نقاطًا أكثر، وتزيد حجم الاستجابة وقد تزيد زمن الانتظار. يبقى اختيار OVERVIEW صراحةً صالحًا مع trafficSegments=true. عند إغفال الجودة تستخدم مقاطع المرور HIGH_QUALITY؛ وإلا تستخدم Google القيمة OVERVIEW. لا يصطنع البرنامج تفاصيل إضافية ولا يضيفها بالاستيفاء بين النقاط. الجودة مستقلة عن extraComputations؛ واختيار HIGH_QUALITY وحده لا يفعّل TRAFFIC_ON_POLYLINE. [التعريف الرسمي لـ PolylineQuality](https://developers.google.com/maps/documentation/routes/reference/rest/v2/TopLevel/computeRoutes#PolylineQuality)."
     ],
     "authentication": "تقبل Routes وPlaces مفتاح API أو OAuth. يحتاج حل أسماء المواقع أيضًا مفتاح API لـ Geocoding؛ وتتجنب نصوص الإحداثيات الدقيقة ذلك البحث.",
     "summary": "جلب الاتجاهات وهندسة المسار وتعليمات الملاحة ومدة التنقل."
@@ -798,8 +803,12 @@
         "default": "true، وفق تلك الشروط"
       },
       "trafficSegments": {
-        "description": "خيار منطقي اختياري للقيادة فقط. يطلب TRAFFIC_ON_POLYLINE بهندسة HIGH_QUALITY وENCODED_POLYLINE. تفعّل حركة المرور على الخطوط تسعير Compute Routes Enterprise الأعلى تكلفة؛ اتركه false إذا لم تحتج تفاصيل المقاطع.",
+        "description": "خيار منطقي اختياري للقيادة فقط. يطلب TRAFFIC_ON_POLYLINE بهندسة ENCODED_POLYLINE؛ ويستخدم HIGH_QUALITY افتراضيًا ما لم تحدد polylineQuality صراحةً. تفعّل حركة المرور على الخطوط تسعير Compute Routes Enterprise الأعلى تكلفة؛ اتركه false إذا لم تحتج تفاصيل المقاطع.",
         "default": "false"
+      },
+      "polylineQuality": {
+        "description": "جودة الهندسة: OVERVIEW أو HIGH_QUALITY. يتقدم الاختيار الصريح دائمًا، بما فيه OVERVIEW مع trafficSegments=true. يتحكم بكثافة النقاط بصورة مستقلة عن حسابات حركة المرور.",
+        "default": "HIGH_QUALITY عندما trafficSegments=true؛ وإلا تستخدم Google القيمة الافتراضية OVERVIEW"
       }
     },
     "result": "كائن يتضمن `mode` و`optimized` الفعّال و`stops` المحلولة المرتبة و`legs` للعرض وtotal_distance وtotal_duration وpolyline والتحذيرات. القيمة durationSeconds لكل مقطع عدد ثوانٍ رقمي. عند trafficSegments=true، تتضمن المسارات والأجزاء أيضًا segments موحّدة وsegmentMetadata.",
@@ -818,7 +827,8 @@
       "يحسّن هذا ترتيب التوقفات لمسار واحد، وليس توزيع المركبات أو المهام على أسطول.",
       "عند trafficSegments=true يعيد Routes فترات NORMAL أو SLOW أو TRAFFIC_JAM. تستخدم المقاطع الموحّدة لكل مسار أو جزء خطه الخاص وفهارس نقاط مستقلة. فترات Google هي [start,end)؛ وتحتفظ هندسة المقطع برأس الحدود النهائي المشترك لتغطية الحافة الأخيرة. يُبلّغ عن التغطية المفقودة أو غير الصالحة بوضوح، ولا تُختلق حركة مرور عادية.",
       "يمثل segmentMetadata.retrievedAt وقت جلب الاستجابة محليًا، وليس وقت رصد حركة المرور لدى المزود؛ تكون trafficObservedAt بقيمة null لأن Routes لا يعيدها. وتكون roadCategory وspeedLimit بقيمة null لأن استجابة Routes هذه لا توفرهما. لا تحدث استدعاءات ضمنية إلى Roads ولا تُطبّق معاملات محلية على المدة؛ تظل المدد توقعات Google.",
-      "مقاطع حركة المرور اختيارية وتقتصر على القيادة في هذا البرنامج. يطلب الخيار خطوطًا تتضمن حركة المرور ويُفعّل فوترة Compute Routes Enterprise. [مواصفات الفترات](https://developers.google.com/maps/documentation/routes/traffic_on_polylines)؛ [شروط تفعيل بنود التسعير الحالية](https://developers.google.com/maps/billing-and-pricing/sku-details/routes)."
+      "مقاطع حركة المرور اختيارية وتقتصر على القيادة في هذا البرنامج. يطلب الخيار خطوطًا تتضمن حركة المرور ويُفعّل فوترة Compute Routes Enterprise. [مواصفات الفترات](https://developers.google.com/maps/documentation/routes/traffic_on_polylines)؛ [شروط تفعيل بنود التسعير الحالية](https://developers.google.com/maps/billing-and-pricing/sku-details/routes).",
+      "تختار polylineQuality تفاصيل الهندسة التي تعيدها Google: تستخدم HIGH_QUALITY نقاطًا أكثر، وتزيد حجم الاستجابة وقد تزيد زمن الانتظار. يبقى اختيار OVERVIEW صراحةً صالحًا مع trafficSegments=true. عند إغفال الجودة تستخدم مقاطع المرور HIGH_QUALITY؛ وإلا تستخدم Google القيمة OVERVIEW. لا يصطنع البرنامج تفاصيل إضافية ولا يضيفها بالاستيفاء بين النقاط. الجودة مستقلة عن extraComputations؛ واختيار HIGH_QUALITY وحده لا يفعّل TRAFFIC_ON_POLYLINE. [التعريف الرسمي لـ PolylineQuality](https://developers.google.com/maps/documentation/routes/reference/rest/v2/TopLevel/computeRoutes#PolylineQuality)."
     ],
     "authentication": "تقبل Routes وPlaces مفتاح API أو OAuth. يحتاج حل أسماء المواقع أيضًا مفتاح API لـ Geocoding؛ وتتجنب نصوص الإحداثيات الدقيقة ذلك البحث.",
     "summary": "تخطيط مسار يمر بـ 2–27 توقفًا. تحسين 2–25 توقفًا وسيطًا عدا النقل العام. تبقى الإحداثيات الدقيقة محفوظة."

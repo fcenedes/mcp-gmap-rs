@@ -465,8 +465,12 @@
         "default": "Nicht angegeben"
       },
       "trafficSegments": {
-        "description": "Boolesche Zusatzoption nur für Autofahrten. Fordert TRAFFIC_ON_POLYLINE mit HIGH_QUALITY und ENCODED_POLYLINE an. Verkehrsdaten auf Polylinien lösen die teurere Compute Routes Enterprise-SKU aus; ohne Bedarf für Segmentdetails auf false lassen.",
+        "description": "Boolesche Zusatzoption nur für Autofahrten. Fordert TRAFFIC_ON_POLYLINE mit ENCODED_POLYLINE an; standardmäßig HIGH_QUALITY, sofern polylineQuality nicht ausdrücklich gewählt wird. Verkehrsdaten auf Polylinien lösen die teurere Compute Routes Enterprise-SKU aus; ohne Bedarf für Segmentdetails auf false lassen.",
         "default": "false"
+      },
+      "polylineQuality": {
+        "description": "Geometriequalität: OVERVIEW oder HIGH_QUALITY. Eine ausdrückliche Auswahl hat immer Vorrang, auch OVERVIEW zusammen mit trafficSegments=true. Steuert die Punktdichte unabhängig von Verkehrsberechnungen.",
+        "default": "HIGH_QUALITY bei trafficSegments=true; andernfalls Googles Standard OVERVIEW"
       }
     },
     "result": "Objekt mit `routes`, `summary`, `total_distance` (Meter), `total_duration` (Sekunden) und optionalen Optimierungsindizes. Routeneinträge enthalten ausgewählte Etappen, Schritte, Polylinie und Warnungen. Bei trafficSegments=true enthalten Routen und Etappen zusätzlich normalisierte segments und segmentMetadata.",
@@ -481,7 +485,8 @@
       "Eine nicht verfügbare Route wird ausdrücklich als Fehler gemeldet.",
       "Bei trafficSegments=true liefert Routes Intervalle mit NORMAL, SLOW oder TRAFFIC_JAM. Normalisierte Routen- und Etappensegmente beziehen sich jeweils auf die zugehörige Polylinie mit eigenen Punktindizes. Google verwendet [start,end); die Geometrie behält den gemeinsamen Endgrenzpunkt bei, damit die letzte Kante enthalten ist. Fehlende oder ungültige Abdeckung wird ausdrücklich gemeldet und nicht als normaler Verkehr ergänzt.",
       "segmentMetadata.retrievedAt ist die lokale Abrufzeit der Antwort, keine Beobachtungszeit des Verkehrsanbieters; trafficObservedAt ist null, da Routes diese Zeit nicht liefert. roadCategory und speedLimit sind null, da diese Routes-Antwort beide Werte nicht enthält. Es erfolgen weder implizite Roads-Aufrufe noch lokale Dauerfaktoren; die Zeiten bleiben Google-Prognosen.",
-      "Verkehrssegmente sind optional und in diesem Programm nur für Autofahrten verfügbar. Die Option fordert verkehrsabhängige Polylinien an und löst Compute Routes Enterprise-Abrechnung aus. [Intervallvertrag](https://developers.google.com/maps/documentation/routes/traffic_on_polylines); [aktuelle SKU-Auslöser](https://developers.google.com/maps/billing-and-pricing/sku-details/routes)."
+      "Verkehrssegmente sind optional und in diesem Programm nur für Autofahrten verfügbar. Die Option fordert verkehrsabhängige Polylinien an und löst Compute Routes Enterprise-Abrechnung aus. [Intervallvertrag](https://developers.google.com/maps/documentation/routes/traffic_on_polylines); [aktuelle SKU-Auslöser](https://developers.google.com/maps/billing-and-pricing/sku-details/routes).",
+      "polylineQuality wählt Googles Geometriedetail: HIGH_QUALITY verwendet mehr Punkte, vergrößert die Antwort und kann die Latenz erhöhen. Ausdrückliches OVERVIEW bleibt mit trafficSegments=true gültig. Ohne ausdrückliche Auswahl verwenden Verkehrssegmente HIGH_QUALITY; andernfalls verwendet Google OVERVIEW. Das Programm erzeugt oder interpoliert keine zusätzlichen Details. Die Qualität ist unabhängig von extraComputations: HIGH_QUALITY allein aktiviert TRAFFIC_ON_POLYLINE nicht. [Offizielle PolylineQuality-Definition](https://developers.google.com/maps/documentation/routes/reference/rest/v2/TopLevel/computeRoutes#PolylineQuality)."
     ],
     "authentication": "Routes/Places akzeptieren API-Schlüssel oder OAuth. Die Auflösung benannter Orte benötigt zusätzlich einen API-Schlüssel für Geocoding; exakte Koordinatenzeichenketten vermeiden diese Abfrage.",
     "summary": "Route zwischen Orten mit Verkehrsmodus, Zeit und Vermeidungsoptionen berechnen."
@@ -798,8 +803,12 @@
         "default": "true, unter diesen Bedingungen"
       },
       "trafficSegments": {
-        "description": "Boolesche Zusatzoption nur für Autofahrten. Fordert TRAFFIC_ON_POLYLINE mit HIGH_QUALITY und ENCODED_POLYLINE an. Verkehrsdaten auf Polylinien lösen die teurere Compute Routes Enterprise-SKU aus; ohne Bedarf für Segmentdetails auf false lassen.",
+        "description": "Boolesche Zusatzoption nur für Autofahrten. Fordert TRAFFIC_ON_POLYLINE mit ENCODED_POLYLINE an; standardmäßig HIGH_QUALITY, sofern polylineQuality nicht ausdrücklich gewählt wird. Verkehrsdaten auf Polylinien lösen die teurere Compute Routes Enterprise-SKU aus; ohne Bedarf für Segmentdetails auf false lassen.",
         "default": "false"
+      },
+      "polylineQuality": {
+        "description": "Geometriequalität: OVERVIEW oder HIGH_QUALITY. Eine ausdrückliche Auswahl hat immer Vorrang, auch OVERVIEW zusammen mit trafficSegments=true. Steuert die Punktdichte unabhängig von Verkehrsberechnungen.",
+        "default": "HIGH_QUALITY bei trafficSegments=true; andernfalls Googles Standard OVERVIEW"
       }
     },
     "result": "Objekt mit `mode`, wirksamem `optimized`, geordneten aufgelösten `stops`, Anzeige-`legs`, total_distance, total_duration, Polylinie und Warnungen. durationSeconds einer Etappe sind numerische Sekunden. Bei trafficSegments=true enthalten Routen und Etappen zusätzlich normalisierte segments und segmentMetadata.",
@@ -818,7 +827,8 @@
       "Optimiert wird die Stoppreihenfolge einer Route, nicht die Fahrzeug-/Aufgabenverteilung einer Flotte.",
       "Bei trafficSegments=true liefert Routes Intervalle mit NORMAL, SLOW oder TRAFFIC_JAM. Normalisierte Routen- und Etappensegmente beziehen sich jeweils auf die zugehörige Polylinie mit eigenen Punktindizes. Google verwendet [start,end); die Geometrie behält den gemeinsamen Endgrenzpunkt bei, damit die letzte Kante enthalten ist. Fehlende oder ungültige Abdeckung wird ausdrücklich gemeldet und nicht als normaler Verkehr ergänzt.",
       "segmentMetadata.retrievedAt ist die lokale Abrufzeit der Antwort, keine Beobachtungszeit des Verkehrsanbieters; trafficObservedAt ist null, da Routes diese Zeit nicht liefert. roadCategory und speedLimit sind null, da diese Routes-Antwort beide Werte nicht enthält. Es erfolgen weder implizite Roads-Aufrufe noch lokale Dauerfaktoren; die Zeiten bleiben Google-Prognosen.",
-      "Verkehrssegmente sind optional und in diesem Programm nur für Autofahrten verfügbar. Die Option fordert verkehrsabhängige Polylinien an und löst Compute Routes Enterprise-Abrechnung aus. [Intervallvertrag](https://developers.google.com/maps/documentation/routes/traffic_on_polylines); [aktuelle SKU-Auslöser](https://developers.google.com/maps/billing-and-pricing/sku-details/routes)."
+      "Verkehrssegmente sind optional und in diesem Programm nur für Autofahrten verfügbar. Die Option fordert verkehrsabhängige Polylinien an und löst Compute Routes Enterprise-Abrechnung aus. [Intervallvertrag](https://developers.google.com/maps/documentation/routes/traffic_on_polylines); [aktuelle SKU-Auslöser](https://developers.google.com/maps/billing-and-pricing/sku-details/routes).",
+      "polylineQuality wählt Googles Geometriedetail: HIGH_QUALITY verwendet mehr Punkte, vergrößert die Antwort und kann die Latenz erhöhen. Ausdrückliches OVERVIEW bleibt mit trafficSegments=true gültig. Ohne ausdrückliche Auswahl verwenden Verkehrssegmente HIGH_QUALITY; andernfalls verwendet Google OVERVIEW. Das Programm erzeugt oder interpoliert keine zusätzlichen Details. Die Qualität ist unabhängig von extraComputations: HIGH_QUALITY allein aktiviert TRAFFIC_ON_POLYLINE nicht. [Offizielle PolylineQuality-Definition](https://developers.google.com/maps/documentation/routes/reference/rest/v2/TopLevel/computeRoutes#PolylineQuality)."
     ],
     "authentication": "Routes/Places akzeptieren API-Schlüssel oder OAuth. Die Auflösung benannter Orte benötigt zusätzlich einen API-Schlüssel für Geocoding; exakte Koordinatenzeichenketten vermeiden diese Abfrage.",
     "summary": "Route durch 2–27 Stopps planen. 2–25 Zwischenstopps außer bei transit optimieren; exakte Koordinaten bleiben erhalten."

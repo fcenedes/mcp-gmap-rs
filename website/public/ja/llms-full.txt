@@ -1508,7 +1508,8 @@ mcp-gmap-rs call maps_place_details --args '{"placeId":"ChIJLU7jZClu5kcR4PcOOO6p
 | `destination` / `--destination` | 文字列; 最低 1 文字 | はい | — | 目的地の住所・ランドマークまたは正確な latitude,longitude 文字列。 |
 | `mode` / `--mode` | 文字列; 値： `driving`, `walking`, `bicycling`, `transit` | いいえ | driving | 移動方法。運転では交通状況を考慮した経路を使います。 |
 | `origin` / `--origin` | 文字列; 最低 1 文字 | はい | — | 出発地の住所・ランドマークまたは正確な latitude,longitude 文字列。 |
-| `trafficSegments` / `--traffic-segments` | 真偽値 | いいえ | false | 自動車運転のみの任意の真偽値。TRAFFIC_ON_POLYLINE と HIGH_QUALITY・ENCODED_POLYLINE の形状を要求します。交通付きポリラインは高料金の Compute Routes Enterprise SKU を発生させるため、区間詳細が不要なら false のままにします。 |
+| `polylineQuality` / `--polyline-quality` | 文字列; 値： `OVERVIEW`, `HIGH_QUALITY` | いいえ | trafficSegments=true なら HIGH_QUALITY、それ以外は Google 既定の OVERVIEW | 形状品質。OVERVIEW または HIGH_QUALITY。明示指定が常に優先され、trafficSegments=true と OVERVIEW の併用も可能です。点の密度と交通計算は独立しています。 |
+| `trafficSegments` / `--traffic-segments` | 真偽値 | いいえ | false | 自動車運転のみの任意の真偽値。TRAFFIC_ON_POLYLINE と ENCODED_POLYLINE を要求し、polylineQuality の明示指定がなければ HIGH_QUALITY を使います。交通付きポリラインは高料金の Compute Routes Enterprise SKU を発生させるため、区間詳細が不要なら false のままにします。 |
 
 ### 動作と制約
 
@@ -1518,8 +1519,9 @@ mcp-gmap-rs call maps_place_details --args '{"placeId":"ChIJLU7jZClu5kcR4PcOOO6p
 - trafficSegments=true では Routes が NORMAL、SLOW、TRAFFIC_JAM の交通範囲を返します。経路・各区間の正規化セグメントは、それぞれ固有のポリラインと独立した点インデックスを使用します。Google の範囲は [start,end) ですが、形状には共有する終了境界の頂点を残し、最後の辺を含めます。範囲の欠落・不正は明示し、通常の交通と推測して補完しません。
 - segmentMetadata.retrievedAt はローカルで応答を取得した時刻で、提供者による交通観測時刻ではありません。Routes は観測時刻を返さないため trafficObservedAt は null。この Routes 応答は道路分類・制限速度も返さないため roadCategory・speedLimit は null。暗黙の Roads 呼び出しやクライアント側の所要時間倍率は使用せず、時間は Google の予測値を保持します。
 - 交通セグメントは明示的な指定が必要で、この実装では自動車運転のみです。交通付きポリラインを要求し、Compute Routes Enterprise 課金が発生します。[交通範囲の仕様](https://developers.google.com/maps/documentation/routes/traffic_on_polylines)、[現在の SKU 発生条件](https://developers.google.com/maps/billing-and-pricing/sku-details/routes)。
+- polylineQuality は Google が返す形状の細かさを選択します。HIGH_QUALITY は点数・応答サイズが増え、遅延も増える場合があります。trafficSegments=true でも OVERVIEW を明示指定できます。品質省略時は交通セグメントに HIGH_QUALITY、それ以外に Google 既定の OVERVIEW を使用。プログラムが詳細を合成・補間することはありません。品質は extraComputations と独立しており、HIGH_QUALITY だけでは TRAFFIC_ON_POLYLINE は有効になりません。[PolylineQuality の公式定義](https://developers.google.com/maps/documentation/routes/reference/rest/v2/TopLevel/computeRoutes#PolylineQuality)。
 
-**公式の出典:** <https://developers.google.com/maps/billing-and-pricing/sku-details/routes>, <https://developers.google.com/maps/documentation/routes/traffic_on_polylines>
+**公式の出典:** <https://developers.google.com/maps/billing-and-pricing/sku-details/routes>, <https://developers.google.com/maps/documentation/routes/reference/rest/v2/TopLevel/computeRoutes#PolylineQuality>, <https://developers.google.com/maps/documentation/routes/traffic_on_polylines>
 
 ### 結果
 
@@ -1941,8 +1943,9 @@ mcp-gmap-rs call maps_explore_area --args '{"location":"48.8584,2.2945","types":
 | `departure_time` / `--departure-time` | 文字列; 最低 1 文字 | いいえ | 未指定 | 出発時刻。Z または明示的な UTC オフセットを持つ RFC 3339 形式です。 |
 | `mode` / `--mode` | 文字列; 値： `driving`, `walking`, `bicycling`, `transit` | いいえ | driving | 移動方法。運転では交通状況を考慮した経路を使います。 |
 | `optimize` / `--optimize` | 真偽値 | いいえ | true。ただし上記条件に従います | 合計立ち寄り点が 3 点を超え、モードが transit 以外の場合に中間点の最適化を要求します。 |
+| `polylineQuality` / `--polyline-quality` | 文字列; 値： `OVERVIEW`, `HIGH_QUALITY` | いいえ | trafficSegments=true なら HIGH_QUALITY、それ以外は Google 既定の OVERVIEW | 形状品質。OVERVIEW または HIGH_QUALITY。明示指定が常に優先され、trafficSegments=true と OVERVIEW の併用も可能です。点の密度と交通計算は独立しています。 |
 | `stops` / `--stops` | 文字列の配列; 2–27 項目; 各項目は最低 1 文字 | はい | — | 順序付き住所・ランドマークまたは正確な latitude,longitude 文字列。最初と最後は端点のままです。 |
-| `trafficSegments` / `--traffic-segments` | 真偽値 | いいえ | false | 自動車運転のみの任意の真偽値。TRAFFIC_ON_POLYLINE と HIGH_QUALITY・ENCODED_POLYLINE の形状を要求します。交通付きポリラインは高料金の Compute Routes Enterprise SKU を発生させるため、区間詳細が不要なら false のままにします。 |
+| `trafficSegments` / `--traffic-segments` | 真偽値 | いいえ | false | 自動車運転のみの任意の真偽値。TRAFFIC_ON_POLYLINE と ENCODED_POLYLINE を要求し、polylineQuality の明示指定がなければ HIGH_QUALITY を使います。交通付きポリラインは高料金の Compute Routes Enterprise SKU を発生させるため、区間詳細が不要なら false のままにします。 |
 
 ### 動作と制約
 
@@ -1952,8 +1955,9 @@ mcp-gmap-rs call maps_explore_area --args '{"location":"48.8584,2.2945","types":
 - trafficSegments=true では Routes が NORMAL、SLOW、TRAFFIC_JAM の交通範囲を返します。経路・各区間の正規化セグメントは、それぞれ固有のポリラインと独立した点インデックスを使用します。Google の範囲は [start,end) ですが、形状には共有する終了境界の頂点を残し、最後の辺を含めます。範囲の欠落・不正は明示し、通常の交通と推測して補完しません。
 - segmentMetadata.retrievedAt はローカルで応答を取得した時刻で、提供者による交通観測時刻ではありません。Routes は観測時刻を返さないため trafficObservedAt は null。この Routes 応答は道路分類・制限速度も返さないため roadCategory・speedLimit は null。暗黙の Roads 呼び出しやクライアント側の所要時間倍率は使用せず、時間は Google の予測値を保持します。
 - 交通セグメントは明示的な指定が必要で、この実装では自動車運転のみです。交通付きポリラインを要求し、Compute Routes Enterprise 課金が発生します。[交通範囲の仕様](https://developers.google.com/maps/documentation/routes/traffic_on_polylines)、[現在の SKU 発生条件](https://developers.google.com/maps/billing-and-pricing/sku-details/routes)。
+- polylineQuality は Google が返す形状の細かさを選択します。HIGH_QUALITY は点数・応答サイズが増え、遅延も増える場合があります。trafficSegments=true でも OVERVIEW を明示指定できます。品質省略時は交通セグメントに HIGH_QUALITY、それ以外に Google 既定の OVERVIEW を使用。プログラムが詳細を合成・補間することはありません。品質は extraComputations と独立しており、HIGH_QUALITY だけでは TRAFFIC_ON_POLYLINE は有効になりません。[PolylineQuality の公式定義](https://developers.google.com/maps/documentation/routes/reference/rest/v2/TopLevel/computeRoutes#PolylineQuality)。
 
-**公式の出典:** <https://developers.google.com/maps/billing-and-pricing/sku-details/routes>, <https://developers.google.com/maps/documentation/routes/traffic_on_polylines>
+**公式の出典:** <https://developers.google.com/maps/billing-and-pricing/sku-details/routes>, <https://developers.google.com/maps/documentation/routes/reference/rest/v2/TopLevel/computeRoutes#PolylineQuality>, <https://developers.google.com/maps/documentation/routes/traffic_on_polylines>
 
 ### 結果
 

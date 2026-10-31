@@ -200,6 +200,12 @@ content, following [Google's Places policies](https://developers.google.com/maps
 
 ## Optional traffic segments
 
+Directions and route planning accept `polylineQuality: "HIGH_QUALITY"` or
+`"OVERVIEW"` independently of traffic. An explicit quality wins; omitted quality
+keeps Google's overview default unless traffic segments request high quality.
+Higher quality returns more geometry and can increase response size and latency.
+The executable preserves provider points without interpolation.
+
 Directions and route planning accept `trafficSegments: true` for driving.
 This opts into Google traffic-on-polyline calculations and higher Compute Routes
 Enterprise billing. Normalized route/leg segments preserve Google point

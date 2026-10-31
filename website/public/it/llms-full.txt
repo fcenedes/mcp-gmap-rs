@@ -1310,7 +1310,8 @@ Calcola un percorso tra due estremi e restituisce sia dati di percorso Google se
 | `destination` / `--destination` | stringa; almeno 1 carattere/i | Sì | — | Indirizzo o punto di interesse di destinazione, oppure stringa di coordinate esatte latitude,longitude. |
 | `mode` / `--mode` | stringa; valori: `driving`, `walking`, `bicycling`, `transit` | No | driving | Modalità di viaggio. driving utilizza il traffico nel calcolo del percorso. |
 | `origin` / `--origin` | stringa; almeno 1 carattere/i | Sì | — | Indirizzo o punto di interesse di partenza, oppure stringa di coordinate esatte latitude,longitude. |
-| `trafficSegments` / `--traffic-segments` | booleano | No | false | Opzione booleana solo per la guida. Richiede TRAFFIC_ON_POLYLINE con geometria HIGH_QUALITY ed ENCODED_POLYLINE. Il traffico sulle polilinee attiva lo SKU Compute Routes Enterprise, più costoso; lasciare false se il dettaglio non serve. |
+| `polylineQuality` / `--polyline-quality` | stringa; valori: `OVERVIEW`, `HIGH_QUALITY` | No | HIGH_QUALITY con trafficSegments=true; altrimenti Google usa OVERVIEW per impostazione predefinita | Qualità geometrica: OVERVIEW o HIGH_QUALITY. La scelta esplicita ha sempre precedenza, anche OVERVIEW insieme a trafficSegments=true. Controlla la densità dei punti indipendentemente dai calcoli del traffico. |
+| `trafficSegments` / `--traffic-segments` | booleano | No | false | Opzione booleana solo per la guida. Richiede TRAFFIC_ON_POLYLINE con geometria ENCODED_POLYLINE; usa HIGH_QUALITY salvo polylineQuality esplicita. Il traffico sulle polilinee attiva lo SKU Compute Routes Enterprise, più costoso; lasciare false se il dettaglio non serve. |
 
 ### Comportamento e restrizioni
 
@@ -1320,8 +1321,9 @@ Calcola un percorso tra due estremi e restituisce sia dati di percorso Google se
 - Con trafficSegments=true, Routes fornisce intervalli NORMAL, SLOW o TRAFFIC_JAM. I segmenti normalizzati di percorso e tratta usano la rispettiva polilinea, con indici dei punti indipendenti. Gli intervalli Google sono [start,end); la geometria conserva il vertice finale condiviso per coprire l’ultimo arco. La copertura assente o non valida viene segnalata, senza inventare traffico normale.
 - segmentMetadata.retrievedAt è l’ora locale di ricezione della risposta, non l’ora di osservazione del traffico del fornitore; trafficObservedAt è null perché Routes non la restituisce. roadCategory e speedLimit sono null perché questa risposta Routes non li fornisce. Nessuna chiamata implicita a Roads né moltiplicatore locale della durata: le durate restano previsioni Google.
 - I segmenti di traffico sono facoltativi e limitati alla guida in questo eseguibile. Richiederli attiva le polilinee con traffico e la fatturazione Compute Routes Enterprise. [Contratto degli intervalli](https://developers.google.com/maps/documentation/routes/traffic_on_polylines); [attivazione degli SKU attuali](https://developers.google.com/maps/billing-and-pricing/sku-details/routes).
+- polylineQuality seleziona il dettaglio geometrico fornito da Google: HIGH_QUALITY usa più punti, aumenta la risposta e può aumentare la latenza. OVERVIEW esplicito resta valido con trafficSegments=true. Se omesso, i segmenti di traffico usano HIGH_QUALITY; altrimenti Google usa OVERVIEW. Il programma non sintetizza né interpola dettagli aggiuntivi. La qualità è indipendente da extraComputations: HIGH_QUALITY da solo non attiva TRAFFIC_ON_POLYLINE. [Definizione ufficiale di PolylineQuality](https://developers.google.com/maps/documentation/routes/reference/rest/v2/TopLevel/computeRoutes#PolylineQuality).
 
-**Fonti primarie:** <https://developers.google.com/maps/billing-and-pricing/sku-details/routes>, <https://developers.google.com/maps/documentation/routes/traffic_on_polylines>
+**Fonti primarie:** <https://developers.google.com/maps/billing-and-pricing/sku-details/routes>, <https://developers.google.com/maps/documentation/routes/reference/rest/v2/TopLevel/computeRoutes#PolylineQuality>, <https://developers.google.com/maps/documentation/routes/traffic_on_polylines>
 
 ### Risultato
 
@@ -1743,8 +1745,9 @@ Pianifica un solo percorso attraverso tappe ordinate, chiedendo facoltativamente
 | `departure_time` / `--departure-time` | stringa; almeno 1 carattere/i | No | Non fornito | Istante di partenza in RFC 3339, con Z o un offset UTC esplicito. |
 | `mode` / `--mode` | stringa; valori: `driving`, `walking`, `bicycling`, `transit` | No | driving | Modalità di viaggio. driving utilizza il traffico nel calcolo del percorso. |
 | `optimize` / `--optimize` | booleano | No | true, alle condizioni indicate | Richiede l’ottimizzazione delle tappe intermedie quando le tappe totali sono più di tre e mode non è transit. |
+| `polylineQuality` / `--polyline-quality` | stringa; valori: `OVERVIEW`, `HIGH_QUALITY` | No | HIGH_QUALITY con trafficSegments=true; altrimenti Google usa OVERVIEW per impostazione predefinita | Qualità geometrica: OVERVIEW o HIGH_QUALITY. La scelta esplicita ha sempre precedenza, anche OVERVIEW insieme a trafficSegments=true. Controlla la densità dei punti indipendentemente dai calcoli del traffico. |
 | `stops` / `--stops` | array di stringhe; 2–27 elementi; ogni elemento contiene almeno 1 carattere/i | Sì | — | Indirizzi o punti di interesse ordinati, oppure stringhe di coordinate esatte latitude,longitude; primo e ultimo restano gli estremi. |
-| `trafficSegments` / `--traffic-segments` | booleano | No | false | Opzione booleana solo per la guida. Richiede TRAFFIC_ON_POLYLINE con geometria HIGH_QUALITY ed ENCODED_POLYLINE. Il traffico sulle polilinee attiva lo SKU Compute Routes Enterprise, più costoso; lasciare false se il dettaglio non serve. |
+| `trafficSegments` / `--traffic-segments` | booleano | No | false | Opzione booleana solo per la guida. Richiede TRAFFIC_ON_POLYLINE con geometria ENCODED_POLYLINE; usa HIGH_QUALITY salvo polylineQuality esplicita. Il traffico sulle polilinee attiva lo SKU Compute Routes Enterprise, più costoso; lasciare false se il dettaglio non serve. |
 
 ### Comportamento e restrizioni
 
@@ -1754,8 +1757,9 @@ Pianifica un solo percorso attraverso tappe ordinate, chiedendo facoltativamente
 - Con trafficSegments=true, Routes fornisce intervalli NORMAL, SLOW o TRAFFIC_JAM. I segmenti normalizzati di percorso e tratta usano la rispettiva polilinea, con indici dei punti indipendenti. Gli intervalli Google sono [start,end); la geometria conserva il vertice finale condiviso per coprire l’ultimo arco. La copertura assente o non valida viene segnalata, senza inventare traffico normale.
 - segmentMetadata.retrievedAt è l’ora locale di ricezione della risposta, non l’ora di osservazione del traffico del fornitore; trafficObservedAt è null perché Routes non la restituisce. roadCategory e speedLimit sono null perché questa risposta Routes non li fornisce. Nessuna chiamata implicita a Roads né moltiplicatore locale della durata: le durate restano previsioni Google.
 - I segmenti di traffico sono facoltativi e limitati alla guida in questo eseguibile. Richiederli attiva le polilinee con traffico e la fatturazione Compute Routes Enterprise. [Contratto degli intervalli](https://developers.google.com/maps/documentation/routes/traffic_on_polylines); [attivazione degli SKU attuali](https://developers.google.com/maps/billing-and-pricing/sku-details/routes).
+- polylineQuality seleziona il dettaglio geometrico fornito da Google: HIGH_QUALITY usa più punti, aumenta la risposta e può aumentare la latenza. OVERVIEW esplicito resta valido con trafficSegments=true. Se omesso, i segmenti di traffico usano HIGH_QUALITY; altrimenti Google usa OVERVIEW. Il programma non sintetizza né interpola dettagli aggiuntivi. La qualità è indipendente da extraComputations: HIGH_QUALITY da solo non attiva TRAFFIC_ON_POLYLINE. [Definizione ufficiale di PolylineQuality](https://developers.google.com/maps/documentation/routes/reference/rest/v2/TopLevel/computeRoutes#PolylineQuality).
 
-**Fonti primarie:** <https://developers.google.com/maps/billing-and-pricing/sku-details/routes>, <https://developers.google.com/maps/documentation/routes/traffic_on_polylines>
+**Fonti primarie:** <https://developers.google.com/maps/billing-and-pricing/sku-details/routes>, <https://developers.google.com/maps/documentation/routes/reference/rest/v2/TopLevel/computeRoutes#PolylineQuality>, <https://developers.google.com/maps/documentation/routes/traffic_on_polylines>
 
 ### Risultato
 

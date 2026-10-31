@@ -483,3 +483,20 @@ live_test!(
         assert!(v["keywords"][0]["metrics"]["atrp"].as_f64().is_some());
     }
 );
+
+#[test]
+#[ignore = "requires Google Routes API and billable requests"]
+fn live_maps_directions_high_quality_without_traffic_intervals() {
+    let output = invoke(
+        "maps_directions",
+        json!({"origin":"37.422,-122.084","destination":"37.7749,-122.4194","polylineQuality":"HIGH_QUALITY"}),
+    );
+    let route = &output["routes"][0];
+    assert!(
+        route["polyline"]["encodedPolyline"]
+            .as_str()
+            .is_some_and(|line| !line.is_empty())
+    );
+    assert!(route.get("segments").is_none());
+    assert!(output["total_distance"]["value"].as_f64().unwrap() > 0.0);
+}

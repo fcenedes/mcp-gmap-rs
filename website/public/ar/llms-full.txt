@@ -1511,7 +1511,8 @@ mcp-gmap-rs call maps_place_details --args '{"placeId":"ChIJLU7jZClu5kcR4PcOOO6p
 | `destination` / `--destination` | نص; على الأقل 1 محرف | نعم | <bdi dir="auto">—</bdi> | عنوان أو معلم الوجهة أو نص latitude,longitude دقيق. |
 | `mode` / `--mode` | نص; القيم: `driving`, `walking`, `bicycling`, `transit` | لا | <bdi dir="auto">driving</bdi> | وسيلة التنقل. تستخدم القيادة توجيهًا يراعي حركة المرور. |
 | `origin` / `--origin` | نص; على الأقل 1 محرف | نعم | <bdi dir="auto">—</bdi> | عنوان أو معلم البداية أو نص latitude,longitude دقيق. |
-| `trafficSegments` / `--traffic-segments` | منطقي | لا | <bdi dir="auto">false</bdi> | خيار منطقي اختياري للقيادة فقط. يطلب TRAFFIC_ON_POLYLINE بهندسة HIGH_QUALITY وENCODED_POLYLINE. تفعّل حركة المرور على الخطوط تسعير Compute Routes Enterprise الأعلى تكلفة؛ اتركه false إذا لم تحتج تفاصيل المقاطع. |
+| `polylineQuality` / `--polyline-quality` | نص; القيم: `OVERVIEW`, `HIGH_QUALITY` | لا | <bdi dir="auto">HIGH_QUALITY عندما trafficSegments=true؛ وإلا تستخدم Google القيمة الافتراضية OVERVIEW</bdi> | جودة الهندسة: OVERVIEW أو HIGH_QUALITY. يتقدم الاختيار الصريح دائمًا، بما فيه OVERVIEW مع trafficSegments=true. يتحكم بكثافة النقاط بصورة مستقلة عن حسابات حركة المرور. |
+| `trafficSegments` / `--traffic-segments` | منطقي | لا | <bdi dir="auto">false</bdi> | خيار منطقي اختياري للقيادة فقط. يطلب TRAFFIC_ON_POLYLINE بهندسة ENCODED_POLYLINE؛ ويستخدم HIGH_QUALITY افتراضيًا ما لم تحدد polylineQuality صراحةً. تفعّل حركة المرور على الخطوط تسعير Compute Routes Enterprise الأعلى تكلفة؛ اتركه false إذا لم تحتج تفاصيل المقاطع. |
 
 ### السلوك والقيود
 
@@ -1521,8 +1522,9 @@ mcp-gmap-rs call maps_place_details --args '{"placeId":"ChIJLU7jZClu5kcR4PcOOO6p
 - عند trafficSegments=true يعيد Routes فترات NORMAL أو SLOW أو TRAFFIC_JAM. تستخدم المقاطع الموحّدة لكل مسار أو جزء خطه الخاص وفهارس نقاط مستقلة. فترات Google هي [start,end)؛ وتحتفظ هندسة المقطع برأس الحدود النهائي المشترك لتغطية الحافة الأخيرة. يُبلّغ عن التغطية المفقودة أو غير الصالحة بوضوح، ولا تُختلق حركة مرور عادية.
 - يمثل segmentMetadata.retrievedAt وقت جلب الاستجابة محليًا، وليس وقت رصد حركة المرور لدى المزود؛ تكون trafficObservedAt بقيمة null لأن Routes لا يعيدها. وتكون roadCategory وspeedLimit بقيمة null لأن استجابة Routes هذه لا توفرهما. لا تحدث استدعاءات ضمنية إلى Roads ولا تُطبّق معاملات محلية على المدة؛ تظل المدد توقعات Google.
 - مقاطع حركة المرور اختيارية وتقتصر على القيادة في هذا البرنامج. يطلب الخيار خطوطًا تتضمن حركة المرور ويُفعّل فوترة Compute Routes Enterprise. [مواصفات الفترات](https://developers.google.com/maps/documentation/routes/traffic_on_polylines)؛ [شروط تفعيل بنود التسعير الحالية](https://developers.google.com/maps/billing-and-pricing/sku-details/routes).
+- تختار polylineQuality تفاصيل الهندسة التي تعيدها Google: تستخدم HIGH_QUALITY نقاطًا أكثر، وتزيد حجم الاستجابة وقد تزيد زمن الانتظار. يبقى اختيار OVERVIEW صراحةً صالحًا مع trafficSegments=true. عند إغفال الجودة تستخدم مقاطع المرور HIGH_QUALITY؛ وإلا تستخدم Google القيمة OVERVIEW. لا يصطنع البرنامج تفاصيل إضافية ولا يضيفها بالاستيفاء بين النقاط. الجودة مستقلة عن extraComputations؛ واختيار HIGH_QUALITY وحده لا يفعّل TRAFFIC_ON_POLYLINE. [التعريف الرسمي لـ PolylineQuality](https://developers.google.com/maps/documentation/routes/reference/rest/v2/TopLevel/computeRoutes#PolylineQuality).
 
-**المصادر الأصلية:** <https://developers.google.com/maps/billing-and-pricing/sku-details/routes>, <https://developers.google.com/maps/documentation/routes/traffic_on_polylines>
+**المصادر الأصلية:** <https://developers.google.com/maps/billing-and-pricing/sku-details/routes>, <https://developers.google.com/maps/documentation/routes/reference/rest/v2/TopLevel/computeRoutes#PolylineQuality>, <https://developers.google.com/maps/documentation/routes/traffic_on_polylines>
 
 ### النتيجة
 
@@ -1944,8 +1946,9 @@ mcp-gmap-rs call maps_explore_area --args '{"location":"48.8584,2.2945","types":
 | `departure_time` / `--departure-time` | نص; على الأقل 1 محرف | لا | <bdi dir="auto">غير مزوّد</bdi> | لحظة المغادرة بصيغة RFC 3339 مع Z أو إزاحة UTC صريحة. |
 | `mode` / `--mode` | نص; القيم: `driving`, `walking`, `bicycling`, `transit` | لا | <bdi dir="auto">driving</bdi> | وسيلة التنقل. تستخدم القيادة توجيهًا يراعي حركة المرور. |
 | `optimize` / `--optimize` | منطقي | لا | <bdi dir="auto">true، وفق تلك الشروط</bdi> | طلب تحسين التوقفات الوسطية عندما يزيد مجموع التوقفات على ثلاثة ولا تكون الوسيلة transit. |
+| `polylineQuality` / `--polyline-quality` | نص; القيم: `OVERVIEW`, `HIGH_QUALITY` | لا | <bdi dir="auto">HIGH_QUALITY عندما trafficSegments=true؛ وإلا تستخدم Google القيمة الافتراضية OVERVIEW</bdi> | جودة الهندسة: OVERVIEW أو HIGH_QUALITY. يتقدم الاختيار الصريح دائمًا، بما فيه OVERVIEW مع trafficSegments=true. يتحكم بكثافة النقاط بصورة مستقلة عن حسابات حركة المرور. |
 | `stops` / `--stops` | مصفوفة نصوص; `2–27` عناصر; كل عنصر لا يقل عن 1 محرف | نعم | <bdi dir="auto">—</bdi> | عناوين أو معالم مرتبة أو نصوص latitude,longitude دقيقة؛ يبقى الأول والأخير نقطتي النهاية. |
-| `trafficSegments` / `--traffic-segments` | منطقي | لا | <bdi dir="auto">false</bdi> | خيار منطقي اختياري للقيادة فقط. يطلب TRAFFIC_ON_POLYLINE بهندسة HIGH_QUALITY وENCODED_POLYLINE. تفعّل حركة المرور على الخطوط تسعير Compute Routes Enterprise الأعلى تكلفة؛ اتركه false إذا لم تحتج تفاصيل المقاطع. |
+| `trafficSegments` / `--traffic-segments` | منطقي | لا | <bdi dir="auto">false</bdi> | خيار منطقي اختياري للقيادة فقط. يطلب TRAFFIC_ON_POLYLINE بهندسة ENCODED_POLYLINE؛ ويستخدم HIGH_QUALITY افتراضيًا ما لم تحدد polylineQuality صراحةً. تفعّل حركة المرور على الخطوط تسعير Compute Routes Enterprise الأعلى تكلفة؛ اتركه false إذا لم تحتج تفاصيل المقاطع. |
 
 ### السلوك والقيود
 
@@ -1955,8 +1958,9 @@ mcp-gmap-rs call maps_explore_area --args '{"location":"48.8584,2.2945","types":
 - عند trafficSegments=true يعيد Routes فترات NORMAL أو SLOW أو TRAFFIC_JAM. تستخدم المقاطع الموحّدة لكل مسار أو جزء خطه الخاص وفهارس نقاط مستقلة. فترات Google هي [start,end)؛ وتحتفظ هندسة المقطع برأس الحدود النهائي المشترك لتغطية الحافة الأخيرة. يُبلّغ عن التغطية المفقودة أو غير الصالحة بوضوح، ولا تُختلق حركة مرور عادية.
 - يمثل segmentMetadata.retrievedAt وقت جلب الاستجابة محليًا، وليس وقت رصد حركة المرور لدى المزود؛ تكون trafficObservedAt بقيمة null لأن Routes لا يعيدها. وتكون roadCategory وspeedLimit بقيمة null لأن استجابة Routes هذه لا توفرهما. لا تحدث استدعاءات ضمنية إلى Roads ولا تُطبّق معاملات محلية على المدة؛ تظل المدد توقعات Google.
 - مقاطع حركة المرور اختيارية وتقتصر على القيادة في هذا البرنامج. يطلب الخيار خطوطًا تتضمن حركة المرور ويُفعّل فوترة Compute Routes Enterprise. [مواصفات الفترات](https://developers.google.com/maps/documentation/routes/traffic_on_polylines)؛ [شروط تفعيل بنود التسعير الحالية](https://developers.google.com/maps/billing-and-pricing/sku-details/routes).
+- تختار polylineQuality تفاصيل الهندسة التي تعيدها Google: تستخدم HIGH_QUALITY نقاطًا أكثر، وتزيد حجم الاستجابة وقد تزيد زمن الانتظار. يبقى اختيار OVERVIEW صراحةً صالحًا مع trafficSegments=true. عند إغفال الجودة تستخدم مقاطع المرور HIGH_QUALITY؛ وإلا تستخدم Google القيمة OVERVIEW. لا يصطنع البرنامج تفاصيل إضافية ولا يضيفها بالاستيفاء بين النقاط. الجودة مستقلة عن extraComputations؛ واختيار HIGH_QUALITY وحده لا يفعّل TRAFFIC_ON_POLYLINE. [التعريف الرسمي لـ PolylineQuality](https://developers.google.com/maps/documentation/routes/reference/rest/v2/TopLevel/computeRoutes#PolylineQuality).
 
-**المصادر الأصلية:** <https://developers.google.com/maps/billing-and-pricing/sku-details/routes>, <https://developers.google.com/maps/documentation/routes/traffic_on_polylines>
+**المصادر الأصلية:** <https://developers.google.com/maps/billing-and-pricing/sku-details/routes>, <https://developers.google.com/maps/documentation/routes/reference/rest/v2/TopLevel/computeRoutes#PolylineQuality>, <https://developers.google.com/maps/documentation/routes/traffic_on_polylines>
 
 ### النتيجة
 

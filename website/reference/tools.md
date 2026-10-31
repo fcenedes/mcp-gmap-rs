@@ -584,7 +584,8 @@ Compute a route between two endpoints and expose both selected Google route data
 | `destination` / `--destination` | string; at least 1 character(s) | Yes | — | Destination address/landmark or exact latitude,longitude string. |
 | `mode` / `--mode` | string; values: `driving`, `walking`, `bicycling`, `transit` | No | driving | Travel mode. Driving uses traffic-aware routing. |
 | `origin` / `--origin` | string; at least 1 character(s) | Yes | — | Origin address/landmark or exact latitude,longitude string. |
-| `trafficSegments` / `--traffic-segments` | boolean | No | false | Boolean opt-in for driving only. Requests TRAFFIC_ON_POLYLINE with HIGH_QUALITY and ENCODED_POLYLINE geometry. Traffic on polylines triggers the higher-priced Compute Routes Enterprise SKU; leave false unless segment detail is needed. |
+| `polylineQuality` / `--polyline-quality` | string; values: `OVERVIEW`, `HIGH_QUALITY` | No | HIGH_QUALITY when trafficSegments=true; otherwise Google defaults to OVERVIEW | Geometry quality: OVERVIEW or HIGH_QUALITY. An explicit choice always wins, including OVERVIEW together with trafficSegments=true. Controls point density independently of traffic calculations. |
+| `trafficSegments` / `--traffic-segments` | boolean | No | false | Boolean opt-in for driving only. Requests TRAFFIC_ON_POLYLINE with ENCODED_POLYLINE geometry; defaults to HIGH_QUALITY unless polylineQuality is explicit. Traffic on polylines triggers the higher-priced Compute Routes Enterprise SKU; leave false unless segment detail is needed. |
 
 ### Behavior and restrictions
 
@@ -594,8 +595,9 @@ Compute a route between two endpoints and expose both selected Google route data
 - With trafficSegments=true, Routes supplies NORMAL, SLOW or TRAFFIC_JAM intervals. Normalized route and leg segments use the corresponding route or leg polyline, with independent point indices. Google intervals are [start,end); each segment geometry retains the shared end boundary vertex to cover the final edge. Missing or invalid coverage is reported explicitly rather than invented as normal traffic.
 - segmentMetadata.retrievedAt is the local response-fetch time, not a provider traffic observation time; trafficObservedAt is null because Routes does not return it. roadCategory and speedLimit are null because this Routes response supplies neither. No implicit Roads API calls or client-side duration multipliers are applied; durations remain Google predictions.
 - Traffic segments are optional and driving-only in this executable. This requests traffic-aware polylines and triggers Compute Routes Enterprise billing. [Traffic interval contract](https://developers.google.com/maps/documentation/routes/traffic_on_polylines); [current SKU triggers](https://developers.google.com/maps/billing-and-pricing/sku-details/routes).
+- polylineQuality selects Google’s geometry detail: HIGH_QUALITY uses more points, increases response size and can increase latency. Explicit OVERVIEW remains valid with trafficSegments=true. If omitted, traffic segments default to HIGH_QUALITY; otherwise Google uses OVERVIEW. The executable does not synthesize or interpolate additional detail. Geometry quality is independent of extraComputations: setting HIGH_QUALITY alone does not enable TRAFFIC_ON_POLYLINE. [Official PolylineQuality definition](https://developers.google.com/maps/documentation/routes/reference/rest/v2/TopLevel/computeRoutes#PolylineQuality).
 
-**Primary sources:** <https://developers.google.com/maps/billing-and-pricing/sku-details/routes>, <https://developers.google.com/maps/documentation/routes/traffic_on_polylines>
+**Primary sources:** <https://developers.google.com/maps/billing-and-pricing/sku-details/routes>, <https://developers.google.com/maps/documentation/routes/reference/rest/v2/TopLevel/computeRoutes#PolylineQuality>, <https://developers.google.com/maps/documentation/routes/traffic_on_polylines>
 
 ### Result
 
@@ -1017,8 +1019,9 @@ Plan a single route through ordered stops, optionally asking Google to reorder i
 | `departure_time` / `--departure-time` | string; at least 1 character(s) | No | Not supplied | Departure instant as RFC 3339 including Z or an explicit UTC offset. |
 | `mode` / `--mode` | string; values: `driving`, `walking`, `bicycling`, `transit` | No | driving | Travel mode. Driving uses traffic-aware routing. |
 | `optimize` / `--optimize` | boolean | No | true, subject to those conditions | Request intermediate-stop optimization when more than three total stops and mode is not transit. |
+| `polylineQuality` / `--polyline-quality` | string; values: `OVERVIEW`, `HIGH_QUALITY` | No | HIGH_QUALITY when trafficSegments=true; otherwise Google defaults to OVERVIEW | Geometry quality: OVERVIEW or HIGH_QUALITY. An explicit choice always wins, including OVERVIEW together with trafficSegments=true. Controls point density independently of traffic calculations. |
 | `stops` / `--stops` | array of string; 2–27 items; each item at least 1 character(s) | Yes | — | Ordered addresses/landmarks or exact latitude,longitude strings; first/last stay endpoints. |
-| `trafficSegments` / `--traffic-segments` | boolean | No | false | Boolean opt-in for driving only. Requests TRAFFIC_ON_POLYLINE with HIGH_QUALITY and ENCODED_POLYLINE geometry. Traffic on polylines triggers the higher-priced Compute Routes Enterprise SKU; leave false unless segment detail is needed. |
+| `trafficSegments` / `--traffic-segments` | boolean | No | false | Boolean opt-in for driving only. Requests TRAFFIC_ON_POLYLINE with ENCODED_POLYLINE geometry; defaults to HIGH_QUALITY unless polylineQuality is explicit. Traffic on polylines triggers the higher-priced Compute Routes Enterprise SKU; leave false unless segment detail is needed. |
 
 ### Behavior and restrictions
 
@@ -1028,8 +1031,9 @@ Plan a single route through ordered stops, optionally asking Google to reorder i
 - With trafficSegments=true, Routes supplies NORMAL, SLOW or TRAFFIC_JAM intervals. Normalized route and leg segments use the corresponding route or leg polyline, with independent point indices. Google intervals are [start,end); each segment geometry retains the shared end boundary vertex to cover the final edge. Missing or invalid coverage is reported explicitly rather than invented as normal traffic.
 - segmentMetadata.retrievedAt is the local response-fetch time, not a provider traffic observation time; trafficObservedAt is null because Routes does not return it. roadCategory and speedLimit are null because this Routes response supplies neither. No implicit Roads API calls or client-side duration multipliers are applied; durations remain Google predictions.
 - Traffic segments are optional and driving-only in this executable. This requests traffic-aware polylines and triggers Compute Routes Enterprise billing. [Traffic interval contract](https://developers.google.com/maps/documentation/routes/traffic_on_polylines); [current SKU triggers](https://developers.google.com/maps/billing-and-pricing/sku-details/routes).
+- polylineQuality selects Google’s geometry detail: HIGH_QUALITY uses more points, increases response size and can increase latency. Explicit OVERVIEW remains valid with trafficSegments=true. If omitted, traffic segments default to HIGH_QUALITY; otherwise Google uses OVERVIEW. The executable does not synthesize or interpolate additional detail. Geometry quality is independent of extraComputations: setting HIGH_QUALITY alone does not enable TRAFFIC_ON_POLYLINE. [Official PolylineQuality definition](https://developers.google.com/maps/documentation/routes/reference/rest/v2/TopLevel/computeRoutes#PolylineQuality).
 
-**Primary sources:** <https://developers.google.com/maps/billing-and-pricing/sku-details/routes>, <https://developers.google.com/maps/documentation/routes/traffic_on_polylines>
+**Primary sources:** <https://developers.google.com/maps/billing-and-pricing/sku-details/routes>, <https://developers.google.com/maps/documentation/routes/reference/rest/v2/TopLevel/computeRoutes#PolylineQuality>, <https://developers.google.com/maps/documentation/routes/traffic_on_polylines>
 
 ### Result
 

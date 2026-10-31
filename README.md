@@ -333,6 +333,16 @@ MCP PNG/JPEG/WebP calls return inline image content and binary metadata; CLI bin
 unless `--output` is provided.
 
 
+## Route geometry quality
+
+Directions and route planning accept `polylineQuality: "HIGH_QUALITY"` for more
+route detail, independently of traffic segments. The CLI flag is
+`--polyline-quality HIGH_QUALITY`; choose `OVERVIEW` when a smaller overview is
+sufficient. Ordinary calls keep Google's `OVERVIEW` default; traffic-segment
+calls default to `HIGH_QUALITY`. An explicit quality choice wins in either case.
+Higher quality returns more provider geometry and can increase response size
+and latency; the adapter preserves Google's geometry without interpolation.
+
 ## Traffic segments
 
 Set `trafficSegments: true` on `maps_directions` or `maps_plan_route` for
