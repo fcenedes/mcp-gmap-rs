@@ -144,4 +144,3 @@ Primary sources:
 - [Three-step actual media upload, metadata, PUT update and acceptance requirements](https://developers.google.com/streetview/publish/first-app)
 - [Photo native JSON schema](https://developers.google.com/streetview/publish/reference/rest/v1/photo)
 - [PhotoSequence schema, input types and processing](https://developers.google.com/streetview/publish/reference/rest/v1/photoSequence/create)
-
