@@ -19,8 +19,9 @@ and the local test key has an IP restriction.
 The crate declares its docs.rs documentation URL and builds all features on the
 default Linux target only. `targets = []` disables docs.rs's additional default
 targets, including Windows; the Mac/Linux executable release matrix is independent.
-The docs.rs landing page includes `docs/crate.md` and `docs/production.md`, both
-of which must remain in the Cargo package. The package also carries the agent
+The docs.rs landing page includes `docs/crate.md`, `docs/production.md` and the
+complete `docs/tools.md` tool reference; all must remain in the Cargo package.
+The package also carries the agent
 skill and its references. [`run`](https://docs.rs/mcp-gmap-rs/latest/mcp_gmap_rs/fn.run.html)
 is the public Rust entry point; internal Google clients stay private.
 
@@ -40,6 +41,21 @@ cargo test --doc --all-features --locked
 cargo +nightly rustdoc --lib --all-features --locked -- -Z unstable-options --show-coverage
 ```
 
+From a repository checkout, regenerate the tool reference with an installed or
+built executable. Its schemas supply names, types, required fields and bounds;
+reviewed `.github/scripts/tool-reference.json` notes supply defaults, explanations,
+examples and response descriptions:
+
+```sh
+python3 .github/scripts/tool-reference.py --binary /path/to/mcp-gmap-rs
+python3 .github/scripts/tool-reference.py --binary /path/to/mcp-gmap-rs --check --verify-examples
+```
+
+The checks strip credentials and disable dotenv loading. Examples must pass
+argument validation and reach the missing-key boundary, including per-item errors
+in composites; no Google requests are made. CI runs these checks on Linux and macOS
+and fails if tool/parameter coverage or the committed generated guide drifts.
+
 docs.rs builds hosted documentation automatically after a crates.io publication.
 A GitHub release or successful CI build does not publish to docs.rs. Documentation
 changes on `main` need a new source tag/version to be included by the publishing
@@ -52,7 +68,7 @@ not reproduced exactly by CI, so check the hosted build status after publication
    and `.github/RELEASE_NOTES.md`; check tool names, flags and examples against
    the executable. Keep agent-skill references and package contents aligned.
 2. Commit and push the release changes; wait for CI to pass.
-3. Create an annotated tag matching the Cargo version, e.g. `v0.3.0`, and push it.
+3. Create an annotated tag matching the Cargo version, e.g. `v0.3.1`, and push it.
 4. The Release workflow reruns CI on the exact tag, creates an unpublished draft,
    builds the three native executable targets, and smoke-tests version/discovery
    without credentials. Each build uploads its archive and checksum to the draft.
@@ -73,7 +89,7 @@ unchanged source tag. Tags must match the Cargo version. Completed releases are
 not overwritten by this workflow; create a new version for changed release files.
 
 ```sh
-gh workflow run release.yml --ref main -f tag=v0.3.0
+gh workflow run release.yml --ref main -f tag=v0.3.1
 ```
 
 ## crates.io publication
@@ -91,7 +107,7 @@ Environment approvals may be configured by the repository owner if desired.
 Dispatch from the repository Actions page, or use:
 
 ```sh
-gh workflow run publish.yml --ref v0.3.0 -f tag=v0.3.0
+gh workflow run publish.yml --ref v0.3.1 -f tag=v0.3.1
 ```
 
 Crate versions cannot be overwritten. The workflow does not run automatically on
@@ -100,7 +116,7 @@ tag pushes, and Google API keys must never be used as registry credentials.
 After publishing, users can install with:
 
 ```sh
-cargo install mcp-gmap-rs --version 0.3.0 --locked
+cargo install mcp-gmap-rs --version 0.3.1 --locked
 ```
 
 After publication, verify the crates.io version and hosted docs.rs landing page,

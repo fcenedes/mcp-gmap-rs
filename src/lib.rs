@@ -1,5 +1,6 @@
 #![doc = include_str!("../docs/crate.md")]
 #![doc = include_str!("../docs/production.md")]
+#![doc = include_str!("../docs/tools.md")]
 #![deny(missing_docs, rustdoc::broken_intra_doc_links)]
 
 mod auth;

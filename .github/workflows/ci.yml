@@ -66,6 +66,8 @@ jobs:
           key: tests
           cache-on-failure: true
       - run: cargo test --all-targets --all-features --locked
+      - name: Check complete tool reference and credential-free examples
+        run: python3 .github/scripts/tool-reference.py --binary target/debug/mcp-gmap-rs --check --verify-examples
       - run: cargo test --doc --locked
 
   msrv:

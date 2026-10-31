@@ -1,5 +1,19 @@
 # Validation record
 
+## Documentation validation: v0.3.1
+
+On 2026-10-31, the complete tool reference was checked against executable
+discovery: all 23 tools and 120 parameter paths have descriptions and omission
+behavior. Tables derive types, required fields, accepted values and bounds from
+the schemas; defaults, results and cross-field restrictions were reviewed against
+the implementation. All 23 example argument objects pass validation and reach
+the expected missing-key boundary with credentials stripped and dotenv disabled.
+These checks make no Google requests and run in Linux/macOS CI.
+
+The patch changes documentation and its generation/distribution checks, with no
+tool runtime changes. The feature acceptance below remains the v0.3.0 record;
+billable live tests were not repeated for this documentation-only patch.
+
 ## Latest feature validation: v0.3.0
 
 On 2026-10-31, the v0.3.0 feature/skill commit passed

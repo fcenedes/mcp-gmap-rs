@@ -13,7 +13,7 @@ The underlying Google clients are implementation details, not a public Rust SDK.
 Install this version from crates.io:
 
 ```sh
-cargo install mcp-gmap-rs --version 0.3.0 --locked
+cargo install mcp-gmap-rs --version 0.3.1 --locked
 ```
 
 For an existing source checkout, use `cargo install --path . --locked`.
@@ -126,35 +126,39 @@ liveness only. HTTP validates Host and Origin headers. For a non-loopback bind,
 configure `MCP_HTTP_TOKEN` and allowed hosts/origins using the server's flags;
 clients send `Authorization: Bearer <token>`. External HTTPS can use native TLS
 or a TLS gateway; see Production configuration below.
-The server uses one configured Google key per process.
+All MCP clients share the process's configured Google credentials and request
+budgets. Inbound MCP bearer tokens are separate from Google API keys/OAuth.
 
 ## Tool catalog
 
+The [Tool reference](#tool-reference) below includes each tool's parameter tables,
+defaults, restrictions, result descriptions and equivalent MCP/CLI examples.
+
 | MCP name | CLI command | Capability |
 | --- | --- | --- |
-| `maps_geocode` | `geocode` | Address to coordinates |
-| `maps_validate_address` | `validate-address` | Address validation and corrections |
-| `maps_pollen` | `pollen` | Daily pollen forecasts |
-| `maps_area_insights` | `area-insights` | Place counts and filtered area insights |
-| `maps_snap_to_roads` | `snap-to-roads` | Match an ordered GPS path to roads |
-| `maps_nearest_roads` | `nearest-roads` | Nearest roads for independent coordinates |
-| `maps_reverse_geocode` | `reverse-geocode` | Coordinates to address |
-| `maps_search_places` | `search-places` | Places text search |
-| `maps_search_nearby` | `search-nearby` | Nearby places by type |
-| `maps_place_details` | `place-details` | Details, reviews and optional photo URLs |
-| `maps_directions` | `directions` | Route and navigation instructions |
-| `maps_distance_matrix` | `distance-matrix` | Distances and durations across locations |
-| `maps_elevation` | `elevation` | Geographic elevation |
-| `maps_timezone` | `timezone` | Timezone offsets and local time |
-| `maps_weather` | `weather` | Current, daily and hourly weather |
-| `maps_air_quality` | `air-quality` | Air quality indices and health advice |
-| `maps_static_map` | `static-map` | PNG maps, markers and paths |
-| `maps_batch_geocode` | `batch-geocode` | Up to 50 addresses per call |
-| `maps_explore_area` | `explore-area` | Categorized places with details |
-| `maps_plan_route` | `plan-route` | Multi-stop routing and optimization |
-| `maps_compare_places` | `compare-places` | Place comparison with optional travel distance |
-| `maps_search_along_route` | `search-along-route` | Places near a route polyline |
-| `maps_local_rank_tracker` | `local-rank-tracker` | Geographic search-rank grid |
+| [`maps_geocode`](#maps_geocode) | `geocode` | Address to coordinates |
+| [`maps_validate_address`](#maps_validate_address) | `validate-address` | Address validation and corrections |
+| [`maps_pollen`](#maps_pollen) | `pollen` | Daily pollen forecasts |
+| [`maps_area_insights`](#maps_area_insights) | `area-insights` | Place counts and filtered area insights |
+| [`maps_snap_to_roads`](#maps_snap_to_roads) | `snap-to-roads` | Match an ordered GPS path to roads |
+| [`maps_nearest_roads`](#maps_nearest_roads) | `nearest-roads` | Nearest roads for independent coordinates |
+| [`maps_reverse_geocode`](#maps_reverse_geocode) | `reverse-geocode` | Coordinates to address |
+| [`maps_search_places`](#maps_search_places) | `search-places` | Places text search |
+| [`maps_search_nearby`](#maps_search_nearby) | `search-nearby` | Nearby places by type |
+| [`maps_place_details`](#maps_place_details) | `place-details` | Details, reviews and optional photo URLs |
+| [`maps_directions`](#maps_directions) | `directions` | Route and navigation instructions |
+| [`maps_distance_matrix`](#maps_distance_matrix) | `distance-matrix` | Distances and durations across locations |
+| [`maps_elevation`](#maps_elevation) | `elevation` | Geographic elevation |
+| [`maps_timezone`](#maps_timezone) | `timezone` | Timezone offsets and local time |
+| [`maps_weather`](#maps_weather) | `weather` | Current, daily and hourly weather |
+| [`maps_air_quality`](#maps_air_quality) | `air-quality` | Air quality indices and health advice |
+| [`maps_static_map`](#maps_static_map) | `static-map` | PNG maps, markers and paths |
+| [`maps_batch_geocode`](#maps_batch_geocode) | `batch-geocode` | Up to 50 addresses per call |
+| [`maps_explore_area`](#maps_explore_area) | `explore-area` | Categorized places with details |
+| [`maps_plan_route`](#maps_plan_route) | `plan-route` | Multi-stop routing and optimization |
+| [`maps_compare_places`](#maps_compare_places) | `compare-places` | Place comparison with optional travel distance |
+| [`maps_search_along_route`](#maps_search_along_route) | `search-along-route` | Places near a route polyline |
+| [`maps_local_rank_tracker`](#maps_local_rank_tracker) | `local-rank-tracker` | Geographic search-rank grid |
 
 MCP JSON results include text and structured content. Static maps return MCP PNG
 image content; CLI map results use base64 JSON unless written with `--output`.

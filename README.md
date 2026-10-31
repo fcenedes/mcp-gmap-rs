@@ -26,7 +26,7 @@ Install Rust 1.88 or newer. CI checks the minimum and current stable toolchains;
 release binaries are built with Rust 1.94.1. Install this version from crates.io:
 
 ```sh
-cargo install mcp-gmap-rs --version 0.3.0 --locked
+cargo install mcp-gmap-rs --version 0.3.1 --locked
 ```
 
 Or build from a source checkout:
@@ -248,31 +248,35 @@ documents request-budget flags, metric names, TLS renewal and deployment limits.
 
 ## Tools
 
+The [complete tool reference](docs/tools.md) documents every tool's purpose,
+parameters (including nested fields), required/optional status, defaults, types,
+limits, response shape, restrictions and MCP/CLI examples.
+
 | MCP tool | CLI command |
 | --- | --- |
-| `maps_geocode` | `geocode` |
-| `maps_validate_address` | `validate-address` |
-| `maps_pollen` | `pollen` |
-| `maps_area_insights` | `area-insights` |
-| `maps_snap_to_roads` | `snap-to-roads` |
-| `maps_nearest_roads` | `nearest-roads` |
-| `maps_reverse_geocode` | `reverse-geocode` |
-| `maps_search_places` | `search-places` |
-| `maps_search_nearby` | `search-nearby` |
-| `maps_place_details` | `place-details` |
-| `maps_directions` | `directions` |
-| `maps_distance_matrix` | `distance-matrix` |
-| `maps_elevation` | `elevation` |
-| `maps_timezone` | `timezone` |
-| `maps_weather` | `weather` |
-| `maps_air_quality` | `air-quality` |
-| `maps_static_map` | `static-map` |
-| `maps_batch_geocode` | `batch-geocode` |
-| `maps_explore_area` | `explore-area` |
-| `maps_plan_route` | `plan-route` |
-| `maps_compare_places` | `compare-places` |
-| `maps_search_along_route` | `search-along-route` |
-| `maps_local_rank_tracker` | `local-rank-tracker` |
+| [`maps_geocode`](docs/tools.md#maps_geocode) | `geocode` |
+| [`maps_validate_address`](docs/tools.md#maps_validate_address) | `validate-address` |
+| [`maps_pollen`](docs/tools.md#maps_pollen) | `pollen` |
+| [`maps_area_insights`](docs/tools.md#maps_area_insights) | `area-insights` |
+| [`maps_snap_to_roads`](docs/tools.md#maps_snap_to_roads) | `snap-to-roads` |
+| [`maps_nearest_roads`](docs/tools.md#maps_nearest_roads) | `nearest-roads` |
+| [`maps_reverse_geocode`](docs/tools.md#maps_reverse_geocode) | `reverse-geocode` |
+| [`maps_search_places`](docs/tools.md#maps_search_places) | `search-places` |
+| [`maps_search_nearby`](docs/tools.md#maps_search_nearby) | `search-nearby` |
+| [`maps_place_details`](docs/tools.md#maps_place_details) | `place-details` |
+| [`maps_directions`](docs/tools.md#maps_directions) | `directions` |
+| [`maps_distance_matrix`](docs/tools.md#maps_distance_matrix) | `distance-matrix` |
+| [`maps_elevation`](docs/tools.md#maps_elevation) | `elevation` |
+| [`maps_timezone`](docs/tools.md#maps_timezone) | `timezone` |
+| [`maps_weather`](docs/tools.md#maps_weather) | `weather` |
+| [`maps_air_quality`](docs/tools.md#maps_air_quality) | `air-quality` |
+| [`maps_static_map`](docs/tools.md#maps_static_map) | `static-map` |
+| [`maps_batch_geocode`](docs/tools.md#maps_batch_geocode) | `batch-geocode` |
+| [`maps_explore_area`](docs/tools.md#maps_explore_area) | `explore-area` |
+| [`maps_plan_route`](docs/tools.md#maps_plan_route) | `plan-route` |
+| [`maps_compare_places`](docs/tools.md#maps_compare_places) | `compare-places` |
+| [`maps_search_along_route`](docs/tools.md#maps_search_along_route) | `search-along-route` |
+| [`maps_local_rank_tracker`](docs/tools.md#maps_local_rank_tracker) | `local-rank-tracker` |
 
 Place data keeps Google field names and attribution metadata. Display review
 authors/source links, photo author attribution, and AI disclosures with the
@@ -309,6 +313,17 @@ cargo clippy --all-targets --all-features --locked -- -D warnings
 cargo test --locked
 cargo build --release --locked
 ```
+
+The [complete tool reference](docs/tools.md) is generated from the executable's
+schemas and reviewed usage notes. To update it from a repository checkout:
+
+```sh
+python3 .github/scripts/tool-reference.py --binary /path/to/mcp-gmap-rs
+python3 .github/scripts/tool-reference.py --binary /path/to/mcp-gmap-rs --check --verify-examples
+```
+
+These example checks run without credentials or Google calls; CI verifies that
+all tools and parameter paths remain documented.
 
 The default tests use a local Google API fixture and exercise all 23 tools, CLI
 subprocesses, stdio initialization and tool calls, plus HTTP sessions, auth, origin

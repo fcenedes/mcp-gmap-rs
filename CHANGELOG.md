@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.1 - 2026-10-31
+
+- Add the complete 23-tool reference to the README navigation, bundled guides and docs.rs landing page, including every parameter, nested field, required status, default, constraint, result shape and MCP/CLI example.
+- Generate parameter tables from the executable's schemas and reviewed behavior notes; CI checks for documentation drift and exercises examples without Google credentials.
+
 ## 0.3.0 - 2026-10-31
 
 - Include a reusable agent skill for MCP/CLI usage, with capability discovery, tool selection, credential boundaries and partial-result handling.

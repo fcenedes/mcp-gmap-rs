@@ -6,6 +6,7 @@ COPY Cargo.toml Cargo.lock ./
 COPY src ./src
 COPY docs/crate.md ./docs/crate.md
 COPY docs/production.md ./docs/production.md
+COPY docs/tools.md ./docs/tools.md
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/usr/local/cargo/git \
     --mount=type=cache,id=mcp-gmap-target-${TARGETARCH},target=/build/target,sharing=locked \
