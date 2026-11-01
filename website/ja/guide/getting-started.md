@@ -1,6 +1,6 @@
 # はじめに {#getting-started}
 
-本マニュアルは現在のソースにある 42 ツールを説明します。公開済みの v0.3.1 パッケージは 23 ツールです。追加機能を使うにはこのリポジトリをビルドしてください。v0.3.1 のインストールには追加機能は含まれません。
+バージョン 0.4.0 は、ターミナルまたは MCP クライアントから利用できる 42 ツールを 1 つの実行ファイルで提供します。本マニュアルは、インストール、Google の認証設定、ツールの全インターフェースを説明します。
 
 リポジトリの作業ディレクトリでビルド：
 
@@ -15,7 +15,7 @@ Linux x86_64、macOS Apple Silicon、macOS Intel のビルド済みバイナリ�
 Rust 1.88 以降では crates.io からインストールできます。
 
 ```sh
-cargo install mcp-gmap-rs --version 0.3.1 --locked
+cargo install mcp-gmap-rs --version 0.4.0 --locked
 mcp-gmap-rs --version
 ```
 

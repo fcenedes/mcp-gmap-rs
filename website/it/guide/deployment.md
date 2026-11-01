@@ -19,7 +19,7 @@ docker run --rm -i --env-file .env mcp-gmap-rs:local serve stdio
 Per pubblicare la tua immagine multiarchitettura:
 
 ```sh
-docker buildx build --platform linux/amd64,linux/arm64   -t registry.example.com/team/mcp-gmap-rs:0.3.1 --push .
+docker buildx build --platform linux/amd64,linux/arm64   -t registry.example.com/team/mcp-gmap-rs:0.4.0 --push .
 ```
 
 La pubblicazione automatica in un registro di container non è configurata.

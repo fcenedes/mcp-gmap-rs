@@ -204,7 +204,7 @@ API references: [Address Validation](https://developers.google.com/maps/document
 [Nearest Roads](https://developers.google.com/maps/documentation/roads/nearest).
 
 
-## Expanded server-side service coverage (unreleased)
+## Expanded server-side service coverage (v0.4.0)
 
 The source catalog has 42 tools across 20 server-side API families. The complete
 parameter/operation documentation is in the Tool reference. Native UI/mobile/JS

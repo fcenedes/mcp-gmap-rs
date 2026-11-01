@@ -1,6 +1,6 @@
 # Getting started
 
-This manual includes 42 tools from the current source. The published v0.3.1 crate has 23 tools. Build this checkout to use the additions; installing v0.3.1 does not include them.
+Version 0.4.0 provides 42 tools through one executable, available from the terminal or an MCP client. This manual documents installation, Google access and the complete tool interface.
 
 Build from the repository checkout:
 
@@ -15,7 +15,7 @@ Prebuilt Linux x86_64, macOS Apple Silicon and macOS Intel binaries are availabl
 With Rust 1.88 or newer, install from crates.io:
 
 ```sh
-cargo install mcp-gmap-rs --version 0.3.1 --locked
+cargo install mcp-gmap-rs --version 0.4.0 --locked
 mcp-gmap-rs --version
 ```
 

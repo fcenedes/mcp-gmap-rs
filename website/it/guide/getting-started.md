@@ -1,6 +1,6 @@
 # Primi passi
 
-Questo manuale include i 42 strumenti del sorgente attuale. Il pacchetto v0.3.1 pubblicato contiene 23 strumenti. Compila questa copia del repository per usare le novità; installare v0.3.1 non le include.
+La versione 0.4.0 offre 42 strumenti in un unico eseguibile, disponibili dal terminale o da un client MCP. Questo manuale descrive installazione, accesso a Google e interfaccia completa degli strumenti.
 
 Dalla copia locale del repository:
 
@@ -13,11 +13,11 @@ cargo install --path . --locked
 Con Rust 1.88 o successivo:
 
 ```sh
-cargo install mcp-gmap-rs --version 0.3.1 --locked
+cargo install mcp-gmap-rs --version 0.4.0 --locked
 mcp-gmap-rs --version
 ```
 
-In alternativa, scarica l'archivio Linux x86_64, macOS Apple Silicon o macOS Intel dalle [release](https://github.com/fcenedes/mcp-gmap-rs/releases/tag/v0.3.1), verifica `SHA256SUMS` e colloca il binario nel `PATH`. L'host deve disporre di certificati CA e accesso HTTPS a Google.
+In alternativa, scarica l'archivio Linux x86_64, macOS Apple Silicon o macOS Intel dalle [release](https://github.com/fcenedes/mcp-gmap-rs/releases/tag/v0.4.0), verifica `SHA256SUMS` e colloca il binario nel `PATH`. L'host deve disporre di certificati CA e accesso HTTPS a Google.
 
 ## Esplorare senza credenziali
 

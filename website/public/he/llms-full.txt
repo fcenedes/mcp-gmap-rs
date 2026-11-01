@@ -440,7 +440,7 @@ python3 .github/scripts/tool-reference.py --binary /path/to/mcp-gmap-rs --check 
 
 # תחילת העבודה
 
-המדריך כולל 42 כלים בקוד הנוכחי. החבילה שפורסמה בגרסה v0.3.1 כוללת 23 כלים. כדי להשתמש בתוספות יש לבנות את העותק הנוכחי של המאגר; התקנת v0.3.1 אינה כוללת אותן.
+גרסה 0.4.0 מספקת 42 כלים בקובץ הפעלה אחד, לשימוש מהמסוף או מלקוח MCP. המדריך מתאר התקנה, הגדרת גישה ל־Google וממשק מלא לכל הכלים.
 
 מתוך עותק המאגר המקומי:
 
@@ -455,7 +455,7 @@ cargo install --path . --locked
 עם Rust 1.88 ומעלה, התקינו מ-crates.io:
 
 ```sh
-cargo install mcp-gmap-rs --version 0.3.1 --locked
+cargo install mcp-gmap-rs --version 0.4.0 --locked
 mcp-gmap-rs --version
 ```
 

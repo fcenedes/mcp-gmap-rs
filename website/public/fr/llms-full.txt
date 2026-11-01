@@ -347,7 +347,7 @@ Après les vérifications locales, `cargo clean` récupère l’espace disque ; 
 
 # Démarrage rapide
 
-Ce manuel couvre les 42 outils du code source actuel. Le paquet v0.3.1 publié contient 23 outils. Compilez ce dépôt pour utiliser les nouveautés ; installer v0.3.1 ne les ajoute pas.
+La version 0.4.0 propose 42 outils dans un seul exécutable, accessibles depuis le terminal ou un client MCP. Ce manuel décrit l’installation, l’accès à Google et l’interface complète des outils.
 
 Depuis le dépôt cloné :
 
@@ -362,7 +362,7 @@ Téléchargez l’archive correspondant à Linux x86_64, macOS Apple Silicon ou 
 Avec Rust 1.88 ou une version plus récente :
 
 ```sh
-cargo install mcp-gmap-rs --version 0.3.1 --locked
+cargo install mcp-gmap-rs --version 0.4.0 --locked
 mcp-gmap-rs --version
 ```
 

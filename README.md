@@ -34,9 +34,9 @@ published on the [Releases page](https://github.com/fcenedes/mcp-gmap-rs/release
 Each archive includes documentation and licenses; use `SHA256SUMS` to verify it.
 See [release automation](docs/releases.md) for the CI and publishing process.
 
-The 42-tool catalog describes the current **unreleased source**. The published
-0.3.1 crate has 23 tools; build from this checkout to use the additions.
-See [API coverage and provider limits](docs/service-research/coverage.md).
+Version 0.4.0 includes all 42 tools. See
+[API coverage and provider limits](docs/service-research/coverage.md) for the
+implemented operations, required credentials, licensing and regional limits.
 
 ## Build and install
 
@@ -44,7 +44,7 @@ Install Rust 1.88 or newer. CI checks the minimum and current stable toolchains;
 release binaries are built with Rust 1.94.1. Install this version from crates.io:
 
 ```sh
-cargo install mcp-gmap-rs --version 0.3.1 --locked
+cargo install mcp-gmap-rs --version 0.4.0 --locked
 ```
 
 Or build from a source checkout:
@@ -401,7 +401,7 @@ python3 .github/scripts/tool-reference.py --binary /path/to/mcp-gmap-rs --check 
 These example checks run without credentials or Google calls; CI verifies that
 all tools and parameter paths remain documented.
 
-The default tests use local Google API fixtures and exercise all 42 tools, CLI
+The 99 default tests use local Google API fixtures and exercise all 42 tools, CLI
 subprocesses, stdio initialization and tool calls, plus HTTP sessions, auth, origin
 validation, and image responses. They make no live Google calls and require no key.
 
@@ -418,6 +418,13 @@ cargo test --locked --test live live_maps_ -- --ignored --test-threads=1
 
 Six additional opt-in tests exercise OAuth on Places, Routes, Weather, Air
 Quality, Address Validation and Places Aggregate with the API key removed. See the [OAuth validation instructions](docs/google-cloud-setup.md#4-verify-and-troubleshoot).
+
+Two additional opt-in route tests check traffic segments (Compute Routes
+Enterprise billing) and independent high-quality geometry. Together with the
+original API-key and OAuth suites, `tests/live.rs` contains 31 opt-in scenarios.
+Expanded-service read-only probes are available in
+`.github/scripts/live-services.py`; their observed access restrictions are recorded
+in [the validation record](docs/validation.md).
 
 Live tests are ignored in ordinary `cargo test` and CI runs. Run a single tool
 with, for example, `cargo test --locked --test live live_maps_weather -- --ignored`.

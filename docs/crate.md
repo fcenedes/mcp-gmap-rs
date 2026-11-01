@@ -10,12 +10,10 @@ The underlying Google clients are implementation details, not a public Rust SDK.
 
 ## Install
 
-The expanded catalog below describes unreleased source. The latest published
-v0.3.1 package has 23 tools; build this checkout for all 42. Install the
-published version from crates.io:
+Version 0.4.0 includes the complete 42-tool catalog below. Install from crates.io:
 
 ```sh
-cargo install mcp-gmap-rs --version 0.3.1 --locked
+cargo install mcp-gmap-rs --version 0.4.0 --locked
 ```
 
 For an existing source checkout, use `cargo install --path . --locked`.
@@ -186,7 +184,7 @@ defaults, restrictions, result descriptions and equivalent MCP/CLI examples.
 | [`maps_weather_minute_forecast`](#maps_weather_minute_forecast) | `weather-minute-forecast` | Experimental minute precipitation |
 | [`maps_weather_map`](#maps_weather_map) | `weather-map` | Experimental precipitation PNG tile |
 
-This source catalog includes unreleased additions beyond the published 0.3.1 crate.
+Version 0.4.0 includes the expanded service and routing catalog.
 Mutating tools include conservative MCP write/destructive hints and never retry writes automatically.
 Native request body objects preserve Google API fields, validated by Google; wrapper arguments are strict.
 

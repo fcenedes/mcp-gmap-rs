@@ -4,7 +4,7 @@ This directory contains the VitePress manual and its GitHub Pages presentation.
 The English, French, Italian, German, Spanish, Simplified Chinese, Japanese,
 Arabic and Hebrew manuals each include setup, authentication,
 configuration, CLI/MCP, deployment, production operations, recipes, troubleshooting,
-the agent skill, development, every configuration setting and all 23 tools.
+the agent skill, development, every configuration setting and all 42 tools and 329 parameter paths.
 Node.js is documentation tooling only; the distributed CLI/MCP executable remains
 standalone Rust.
 

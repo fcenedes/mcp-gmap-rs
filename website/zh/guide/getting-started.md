@@ -1,6 +1,6 @@
 # 快速开始 {#getting-started}
 
-本手册涵盖当前源码中的 42 个工具。已发布的 v0.3.1 软件包包含 23 个工具。请从当前仓库源码构建以使用新增功能；安装 v0.3.1 不会包含这些功能。
+版本 0.4.0 在一个可执行文件中提供 42 个工具，可通过终端或 MCP 客户端使用。本手册介绍安装、Google 访问配置以及完整的工具接口。
 
 在仓库工作目录中构建：
 
@@ -15,7 +15,7 @@ cargo install --path . --locked
 使用 Rust 1.88 或更新版本时，可从 crates.io 安装：
 
 ```sh
-cargo install mcp-gmap-rs --version 0.3.1 --locked
+cargo install mcp-gmap-rs --version 0.4.0 --locked
 mcp-gmap-rs --version
 ```
 

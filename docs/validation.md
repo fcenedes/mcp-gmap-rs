@@ -42,7 +42,7 @@ conditions. The opt-in repeatable test is
 Compute Routes Enterprise tier. No speed-limit or additional Roads request was
 made. See [the generic segment contract](route-segments.md).
 
-## Unreleased service expansion: 2026-11-01
+## v0.4.0 service expansion: 2026-11-01
 
 The source catalog now exposes 42 tools across 20 server-side API families and
 329 documented parameter paths. The credential-free reference validator exercises
