@@ -1,6 +1,12 @@
 # תחילת העבודה
 
-התקינו קובץ הפעלה אחד, הגדירו גישה ל-Google והשתמשו באותם 23 כלים מהמסוף או מלקוח MCP. מדריך זה מתאר את v0.3.1.
+גרסה 0.4.0 מספקת 42 כלים בקובץ הפעלה אחד, לשימוש מהמסוף או מלקוח MCP. המדריך מתאר התקנה, הגדרת גישה ל־Google וממשק מלא לכל הכלים.
+
+מתוך עותק המאגר המקומי:
+
+```sh
+cargo install --path . --locked
+```
 
 ## התקנה {#install}
 
@@ -9,7 +15,7 @@
 עם Rust 1.88 ומעלה, התקינו מ-crates.io:
 
 ```sh
-cargo install mcp-gmap-rs --version 0.3.1 --locked
+cargo install mcp-gmap-rs --version 0.4.0 --locked
 mcp-gmap-rs --version
 ```
 

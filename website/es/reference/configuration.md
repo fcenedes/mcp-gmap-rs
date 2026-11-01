@@ -35,7 +35,7 @@ Pueden ejecutarse cinco solicitudes HTTP Google a la vez por proceso. El presupu
 | `MCP_TLS_KEY` | Sin definir | `--tls-key` | Ruta a la clave privada PEM del servidor. Debe ser legible por la identidad de ejecución y mantenerse fuera del código e imágenes. |
 | `MCP_TLS_CLIENT_CA` | Sin definir | `--tls-client-ca` | Paquete CA PEM de clientes que exige certificados en todas las rutas. No sustituye al token bearer. |
 
-El depósito de tokens HTTP es global al proceso, no por usuario/IP. Las solicitudes no autorizadas no lo consumen; salud y métricas están exentas. Los rechazos devuelven 429 con `Retry-After`. El cuerpo se limita a 1 MiB. Consulte [acceso MCP](../guide/mcp#bind-addresses-and-access) y [operación TLS](../guide/production#native-tls-and-mutual-tls).
+El depósito de tokens HTTP es global al proceso, no por usuario/IP. Las solicitudes no autorizadas no lo consumen; salud y métricas están exentas. Los rechazos devuelven 429 con `Retry-After`. El cuerpo se limita a 12 MiB. Consulte [acceso MCP](../guide/mcp#bind-addresses-and-access) y [operación TLS](../guide/production#native-tls-and-mutual-tls).
 
 ## Eventos de diagnóstico
 

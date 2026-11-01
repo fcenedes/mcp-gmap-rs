@@ -1,6 +1,6 @@
 # mcp-gmap-rs
 
-Tutti i 23 strumenti, con ogni parametro, valore predefinito, vincolo ed esempio. La stessa interfaccia è disponibile tramite MCP e CLI.
+Tutti i 42 strumenti, con ogni parametro, valore predefinito, vincolo ed esempio. La stessa interfaccia è disponibile tramite MCP e CLI.
 
 ## Strumenti
 

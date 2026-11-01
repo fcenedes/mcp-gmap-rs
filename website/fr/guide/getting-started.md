@@ -1,6 +1,12 @@
 # Démarrage rapide
 
-Un seul exécutable Rust donne accès à Google Maps en ligne de commande, en MCP stdio ou en MCP Streamable HTTP. Les trois interfaces partagent les mêmes 23 outils et les mêmes contrôles. Aucun environnement Node.js, Python ou module spécifique à un assistant n’est nécessaire pour exécuter le programme.
+La version 0.4.0 propose 42 outils dans un seul exécutable, accessibles depuis le terminal ou un client MCP. Ce manuel décrit l’installation, l’accès à Google et l’interface complète des outils.
+
+Depuis le dépôt cloné :
+
+```sh
+cargo install --path . --locked
+```
 
 ## Installer
 
@@ -9,7 +15,7 @@ Téléchargez l’archive correspondant à Linux x86_64, macOS Apple Silicon ou 
 Avec Rust 1.88 ou une version plus récente :
 
 ```sh
-cargo install mcp-gmap-rs --version 0.3.1 --locked
+cargo install mcp-gmap-rs --version 0.4.0 --locked
 mcp-gmap-rs --version
 ```
 

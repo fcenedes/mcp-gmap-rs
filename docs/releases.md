@@ -68,7 +68,7 @@ not reproduced exactly by CI, so check the hosted build status after publication
    and `.github/RELEASE_NOTES.md`; check tool names, flags and examples against
    the executable. Keep agent-skill references and package contents aligned.
 2. Commit and push the release changes; wait for CI to pass.
-3. Create an annotated tag matching the Cargo version, e.g. `v0.3.1`, and push it.
+3. Create an annotated tag matching the Cargo version, e.g. `v0.4.0`, and push it.
 4. The Release workflow reruns CI on the exact tag, creates an unpublished draft,
    builds the three native executable targets, and smoke-tests version/discovery
    without credentials. Each build uploads its archive and checksum to the draft.
@@ -89,7 +89,7 @@ unchanged source tag. Tags must match the Cargo version. Completed releases are
 not overwritten by this workflow; create a new version for changed release files.
 
 ```sh
-gh workflow run release.yml --ref main -f tag=v0.3.1
+gh workflow run release.yml --ref main -f tag=v0.4.0
 ```
 
 ## crates.io publication
@@ -107,7 +107,7 @@ Environment approvals may be configured by the repository owner if desired.
 Dispatch from the repository Actions page, or use:
 
 ```sh
-gh workflow run publish.yml --ref v0.3.1 -f tag=v0.3.1
+gh workflow run publish.yml --ref v0.4.0 -f tag=v0.4.0
 ```
 
 Crate versions cannot be overwritten. The workflow does not run automatically on
@@ -116,7 +116,7 @@ tag pushes, and Google API keys must never be used as registry credentials.
 After publishing, users can install with:
 
 ```sh
-cargo install mcp-gmap-rs --version 0.3.1 --locked
+cargo install mcp-gmap-rs --version 0.4.0 --locked
 ```
 
 After publication, verify the crates.io version and hosted docs.rs landing page,

@@ -1,5 +1,5 @@
 {
-  "version": "0.3.1",
+  "version": "0.4.0",
   "tools": [
     {
       "name": "maps_geocode",
@@ -344,6 +344,291 @@
         "ja": "1–3 キーワードの検索順位を地理グリッドで測り、ARP・ATRP・SoLV と点別エラーを返します。",
         "ar": "تتبع ترتيب البحث عبر شبكة جغرافية لـ 1–3 كلمات؛ يعيد ARP وATRP وSoLV وأخطاء لكل نقطة.",
         "he": "מעקב דירוג חיפוש ברשת גאוגרפית ל-1–3 מילות מפתח; מחזיר ARP, ATRP, SoLV ושגיאות לכל נקודה."
+      }
+    },
+    {
+      "name": "maps_speed_limits",
+      "category": "routes",
+      "summary": {
+        "en": "Get posted automobile speed limits for up to 100 GPS points or road-segment place IDs. Restricted Google Asset Tracking license/access is required; enabling Roads alone does not grant access. Each returned limit can incur a separate charge. Data is not real-time or guaranteed accurate.",
+        "fr": "Obtenir les limitations automobiles de segments routiers à partir de points GPS ou d’identifiants Roads. Cette fonctionnalité Google nécessite un accès Asset Tracking : activer Roads ne suffit pas.",
+        "it": "Limiti di velocità con accesso Asset Tracking.",
+        "de": "Geschwindigkeitsbegrenzungen für Pkw anhand von GPS-Punkten oder Roads-Segment-IDs abrufen. Diese eingeschränkte Google-Funktion erfordert Asset-Tracking-Zugang; die Roads-Aktivierung allein genügt nicht.",
+        "es": "Consultar límites de velocidad para automóviles mediante puntos GPS o ID de segmentos Roads. Esta función restringida requiere acceso Asset Tracking; habilitar Roads no basta.",
+        "zh": "按 GPS 路径或 Roads 路段 ID 查询公布的汽车限速；此受限功能要求 Asset Tracking 许可，仅启用 Roads 不足以取得访问权。",
+        "ja": "GPS 経路または Roads 区間 ID から自動車の掲示速度制限を取得。Asset Tracking 許諾が必要で、Roads 有効化だけでは利用不可。",
+        "ar": "حدود السرعة بصلاحية Asset Tracking.",
+        "he": "מהירויות מותרות עם הרשאת Asset Tracking."
+      }
+    },
+    {
+      "name": "maps_autocomplete",
+      "category": "places",
+      "summary": {
+        "en": "Get Places API (New) place and optional query predictions, with session tokens, language and geographic filters. Returns the full native Google JSON. Session billing requires a fresh token and a qualifying concluding Details or Address Validation request in the same project.",
+        "fr": "Prédire les lieux et requêtes pendant la saisie avec Places API (New), filtres géographiques, langue, position du curseur et jetons de session gérés par l’appelant.",
+        "it": "Suggerisce luoghi e indirizzi durante la digitazione.",
+        "de": "Orte und Suchanfragen während der Eingabe mit Places API (New), geografischen Filtern, Sprache, Cursorposition und vom Aufrufer verwalteten Sitzungstokens vorhersagen.",
+        "es": "Predecir lugares y consultas mientras se escribe mediante Places API (New), filtros geográficos, idioma, cursor y tokens de sesión gestionados por el cliente.",
+        "zh": "输入过程中获取 Places API (New) 地点/查询预测，支持地理偏好/限制、类型筛选、光标位置和调用方管理的计费会话令牌。",
+        "ja": "入力中の Places API (New) 地点・検索語候補を取得。位置優先・制限、種別、カーソル位置、呼び出し元管理の課金セッションに対応。",
+        "ar": "اقتراح أماكن وعناوين أثناء الكتابة.",
+        "he": "הצעות מקומות וכתובות תוך כדי הקלדה."
+      }
+    },
+    {
+      "name": "maps_geolocate",
+      "category": "geography",
+      "summary": {
+        "en": "Estimate device location and an accuracy radius from a native Google Geolocation body containing cell towers or WiFi access points. Requires an API key. IP fallback identifies this server's egress location, not the user; set body.considerIp=false to disable fallback.",
+        "fr": "Estimer la position d’un appareil à partir de cellules mobiles ou de points WiFi avec le corps JSON Google Geolocation natif complet.",
+        "it": "Stima la posizione da celle e Wi-Fi.",
+        "de": "Geräteposition aus Mobilfunkzellen oder WLAN-Beobachtungen mit dem vollständigen nativen Google-Geolocation-JSON ermitteln.",
+        "es": "Estimar la ubicación de un dispositivo a partir de antenas celulares o puntos WiFi con el cuerpo JSON nativo completo de Google Geolocation.",
+        "zh": "通过原生基站/WiFi 观测估计位置，并可选择以服务器出口 IP 回退。",
+        "ja": "ネイティブの基地局・WiFi 観測から位置を推定し、サーバー出口 IP へのフォールバックも選択可能。",
+        "ar": "تقدير الموقع من أبراج الهاتف وWi-Fi.",
+        "he": "הערכת מיקום לפי אנטנות ו-Wi-Fi."
+      }
+    },
+    {
+      "name": "maps_solar",
+      "category": "geography",
+      "summary": {
+        "en": "Retrieve Solar building insights, regional data layers, or a GeoTIFF asset by ID. Coverage, imagery quality and EEA terms vary; expanded-coverage experiments are pre-GA. Data-layer URLs are temporary and returned without credentials. GeoTIFF binary size is bounded by the executable's response limit.",
+        "fr": "Utiliser les trois méthodes principales Solar : informations sur le bâtiment voisin, métadonnées des couches raster régionales et téléchargement GeoTIFF borné par identifiant.",
+        "it": "Dati degli edifici e livelli solari.",
+        "de": "Die drei wichtigsten Solar-Methoden nutzen: Erkenntnisse zum nächstgelegenen Gebäude, regionale Raster-Metadaten und begrenzte GeoTIFF-Downloads per Asset-ID.",
+        "es": "Usar los tres métodos principales de Solar: información del edificio cercano, metadatos de capas ráster regionales y descarga GeoTIFF limitada por ID.",
+        "zh": "获取建筑太阳能潜力、区域数据图层，或按 Google 返回的 ID 下载真实 GeoTIFF。",
+        "ja": "建物の太陽光発電ポテンシャル・地域レイヤー、または Google が返す ID の実際の GeoTIFF を取得。",
+        "ar": "معلومات المباني وطبقات الطاقة الشمسية.",
+        "he": "תובנות מבנים ושכבות אנרגיה סולרית."
+      }
+    },
+    {
+      "name": "maps_aerial_view",
+      "category": "geography",
+      "summary": {
+        "en": "Look up Aerial View playback URLs or free metadata by US postal address or video ID. lookup is billable; metadata omits playback URLs. Coverage is limited to supported US locations. Returns Google's original metadata and short-lived URLs; videos must not be downloaded, stored or cached.",
+        "fr": "Obtenir les URL de lecture temporaires ou les métadonnées d’une vidéo Aerial View existante, sans la télécharger.",
+        "it": "URL e metadati dei video Aerial View.",
+        "de": "Kurzlebige Wiedergabe-URLs oder Metadaten eines vorhandenen Aerial-View-Videos abrufen, ohne es herunterzuladen.",
+        "es": "Obtener URL temporales de reproducción o metadatos de un vídeo Aerial View existente, sin descargarlo.",
+        "zh": "查询美国受支持地址的 Aerial View 视频状态、元数据和临时播放 URL。",
+        "ja": "米国の対応住所について Aerial View の状態・メタデータ・一時的再生 URL を取得。",
+        "ar": "روابط فيديو Aerial View وبياناته.",
+        "he": "קישורי סרטוני Aerial View ומטא-נתונים."
+      }
+    },
+    {
+      "name": "maps_render_aerial_video",
+      "category": "geography",
+      "summary": {
+        "en": "Explicitly request asynchronous rendering of an Aerial View video for a supported US postal address. This mutates Google's render queue; an existing video returns metadata. Does not wait for completion or download video. Poll maps_aerial_view with operation metadata and then lookup for playback URLs.",
+        "fr": "Demander explicitement un rendu Aerial View asynchrone pour une adresse postale américaine couverte ; cette action modifie la file de rendu Google.",
+        "it": "Richiede esplicitamente un rendering aereo.",
+        "de": "Aerial-View-Rendering für eine unterstützte US-Postadresse ausdrücklich asynchron anfordern; diese Aktion verändert die Google-Renderwarteschlange.",
+        "es": "Solicitar explícitamente un renderizado Aerial View asíncrono para una dirección postal de EE. UU. admitida; esta acción modifica la cola de Google.",
+        "zh": "为受支持美国地址显式排队创建异步 Aerial View 视频。",
+        "ja": "対応する米国住所の Aerial View 動画生成を明示的にキューへ登録。",
+        "ar": "طلب إنشاء فيديو جوي صراحةً.",
+        "he": "בקשה מפורשת ליצירת סרטון אווירי."
+      }
+    },
+    {
+      "name": "maps_map_tiles",
+      "category": "geography",
+      "summary": {
+        "en": "Map Tiles sessions, 2D/3D imagery, viewport attribution and Street View tiles. Licensed for visualization only: do not use imagery for machine interpretation, analysis, extraction or offline maps. Preserve attribution and cache directives.",
+        "fr": "Créer des sessions Map Tiles et récupérer les ressources 2D, 3D photoréalistes et Street View pour un visualiseur. Ce service ne réalise pas le rendu. La licence autorise la visualisation, pas l’interprétation automatique, l’analyse d’image, l’extraction géographique ni l’usage hors ligne.",
+        "it": "Tessere 2D, 3D e Street View per la visualizzazione.",
+        "de": "Map-Tiles-Sitzungen erstellen und 2D-, fotorealistische 3D- und Street-View-Ressourcen für einen Betrachter abrufen. Kein Renderer. Die Lizenz erlaubt Visualisierung, nicht maschinelle Interpretation, Bildanalyse, Geodatenextraktion oder Offline-Nutzung.",
+        "es": "Crear sesiones Map Tiles y obtener recursos 2D, 3D fotorrealistas y Street View para un visor. No incluye renderizador. La licencia permite visualización, no interpretación automática, análisis de imágenes, extracción geográfica ni uso sin conexión.",
+        "zh": "获取 Google 2D、3D 和 Street View 地图瓦片、会话及归属元数据，供合规地图可视化使用。",
+        "ja": "適切な地図可視化用に Google 2D・3D・Street View タイル、セッション、帰属メタデータを取得。",
+        "ar": "بلاطات خرائط 2D و3D وStreet View للعرض.",
+        "he": "אריחי מפות 2D, ‏3D ו-Street View לתצוגה."
+      }
+    },
+    {
+      "name": "maps_streetview",
+      "category": "geography",
+      "summary": {
+        "en": "Get Street View Static metadata or a JPEG image by location or panorama ID. Preserve the Google attribution embedded in imagery and obey Street View usage policies.",
+        "fr": "Consulter les métadonnées d’un panorama Street View ou obtenir une image JPEG fixe à partir d’un lieu ou d’un identifiant. Vérifier les métadonnées avant une requête d’image facturée.",
+        "it": "Metadati Street View e immagine JPEG.",
+        "de": "Street-View-Panoramametadata prüfen oder ein statisches JPEG anhand von Ort oder Panorama-ID abrufen. Metadaten können vor einem kostenpflichtigen Bild die Verfügbarkeit klären.",
+        "es": "Consultar metadatos Street View u obtener un JPEG estático mediante ubicación o ID de panorama. Revise los metadatos antes de solicitar una imagen facturada.",
+        "zh": "查询 Street View 全景元数据或下载真实静态全景 JPEG。",
+        "ja": "Street View パノラマのメタデータ、または実際の静止 JPEG を取得。",
+        "ar": "بيانات Street View وصورة JPEG.",
+        "he": "מטא-נתוני Street View ותמונת JPEG."
+      }
+    },
+    {
+      "name": "maps_streetview_publish",
+      "category": "geography",
+      "summary": {
+        "en": "Manage the authenticated user's Street View photos and photo sequences, including bounded byte upload and publishing. Requires end-user OAuth consent with streetviewpublish scope; API keys and service accounts alone cannot authorize this tool. Create/update/delete operations change public imagery.",
+        "fr": "Gérer les photos et séquences du compte Google consentant avec toutes les méthodes REST v1 documentées et un envoi de fichiers borné. Les publications et suppressions sont explicites, jamais relancées automatiquement.",
+        "it": "Gestisce e pubblica le foto Street View dell’utente.",
+        "de": "Fotos und Sequenzen des zustimmenden Google-Nutzers mit allen dokumentierten v1-REST-Methoden und begrenztem Medienupload verwalten. Veröffentlichung und Löschung sind ausdrücklich und werden nie automatisch wiederholt.",
+        "es": "Gestionar fotos y secuencias del usuario Google que dio consentimiento con todos los métodos REST v1 documentados y carga de medios limitada. Publicaciones y borrados son explícitos y nunca se reintentan automáticamente.",
+        "zh": "管理已同意用户拥有的 Street View 照片和序列，显式上传、发布、修改元数据或删除公开内容。",
+        "ja": "同意した利用者の Street View 写真・シーケンスを管理。アップロード・公開・メタデータ変更・削除を明示実行。",
+        "ar": "إدارة ونشر صور Street View للمستخدم.",
+        "he": "ניהול ופרסום תמונות Street View של המשתמש."
+      }
+    },
+    {
+      "name": "maps_datasets",
+      "category": "geography",
+      "summary": {
+        "en": "Manage geospatial datasets for Google Maps data-driven styling, including asynchronous imports from an existing Cloud Storage object.",
+        "fr": "Gérer les jeux de données géographiques de styles Google Maps pilotés par les données, y compris l’import asynchrone depuis un objet Cloud Storage existant.",
+        "it": "Gestisce dataset cartografici.",
+        "de": "Geodatensätze für datenbasierte Google-Maps-Stile einschließlich asynchroner Importe aus vorhandenen Cloud-Storage-Objekten verwalten.",
+        "es": "Gestionar conjuntos geográficos para estilos de Google Maps basados en datos, incluida importación asíncrona desde un objeto Cloud Storage existente.",
+        "zh": "管理 Google Maps 数据驱动样式的地理数据集，支持从现有 Cloud Storage 对象异步导入。",
+        "ja": "Google Maps のデータドリブン スタイル用データセットを管理。既存 Cloud Storage オブジェクトからの非同期取り込みに対応。",
+        "ar": "إدارة مجموعات بيانات الخرائط.",
+        "he": "ניהול מערכי נתונים למפות."
+      }
+    },
+    {
+      "name": "maps_route_optimization",
+      "category": "routes",
+      "summary": {
+        "en": "Optimize delivery or service fleets with the actual Route Optimization API and an intact native ShipmentModel, including capacities, time windows and cost constraints.",
+        "fr": "Optimiser des flottes de livraison ou de service avec Route Optimization et le ShipmentModel natif complet : capacités, créneaux et contraintes de coût.",
+        "it": "Ottimizza gli itinerari della flotta.",
+        "de": "Liefer- oder Serviceflotten mit Route Optimization und vollständigem nativem ShipmentModel einschließlich Kapazitäten, Zeitfenstern und Kostenbedingungen optimieren.",
+        "es": "Optimizar flotas de reparto o servicio con Route Optimization y ShipmentModel nativo completo: capacidades, ventanas temporales y costes.",
+        "zh": "通过真实 Route Optimization API 优化车队，完整保留 ShipmentModel 的容量、时间窗和成本约束。",
+        "ja": "実際の Route Optimization API で車両を最適化。ShipmentModel の容量・時間枠・費用制約を保持。",
+        "ar": "تحسين مسارات أسطول كامل.",
+        "he": "מיטוב מסלולים לצי שלם."
+      }
+    },
+    {
+      "name": "maps_air_quality_forecast",
+      "category": "environment",
+      "summary": {
+        "en": "Retrieve hourly air quality forecasts for an explicit time or interval, up to 96 hours ahead.",
+        "fr": "Consulter les prévisions horaires de qualité de l’air à un instant ou sur un intervalle, jusqu’à 96 heures.",
+        "it": "Previsioni orarie della qualità dell’aria.",
+        "de": "Stündliche Luftqualitätsprognosen für Zeitpunkt oder Intervall bis 96 Stunden abrufen.",
+        "es": "Consultar previsiones horarias de calidad del aire para un instante o intervalo, hasta 96 horas.",
+        "zh": "按指定时间或区间读取未来最多 96 小时的空气质量预报。",
+        "ja": "指定時刻・期間の最大 96 時間先までの大気質予報を取得。",
+        "ar": "توقع جودة الهواء ساعة بساعة.",
+        "he": "תחזית איכות אוויר לפי שעה."
+      }
+    },
+    {
+      "name": "maps_air_quality_history",
+      "category": "environment",
+      "summary": {
+        "en": "Retrieve historical air quality information from the previous 30 days.",
+        "fr": "Consulter la qualité de l’air des 30 derniers jours.",
+        "it": "Storico qualità dell’aria fino a 30 giorni.",
+        "de": "Luftqualität der letzten 30 Tage abrufen.",
+        "es": "Consultar la calidad del aire de los últimos 30 días.",
+        "zh": "显式分页读取最近 30 天的历史空气质量。",
+        "ja": "直近 30 日の大気質履歴を明示的なページ単位で取得。",
+        "ar": "سجل جودة الهواء حتى 30 يومًا.",
+        "he": "היסטוריית איכות אוויר עד 30 יום."
+      }
+    },
+    {
+      "name": "maps_air_quality_heatmap",
+      "category": "environment",
+      "summary": {
+        "en": "Download a real air quality heatmap image tile for an index or pollutant.",
+        "fr": "Télécharger une tuile de carte de chaleur de qualité de l’air pour un indice ou polluant.",
+        "it": "Tessere della mappa qualità dell’aria.",
+        "de": "Luftqualitäts-Heatmap-Kachel für einen Index oder Schadstoff herunterladen.",
+        "es": "Descargar una tesela de mapa de calor de calidad del aire para un índice o contaminante.",
+        "zh": "下载真实空气质量热图 PNG 瓦片。",
+        "ja": "実際の大気質ヒートマップ PNG タイルを取得。",
+        "ar": "بلاطات خريطة جودة الهواء.",
+        "he": "אריחי מפת איכות אוויר."
+      }
+    },
+    {
+      "name": "maps_pollen_heatmap",
+      "category": "environment",
+      "summary": {
+        "en": "Download a real tree, grass or weed pollen index heatmap tile.",
+        "fr": "Télécharger une tuile d’indice pollinique des arbres, graminées ou herbacées.",
+        "it": "Tessere delle mappe pollini.",
+        "de": "Pollenindex-Kachel für Bäume, Gräser oder Kräuter herunterladen.",
+        "es": "Descargar una tesela de índice de polen de árboles, gramíneas o malezas.",
+        "zh": "下载真实树木、草或杂草花粉指数热图。",
+        "ja": "樹木・草・雑草の花粉指数ヒートマップを取得。",
+        "ar": "بلاطات خرائط حبوب اللقاح.",
+        "he": "אריחי מפות אבקה."
+      }
+    },
+    {
+      "name": "maps_weather_history",
+      "category": "environment",
+      "summary": {
+        "en": "Retrieve up to 24 previous hours of weather history with explicit pagination.",
+        "fr": "Consulter les 24 dernières heures météo avec pagination explicite.",
+        "it": "Storico orario del meteo del giorno precedente.",
+        "de": "Bis zu 24 vergangene Wetterstunden mit ausdrücklicher Seitennavigation abrufen.",
+        "es": "Consultar hasta 24 horas anteriores de meteorología con paginación explícita.",
+        "zh": "显式分页读取过去最多 24 小时的天气历史。",
+        "ja": "直近最大 24 時間の気象履歴をページ単位で取得。",
+        "ar": "سجل الطقس الساعي لليوم السابق.",
+        "he": "היסטוריית מזג אוויר שעתית ליום האחרון."
+      }
+    },
+    {
+      "name": "maps_weather_alerts",
+      "category": "environment",
+      "summary": {
+        "en": "Retrieve public weather alerts intersecting a location, including native severity and issuing-authority information.",
+        "fr": "Consulter les alertes météo publiques touchant un lieu, avec gravité et autorité émettrice natives.",
+        "it": "Allerte meteo pubbliche locali.",
+        "de": "Öffentliche Wetterwarnungen für einen Ort mit nativer Schwere und ausgebender Behörde abrufen.",
+        "es": "Consultar alertas meteorológicas públicas de una ubicación con gravedad y autoridad emisora nativas.",
+        "zh": "获取影响区域与位置相交的公共天气警报，保留级别和发布机构信息。",
+        "ja": "指定地点に影響する公的気象警報を、深刻度・発表機関情報とともに取得。",
+        "ar": "تنبيهات الطقس العامة المحلية.",
+        "he": "התראות מזג אוויר ציבוריות מקומיות."
+      }
+    },
+    {
+      "name": "maps_weather_minute_forecast",
+      "category": "environment",
+      "summary": {
+        "en": "EXPERIMENTAL: retrieve high-resolution precipitation forecasts over a six-hour timeframe.",
+        "fr": "EXPÉRIMENTAL : obtenir une prévision haute résolution des précipitations sur six heures.",
+        "it": "Previsioni precipitazioni al minuto, sperimentali.",
+        "de": "EXPERIMENTELL: Hochaufgelöste Niederschlagsprognose über sechs Stunden abrufen.",
+        "es": "EXPERIMENTAL: obtener previsión de precipitación de alta resolución para seis horas.",
+        "zh": "实验功能：分页获取未来六小时的高分辨率降水预报。",
+        "ja": "実験機能：6 時間先までの高解像度降水予報をページ単位で取得。",
+        "ar": "توقع هطول بالدقائق، تجريبي.",
+        "he": "תחזית משקעים לדקות, ניסיונית."
+      }
+    },
+    {
+      "name": "maps_weather_map",
+      "category": "environment",
+      "summary": {
+        "en": "EXPERIMENTAL: download a precipitation nowcast image tile for the United States or Europe.",
+        "fr": "EXPÉRIMENTAL : télécharger une tuile de précipitations immédiates pour les États-Unis ou l’Europe.",
+        "it": "Mappa precipitazioni attuali, sperimentale.",
+        "de": "EXPERIMENTELL: Niederschlags-Nowcast-Kachel für USA oder Europa herunterladen.",
+        "es": "EXPERIMENTAL: descargar una tesela de precipitación inmediata para Estados Unidos o Europa.",
+        "zh": "实验功能：下载美国或欧洲降水临近预报图像瓦片。",
+        "ja": "実験機能：米国・欧州の降水ナウキャスト画像タイルを取得。",
+        "ar": "خريطة الهطول الآني، تجريبية.",
+        "he": "מפת משקעים מיידיים, ניסיונית."
       }
     }
   ]

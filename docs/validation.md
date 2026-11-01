@@ -1,5 +1,86 @@
 # Validation record
 
+## Independent geometry-quality validation: 2026-11-01
+
+Directions and route planning accept an explicit polylineQuality choice,
+OVERVIEW or HIGH_QUALITY, independently of traffic segments. Explicit selection
+wins; omitted quality retains Google’s overview default for ordinary calls and
+high quality for traffic-segment calls. The current catalog has 42 tools and
+329 parameter paths. All 99 offline tests pass, with 31 live tests opt-in.
+
+Fixture checks cover both qualities on both tools without traffic, walking
+routes, explicit overview with traffic/optimized stops, invalid enum values
+before resolution, original provider geometry and CLI flag/JSON parity.
+
+Two API-key driving requests for the same California endpoints returned the
+same 56,928 m route distance: OVERVIEW had 267 vertices (1,031 encoded bytes),
+HIGH_QUALITY had 3,110 vertices (7,688 encoded bytes). Neither response included
+normalized traffic segments. These counts describe that observed response, not
+a promised density ratio or lane-level accuracy. No Roads call or interpolation
+was used. The repeatable high-quality live test is
+`live_maps_directions_high_quality_without_traffic_intervals`.
+
+## Opt-in traffic segment validation: 2026-11-01
+
+Directions and route planning now expose `trafficSegments` (false by default),
+keeping the catalog at 42 tools and expanding the reference to 327 parameter
+paths. The suite has 95 passing offline tests and 30 ignored live tests.
+Fixture tests cover opt-in request masks/settings, original route/leg geometry,
+waypoint optimization, independent index scopes, timestamp provenance, no
+implicit Roads calls, unsupported modes, missing traffic, Google fallback and
+OAuth without key fallback. Pure normalization tests cover native omitted-zero
+indexes, end boundary M−1, gaps, unknown categories, invalid geometry/indexes and
+atomic failure without partially enriched output.
+
+One billable API-key check of a driving route in California returned 16 route
+intervals and 16 leg intervals, including NORMAL, SLOW and TRAFFIC_JAM. Traffic
+status was AVAILABLE, raw advisory and staticDuration remained present, and
+roadCategory/speedLimit/trafficObservedAt remained null. This validates the
+adapter against current Google output, not a guarantee of future traffic
+conditions. The opt-in repeatable test is
+`live_maps_directions_traffic_segments`; Google bills traffic-on-polyline at the
+Compute Routes Enterprise tier. No speed-limit or additional Roads request was
+made. See [the generic segment contract](route-segments.md).
+
+## v0.4.0 service expansion: 2026-11-01
+
+The source catalog now exposes 42 tools across 20 server-side API families and
+329 documented parameter paths. The credential-free reference validator exercises
+every example through the executable and checks the missing-key or OAuth-required
+boundary. The 99 offline tests and compile-checked documentation example pass locally.
+Strict Clippy and rustdoc with docs.rs configuration pass; the Cargo package
+audit excludes local credentials and includes the expanded manuals/skill.
+New offline fixtures exercise native payloads, verbs, user-scoped OAuth,
+write retries, upload bytes, binary MIME/cache headers and fixed-origin resources.
+The nine-language manual builds and verifies 135 pages, 329 parameter paths per
+language and 11,148 internal links/assets. Prior browser checks at 320px found all
+42 tool anchors and no document overflow in all nine locales, including Arabic
+and Hebrew RTL. Earlier records below describe their dated releases, not this
+expanded catalog.
+
+Small live read-only checks used the supplied restricted key and service-account
+credentials; no datasets, render requests, uploads, publications or optimization
+jobs were created. The repeatable probes are `.github/scripts/live-services.py`.
+
+| Live scenario | Result |
+| --- | --- |
+| API key: Autocomplete and Geolocation | Passed |
+| API key: Solar building insights and Map Tiles 3D root | Passed |
+| API key: Street View metadata and JPEG | Passed; JPEG MIME and binary response |
+| API key: Air Quality forecast/history/heatmap and Pollen heatmap | Passed; PNG tiles returned |
+| API key: Weather history, public alerts, experimental minute forecast/map | Passed; experimental endpoints remain pre-GA despite live access |
+| Roads Speed Limits | Blocked: Google 403, speed limits unavailable for this project; restricted Asset Tracking entitlement is required |
+| Aerial View metadata | Blocked: Google 403, `aerialview.googleapis.com` disabled/not previously used in the key project |
+| OAuth without API key: Solar and Map Tiles 3D root | Passed |
+| OAuth: Datasets list | Blocked: `mapsplatformdatasets.datasets.list` IAM permission denied |
+| OAuth: Route Optimization validation only | Blocked: `routeoptimization.locations.use` IAM permission denied |
+| Street View Publish | Not run live: supplied service account cannot provide end-user consent; all operations use fixtures |
+| Aerial render, dataset mutations, optimization jobs and public publishing | Not run live; explicit mutations use fixtures |
+
+Summary: 14/16 API-key probe scenarios passed; 2/4 OAuth probe scenarios passed.
+Blocked probes are access limitations, not successful live verification. Contract
+fixtures are not a substitute for testing remote mutations on a consenting account.
+
 ## Documentation validation: v0.3.1
 
 On 2026-10-31, the complete tool reference was checked against executable

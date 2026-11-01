@@ -15,8 +15,8 @@ the object in `arguments`. Hosts may prefix tool names. With the CLI, use
 `mcp-gmap-rs call TOOL --args JSON` or the equivalent command/flags shown below.
 
 Only top-level parameters have CLI flags. Supply nested objects and arrays as
-JSON. Bare boolean flags mean true; `--flag false` sets false. Unknown properties
-are rejected. Inspect an installed version with `tools` or `schema TOOL` before
+JSON. Bare boolean flags mean true; `--flag false` sets false. Unknown top-level properties
+are rejected. Native API body objects accept Google's documented fields, which Google validates. Inspect an installed version with `tools` or `schema TOOL` before
 assuming it supports this release's complete catalog.
 
 Language-aware calls use the configured Google language. API-key/OAuth selection is process
@@ -54,6 +54,25 @@ promises of current results or geographic coverage.
 - [`maps_compare_places`](#maps_compare_places)
 - [`maps_search_along_route`](#maps_search_along_route)
 - [`maps_local_rank_tracker`](#maps_local_rank_tracker)
+- [`maps_speed_limits`](#maps_speed_limits)
+- [`maps_autocomplete`](#maps_autocomplete)
+- [`maps_geolocate`](#maps_geolocate)
+- [`maps_solar`](#maps_solar)
+- [`maps_aerial_view`](#maps_aerial_view)
+- [`maps_render_aerial_video`](#maps_render_aerial_video)
+- [`maps_map_tiles`](#maps_map_tiles)
+- [`maps_streetview`](#maps_streetview)
+- [`maps_streetview_publish`](#maps_streetview_publish)
+- [`maps_datasets`](#maps_datasets)
+- [`maps_route_optimization`](#maps_route_optimization)
+- [`maps_air_quality_forecast`](#maps_air_quality_forecast)
+- [`maps_air_quality_history`](#maps_air_quality_history)
+- [`maps_air_quality_heatmap`](#maps_air_quality_heatmap)
+- [`maps_pollen_heatmap`](#maps_pollen_heatmap)
+- [`maps_weather_history`](#maps_weather_history)
+- [`maps_weather_alerts`](#maps_weather_alerts)
+- [`maps_weather_minute_forecast`](#maps_weather_minute_forecast)
+- [`maps_weather_map`](#maps_weather_map)
 
 ## maps_geocode
 
@@ -112,6 +131,7 @@ Validate postal components and return corrections, the standardized address and 
 | `locality` / `--locality` | string; at least 1 character(s) | No | Not supplied | City or locality. |
 | `postalCode` / `--postal-code` | string; at least 1 character(s) | No | Not supplied | Postal/ZIP code. |
 | `regionCode` / `--region-code` | string; pattern: `^[A-Z]{2}$` | No | Not supplied; Google may infer it | Two-letter uppercase country/region code; recommended to disambiguate the address. |
+| `sessionToken` / `--session-token` | string; at least 1 character(s) | No | No session token; Google bills outside an Autocomplete session | Same-project Autocomplete (New) session token. Reuse the prediction token in this concluding request; create a fresh token for the next session. |
 
 ### Behavior and restrictions
 
@@ -513,6 +533,7 @@ Expand a known place ID into selected details, reviews and optional photo URLs. 
 | --- | --- | --- | --- | --- |
 | `maxPhotos` / `--max-photos` | integer; 0–10 | No | 0 | Maximum photo-media URL lookups to perform. |
 | `placeId` / `--place-id` | string; at least 1 character(s) | Yes | — | Google place ID, optionally prefixed with places/. |
+| `sessionToken` / `--session-token` | string; at least 1 character(s) | No | No session token; Google bills outside an Autocomplete session | Same-project Autocomplete (New) session token. Reuse the prediction token in this concluding request; create a fresh token for the next session. |
 
 ### Behavior and restrictions
 
@@ -559,16 +580,22 @@ Compute a route between two endpoints and expose both selected Google route data
 | `destination` / `--destination` | string; at least 1 character(s) | Yes | — | Destination address/landmark or exact latitude,longitude string. |
 | `mode` / `--mode` | string; values: `driving`, `walking`, `bicycling`, `transit` | No | driving | Travel mode. Driving uses traffic-aware routing. |
 | `origin` / `--origin` | string; at least 1 character(s) | Yes | — | Origin address/landmark or exact latitude,longitude string. |
+| `polylineQuality` / `--polyline-quality` | string; values: `OVERVIEW`, `HIGH_QUALITY` | No | HIGH_QUALITY when trafficSegments=true; otherwise Google defaults to OVERVIEW | Geometry quality: OVERVIEW or HIGH_QUALITY. An explicit choice always wins, including OVERVIEW together with trafficSegments=true. Controls point density independently of traffic calculations. |
+| `trafficSegments` / `--traffic-segments` | boolean | No | false | Boolean opt-in for driving only. Requests TRAFFIC_ON_POLYLINE with ENCODED_POLYLINE geometry; defaults to HIGH_QUALITY unless polylineQuality is explicit. Traffic on polylines triggers the higher-priced Compute Routes Enterprise SKU; leave false unless segment detail is needed. |
 
 ### Behavior and restrictions
 
 - departure_time and arrival_time cannot both be supplied. arrival_time is accepted only for transit.
 - Avoidance flags require driving. Google applies additional travel-mode/time/region restrictions.
 - No available route is an explicit error.
+- With trafficSegments=true, Routes supplies NORMAL, SLOW or TRAFFIC_JAM intervals. Normalized route and leg segments use the corresponding route or leg polyline, with independent point indices. Google intervals are [start,end); each segment geometry retains the shared end boundary vertex to cover the final edge. Missing or invalid coverage is reported explicitly rather than invented as normal traffic.
+- segmentMetadata.retrievedAt is the local response-fetch time, not a provider traffic observation time; trafficObservedAt is null because Routes does not return it. roadCategory and speedLimit are null because this Routes response supplies neither. No implicit Roads API calls or client-side duration multipliers are applied; durations remain Google predictions.
+- Traffic segments are optional and driving-only in this executable. This requests traffic-aware polylines and triggers Compute Routes Enterprise billing. [Traffic interval contract](https://developers.google.com/maps/documentation/routes/traffic_on_polylines); [current SKU triggers](https://developers.google.com/maps/billing-and-pricing/sku-details/routes).
+- polylineQuality selects Google’s geometry detail: HIGH_QUALITY uses more points, increases response size and can increase latency. Explicit OVERVIEW remains valid with trafficSegments=true. If omitted, traffic segments default to HIGH_QUALITY; otherwise Google uses OVERVIEW. The executable does not synthesize or interpolate additional detail. Geometry quality is independent of extraComputations: setting HIGH_QUALITY alone does not enable TRAFFIC_ON_POLYLINE. [Official PolylineQuality definition](https://developers.google.com/maps/documentation/routes/reference/rest/v2/TopLevel/computeRoutes#PolylineQuality).
 
 ### Result
 
-An object containing `routes`, `summary`, `total_distance` (value in metres), `total_duration` (value in seconds) and optional optimization indices. Route entries contain selected legs, steps, polyline and warnings.
+An object containing `routes`, `summary`, `total_distance` (value in metres), `total_duration` (value in seconds) and optional optimization indices. Route entries contain selected legs, steps, polyline and warnings. When trafficSegments is true, route and leg results additionally include normalized segments and segmentMetadata.
 
 ### Example
 
@@ -977,17 +1004,23 @@ Plan a single route through ordered stops, optionally asking Google to reorder i
 | `departure_time` / `--departure-time` | string; at least 1 character(s) | No | Not supplied | Departure instant as RFC 3339 including Z or an explicit UTC offset. |
 | `mode` / `--mode` | string; values: `driving`, `walking`, `bicycling`, `transit` | No | driving | Travel mode. Driving uses traffic-aware routing. |
 | `optimize` / `--optimize` | boolean | No | true, subject to those conditions | Request intermediate-stop optimization when more than three total stops and mode is not transit. |
+| `polylineQuality` / `--polyline-quality` | string; values: `OVERVIEW`, `HIGH_QUALITY` | No | HIGH_QUALITY when trafficSegments=true; otherwise Google defaults to OVERVIEW | Geometry quality: OVERVIEW or HIGH_QUALITY. An explicit choice always wins, including OVERVIEW together with trafficSegments=true. Controls point density independently of traffic calculations. |
 | `stops` / `--stops` | array of string; 2–27 items; each item at least 1 character(s) | Yes | — | Ordered addresses/landmarks or exact latitude,longitude strings; first/last stay endpoints. |
+| `trafficSegments` / `--traffic-segments` | boolean | No | false | Boolean opt-in for driving only. Requests TRAFFIC_ON_POLYLINE with ENCODED_POLYLINE geometry; defaults to HIGH_QUALITY unless polylineQuality is explicit. Traffic on polylines triggers the higher-priced Compute Routes Enterprise SKU; leave false unless segment detail is needed. |
 
 ### Behavior and restrictions
 
 - Transit supports only two endpoints and no intermediate stops.
 - Optimization takes effect only for four or more total stops (at least two intermediate stops).
 - This optimizes stop order for one route, not vehicle/task assignment across a fleet.
+- With trafficSegments=true, Routes supplies NORMAL, SLOW or TRAFFIC_JAM intervals. Normalized route and leg segments use the corresponding route or leg polyline, with independent point indices. Google intervals are [start,end); each segment geometry retains the shared end boundary vertex to cover the final edge. Missing or invalid coverage is reported explicitly rather than invented as normal traffic.
+- segmentMetadata.retrievedAt is the local response-fetch time, not a provider traffic observation time; trafficObservedAt is null because Routes does not return it. roadCategory and speedLimit are null because this Routes response supplies neither. No implicit Roads API calls or client-side duration multipliers are applied; durations remain Google predictions.
+- Traffic segments are optional and driving-only in this executable. This requests traffic-aware polylines and triggers Compute Routes Enterprise billing. [Traffic interval contract](https://developers.google.com/maps/documentation/routes/traffic_on_polylines); [current SKU triggers](https://developers.google.com/maps/billing-and-pricing/sku-details/routes).
+- polylineQuality selects Google’s geometry detail: HIGH_QUALITY uses more points, increases response size and can increase latency. Explicit OVERVIEW remains valid with trafficSegments=true. If omitted, traffic segments default to HIGH_QUALITY; otherwise Google uses OVERVIEW. The executable does not synthesize or interpolate additional detail. Geometry quality is independent of extraComputations: setting HIGH_QUALITY alone does not enable TRAFFIC_ON_POLYLINE. [Official PolylineQuality definition](https://developers.google.com/maps/documentation/routes/reference/rest/v2/TopLevel/computeRoutes#PolylineQuality).
 
 ### Result
 
-An object with `mode`, effective `optimized`, ordered resolved `stops`, display `legs`, total_distance, total_duration, polyline and warnings. Leg durationSeconds is numeric seconds.
+An object with `mode`, effective `optimized`, ordered resolved `stops`, display `legs`, total_distance, total_duration, polyline and warnings. Leg durationSeconds is numeric seconds. When trafficSegments is true, route and leg results additionally include normalized segments and segmentMetadata.
 
 ### Example
 
@@ -1161,4 +1194,1060 @@ Equivalent CLI call:
 
 ```sh
 mcp-gmap-rs call maps_local_rank_tracker --args '{"keyword":"cafe","placeId":"ChIJLU7jZClu5kcR4PcOOO6p3I0","center":{"latitude":48.8584,"longitude":2.2945},"gridSize":3,"gridSpacing":500}'
+```
+
+## maps_speed_limits
+
+Get posted automobile speed limits for up to 100 GPS points or road-segment place IDs. Restricted Google Asset Tracking license/access is required; enabling Roads alone does not grant access. Each returned limit can incur a separate charge. Data is not real-time or guaranteed accurate.
+
+Get posted automobile speed limits for road segments using a GPS path or IDs returned by Roads snapping/nearest-road calls. This restricted Google feature requires Asset Tracking access; enabling the Roads API alone is insufficient.
+
+**CLI command:** `speed-limits`. **Google access:** API key required in this implementation, including when OAuth mode is selected. Roads Speed Limits entitlement is separate from credentials.
+
+### Parameters
+
+| Parameter / CLI flag | Type and schema limits | Required | Default when omitted | Description |
+| --- | --- | --- | --- | --- |
+| `path` / `--path` | array of object; 1–100 items | No | Not supplied | One to 100 GPS coordinates; mutually exclusive with roadPlaceIds. Google snaps this path before looking up segment limits. |
+| `path[].latitude` | number; -90.0–90.0 | When parent is supplied | Required for every path point | WGS84 latitude in decimal degrees, from -90 to 90. |
+| `path[].longitude` | number; -180.0–180.0 | When parent is supplied | Required for every path point | WGS84 longitude in decimal degrees, from -180 to 180. |
+| `roadPlaceIds` / `--road-place-ids` | array of string; 1–100 items; each item at least 1 character(s) | No | Not supplied | One to 100 road-segment place IDs from maps_snap_to_roads or maps_nearest_roads; ordinary business/place IDs may have no speed-limit data. Mutually exclusive with path. |
+| `units` / `--units` | string; values: `KPH`, `MPH` | No | KPH | Return kilometers per hour (KPH) or miles per hour (MPH). |
+
+### Behavior and restrictions
+
+- Restricted access: Google documents an Asset Tracking license requirement. Transitioned Premium Plan projects with Asset Tracking capabilities may retain access. An enabled API or ordinary billing account does not establish entitlement. <https://developers.google.com/maps/documentation/roads/speed-limits>
+- Each returned speedLimits entry triggers the Roads Speed Limits SKU; one HTTP request can incur multiple billable entries. Request the smallest useful batch.
+- For variable limits Google returns the maximum automobile limit. Data is not real-time and can be missing, estimated, inaccurate or outdated; consult posted signs and applicable safety requirements.
+- A 403 retains the sanitized Google reason and adds an access hint. API enablement, key restrictions and permissions can also cause rejection; the executable does not label every 403 a license failure.
+
+### Result
+
+The complete native Roads response, including speedLimits entries (placeId, speedLimit, units), optional snappedPoints for path requests, warnings and other Google metadata.
+
+### Example
+
+MCP arguments:
+
+```json
+{
+  "roadPlaceIds": [
+    "ChIJs5ydyTiuEmsR0fRSlU0C7k0"
+  ],
+  "units": "KPH"
+}
+```
+
+Equivalent CLI call:
+
+```sh
+mcp-gmap-rs call maps_speed_limits --args '{"roadPlaceIds":["ChIJs5ydyTiuEmsR0fRSlU0C7k0"],"units":"KPH"}'
+```
+
+## maps_autocomplete
+
+Get Places API (New) place and optional query predictions, with session tokens, language and geographic filters. Returns the full native Google JSON. Session billing requires a fresh token and a qualifying concluding Details or Address Validation request in the same project.
+
+Get Places API (New) predictions while a user types. Supports place and query predictions, geographic bias/restriction, regional/type filters, cursor position and caller-managed billing session tokens.
+
+**CLI command:** `autocomplete`. **Google access:** API key or OAuth (Places/cloud-platform scope) for the main API.
+
+### Parameters
+
+| Parameter / CLI flag | Type and schema limits | Required | Default when omitted | Description |
+| --- | --- | --- | --- | --- |
+| `includeFutureOpeningBusinesses` / `--include-future-opening-businesses` | boolean | No | false | Include businesses that will open in the future. |
+| `includePureServiceAreaBusinesses` / `--include-pure-service-area-businesses` | boolean | No | false | Include businesses that visit/deliver to customers and have no public business location. |
+| `includeQueryPredictions` / `--include-query-predictions` | boolean | No | false | Include query predictions as well as place predictions. |
+| `includedPrimaryTypes` / `--included-primary-types` | array of string; 0–5 items; each item at least 1 character(s) | No | All types | Up to five primary place types. The special (cities) or (regions) collection must be the sole entry. |
+| `includedRegionCodes` / `--included-region-codes` | array of string; 0–15 items | No | All regions | Up to 15 two-letter CLDR region codes; intersected with locationRestriction when both are supplied. An empty array does not restrict results. |
+| `input` / `--input` | string; at least 1 character(s) | Yes | — | Non-empty query text, including partial place names or addresses. |
+| `inputOffset` / `--input-offset` | integer; 0–4294967295 | No | End of input | Zero-based Unicode character cursor offset; must not exceed the number of characters in input. |
+| `languageCode` / `--language-code` | string; at least 1 character(s) | No | Configured GOOGLE_MAPS_LANGUAGE | Preferred IETF BCP-47 response language. Mixed-language predictions may still occur. |
+| `locationBias` / `--location-bias` | object | No | Google IP bias if neither geographic option is supplied | Prefer results around exactly one circle or rectangle; results may fall outside it. Cannot coexist with locationRestriction. |
+| `locationBias.circle` | object | No | Not supplied | Circular area; mutually exclusive with rectangle. |
+| `locationBias.circle.center` | object | When parent is supplied | Required with circle | WGS84 center coordinate. |
+| `locationBias.circle.center.latitude` | number; -90.0–90.0 | When parent is supplied | Required with center | Center latitude in decimal degrees. |
+| `locationBias.circle.center.longitude` | number; -180.0–180.0 | When parent is supplied | Required with center | Center longitude in decimal degrees. |
+| `locationBias.circle.radius` | number; 0.0–50000.0 | When parent is supplied | Required with circle | Radius in meters, at most 50,000; must be positive for locationRestriction. |
+| `locationBias.rectangle` | object | No | Not supplied | Closed latitude/longitude viewport; mutually exclusive with circle. Longitude bounds may cross the antimeridian. |
+| `locationBias.rectangle.high` | object | When parent is supplied | Required with rectangle | Northeast bound. |
+| `locationBias.rectangle.high.latitude` | number; -90.0–90.0 | When parent is supplied | Required with bound | WGS84 latitude in decimal degrees; low must not exceed high. |
+| `locationBias.rectangle.high.longitude` | number; -180.0–180.0 | When parent is supplied | Required with bound | WGS84 longitude in decimal degrees; low greater than high indicates antimeridian crossing. |
+| `locationBias.rectangle.low` | object | When parent is supplied | Required with rectangle | Southwest bound. |
+| `locationBias.rectangle.low.latitude` | number; -90.0–90.0 | When parent is supplied | Required with bound | WGS84 latitude in decimal degrees; low must not exceed high. |
+| `locationBias.rectangle.low.longitude` | number; -180.0–180.0 | When parent is supplied | Required with bound | WGS84 longitude in decimal degrees; low greater than high indicates antimeridian crossing. |
+| `locationRestriction` / `--location-restriction` | object | No | Google IP bias if neither geographic option is supplied | Restrict results to exactly one circle or rectangle. Cannot coexist with locationBias. |
+| `locationRestriction.circle` | object | No | Not supplied | Circular area; mutually exclusive with rectangle. |
+| `locationRestriction.circle.center` | object | When parent is supplied | Required with circle | WGS84 center coordinate. |
+| `locationRestriction.circle.center.latitude` | number; -90.0–90.0 | When parent is supplied | Required with center | Center latitude in decimal degrees. |
+| `locationRestriction.circle.center.longitude` | number; -180.0–180.0 | When parent is supplied | Required with center | Center longitude in decimal degrees. |
+| `locationRestriction.circle.radius` | number; 0.0–50000.0 | When parent is supplied | Required with circle | Radius in meters, at most 50,000; must be positive for locationRestriction. |
+| `locationRestriction.rectangle` | object | No | Not supplied | Closed latitude/longitude viewport; mutually exclusive with circle. Longitude bounds may cross the antimeridian. |
+| `locationRestriction.rectangle.high` | object | When parent is supplied | Required with rectangle | Northeast bound. |
+| `locationRestriction.rectangle.high.latitude` | number; -90.0–90.0 | When parent is supplied | Required with bound | WGS84 latitude in decimal degrees; low must not exceed high. |
+| `locationRestriction.rectangle.high.longitude` | number; -180.0–180.0 | When parent is supplied | Required with bound | WGS84 longitude in decimal degrees; low greater than high indicates antimeridian crossing. |
+| `locationRestriction.rectangle.low` | object | When parent is supplied | Required with rectangle | Southwest bound. |
+| `locationRestriction.rectangle.low.latitude` | number; -90.0–90.0 | When parent is supplied | Required with bound | WGS84 latitude in decimal degrees; low must not exceed high. |
+| `locationRestriction.rectangle.low.longitude` | number; -180.0–180.0 | When parent is supplied | Required with bound | WGS84 longitude in decimal degrees; low greater than high indicates antimeridian crossing. |
+| `origin` / `--origin` | object | No | Distance omitted | Reference coordinate for returned geodesic distanceMeters. |
+| `origin.latitude` | number; -90.0–90.0 | When parent is supplied | Required with origin | WGS84 latitude in decimal degrees. |
+| `origin.longitude` | number; -180.0–180.0 | When parent is supplied | Required with origin | WGS84 longitude in decimal degrees. |
+| `regionCode` / `--region-code` | string; pattern: `^[A-Za-z]{2}$` | No | Not supplied | Two-letter CLDR region used for formatting/ranking; does not restrict results to that region. |
+| `sessionToken` / `--session-token` | string; at least 1 character(s); pattern: `^[A-Za-z0-9_-]+$` | No | No session grouping; per-request billing | Caller-generated URL-safe token of at most 36 ASCII characters; a fresh UUID v4 is recommended for each session. Forward the same token to the concluding Place Details or Address Validation call. |
+
+### Behavior and restrictions
+
+- Official native request fields and supported place types: <https://developers.google.com/maps/documentation/places/web-service/reference/rest/v1/places/autocomplete>
+- Tokens are caller-managed: the executable does not create or conclude sessions automatically. All requests in a session must use credentials from the same Google Cloud project; terminate with a qualifying Place Details or Address Validation request and use a fresh token next time. Missing/reused tokens can lead to per-request billing.
+- Circle radii are at most 50,000m; restriction circles require a positive radius. Rectangle latitude bounds must be ordered; antimeridian-crossing longitude ranges are supported.
+- Retain any Google Maps/provider attribution when displaying results. Regional/EEA service terms and field availability may differ.
+
+### Result
+
+Complete native suggestions response, including placePrediction/queryPrediction, text match offsets, structured formatting, place IDs, optional distanceMeters and any response metadata. No field mask removes content.
+
+### Example
+
+MCP arguments:
+
+```json
+{
+  "input": "coffee near Paris",
+  "sessionToken": "550e8400-e29b-41d4-a716-446655440000",
+  "includedRegionCodes": [
+    "FR"
+  ],
+  "locationBias": {
+    "circle": {
+      "center": {
+        "latitude": 48.8566,
+        "longitude": 2.3522
+      },
+      "radius": 5000
+    }
+  },
+  "includeQueryPredictions": true
+}
+```
+
+Equivalent CLI call:
+
+```sh
+mcp-gmap-rs call maps_autocomplete --args '{"input":"coffee near Paris","sessionToken":"550e8400-e29b-41d4-a716-446655440000","includedRegionCodes":["FR"],"locationBias":{"circle":{"center":{"latitude":48.8566,"longitude":2.3522},"radius":5000}},"includeQueryPredictions":true}'
+```
+
+## maps_geolocate
+
+Estimate device location and an accuracy radius from a native Google Geolocation body containing cell towers or WiFi access points. Requires an API key. IP fallback identifies this server's egress location, not the user; set body.considerIp=false to disable fallback.
+
+Estimate device location from observed cellular towers or WiFi access points using the complete native Google Geolocation JSON body.
+
+**CLI command:** `geolocate`. **Google access:** API key required in this implementation. The documented www.googleapis.com endpoint receives the key as a query parameter even for POST.
+
+### Parameters
+
+| Parameter / CLI flag | Type and schema limits | Required | Default when omitted | Description |
+| --- | --- | --- | --- | --- |
+| `body` / `--body` | object | Yes | — | Native Google request object. Supports homeMobileCountryCode, homeMobileNetworkCode, radioType (gsm/cdma/wcdma/lte/nr), carrier, considerIp, cellTowers and wifiAccessPoints, including radio-specific cellId/newRadioCellId and signal fields. See the linked Google request reference for the complete nested schema. An empty object permits server-IP fallback. |
+
+### Behavior and restrictions
+
+- Complete radio and WiFi field descriptions, ranges and examples: <https://developers.google.com/maps/documentation/geolocation/requests-geolocation>
+- Google defaults considerIp to true. With no usable radio observations, fallback locates the executable/server egress IP, not the person operating the agent. Set body.considerIp=false to prohibit fallback.
+- WiFi positioning requires at least two physically distinct stationary access points. Google excludes locally administered/reserved MAC address ranges; mobile hotspots and invalid observations may not yield a result.
+- The body is intentionally extensible for native radio payloads; validation of its detailed protocol-specific fields is delegated to Google. The outer tool schema rejects unknown wrapper parameters.
+- A location estimate is approximate and can fail with NOT_FOUND; inspect accuracy before using the coordinates.
+
+### Result
+
+Google location.lat/location.lng and accuracy (uncertainty radius in meters), plus any additional native response fields.
+
+### Example
+
+MCP arguments:
+
+```json
+{
+  "body": {
+    "considerIp": false,
+    "wifiAccessPoints": [
+      {
+        "macAddress": "00:25:9c:cf:1c:ac",
+        "signalStrength": -43
+      },
+      {
+        "macAddress": "00:25:9c:cf:1c:ad",
+        "signalStrength": -55
+      }
+    ]
+  }
+}
+```
+
+Equivalent CLI call:
+
+```sh
+mcp-gmap-rs call maps_geolocate --args '{"body":{"considerIp":false,"wifiAccessPoints":[{"macAddress":"00:25:9c:cf:1c:ac","signalStrength":-43},{"macAddress":"00:25:9c:cf:1c:ad","signalStrength":-55}]}}'
+```
+
+## maps_solar
+
+Retrieve Solar building insights, regional data layers, or a GeoTIFF asset by ID. Coverage, imagery quality and EEA terms vary; expanded-coverage experiments are pre-GA. Data-layer URLs are temporary and returned without credentials. GeoTIFF binary size is bounded by the executable's response limit.
+
+Use all three principal Solar methods: nearby building insights, regional raster data-layer metadata, and bounded GeoTIFF downloads by asset ID.
+
+**CLI command:** `solar`. **Google access:** API key or OAuth (cloud-platform scope). Service-account callers also need API enablement and quota-project serviceusage.services.use.
+
+### Parameters
+
+| Parameter / CLI flag | Type and schema limits | Required | Default when omitted | Description |
+| --- | --- | --- | --- | --- |
+| `additionalInsights` / `--additional-insights` | array of string; 0–1 items; values: `DETECTED_ARRAYS` | No | No additional insights | Optional DETECTED_ARRAYS for building_insights to retrieve detected rooftop solar arrays. |
+| `exactQualityRequired` / `--exact-quality-required` | boolean | No | false | Require the exact selected imagery quality instead of accepting higher quality. Valid for insights/data layers. |
+| `experiments` / `--experiments` | array of string; 0–1 items; values: `EXPANDED_COVERAGE` | No | No experiments | Optional EXPANDED_COVERAGE experiment for insights/data layers; Google classifies these requests as pre-GA. |
+| `id` / `--id` | string; at least 1 character(s) | No | — for geo_tiff | Opaque asset ID taken from the id query parameter of a returned Solar data-layer URL. Required only for geo_tiff; pass an ID, not a URL. |
+| `location` / `--location` | object | No | Not supplied | Coordinate of the building search or regional data-layer center; required for building_insights and data_layers. |
+| `location.latitude` | number; -90.0–90.0 | When parent is supplied | Required with location | WGS84 latitude in decimal degrees. |
+| `location.longitude` | number; -180.0–180.0 | When parent is supplied | Required with location | WGS84 longitude in decimal degrees. |
+| `operation` / `--operation` | string; values: `building_insights`, `data_layers`, `geo_tiff` | Yes | — | building_insights, data_layers or geo_tiff. Each operation accepts only its relevant parameters. |
+| `pixelSizeMeters` / `--pixel-size-meters` | number; values: `0.1`, `0.25`, `0.5`, `1.0` | No | 0.1 | Minimum data-layer pixel scale, one of 0.1, 0.25, 0.5 or 1.0 meters. Individual layers may have coarser native resolution. |
+| `radiusMeters` / `--radius-meters` | number; unbounded–1000 | No | Not supplied | Positive regional radius, required for data_layers. At most 1,000m; values over 100 must be <= pixelSizeMeters × 1,000, and values over 175 require a view without monthly flux or hourly shade. |
+| `requiredQuality` / `--required-quality` | string; values: `HIGH`, `MEDIUM`, `BASE` | No | HIGH (Google default) | Minimum imagery quality HIGH, MEDIUM or BASE for insights/data layers. BASE uses enhanced satellite imagery; geographic availability varies. |
+| `view` / `--view` | string; values: `DSM_LAYER`, `IMAGERY_LAYERS`, `IMAGERY_AND_ANNUAL_FLUX_LAYERS`, `IMAGERY_AND_ALL_FLUX_LAYERS`, `FULL_LAYERS` | No | FULL_LAYERS (Google default) | Data-layer subset: DSM_LAYER, IMAGERY_LAYERS, IMAGERY_AND_ANNUAL_FLUX_LAYERS, IMAGERY_AND_ALL_FLUX_LAYERS or FULL_LAYERS. |
+
+### Behavior and restrictions
+
+- Method references: <https://developers.google.com/maps/documentation/solar/reference/rest/v1/buildingInsights/findClosest> ; <https://developers.google.com/maps/documentation/solar/reference/rest/v1/dataLayers/get> ; <https://developers.google.com/maps/documentation/solar/reference/rest/v1/geoTiff/get>
+- Coverage and imagery quality vary by country/location. Building search can return NOT_FOUND when there is no building within approximately 50m. <https://developers.google.com/maps/documentation/solar/coverage>
+- Data-layer URLs are temporary and still require authenticated access. Copy only their id into operation geo_tiff; the executable always downloads from solar.googleapis.com/v1/geoTiff:get and never follows arbitrary URLs.
+- GeoTIFF responses remain subject to the executable response-size limit (16 MiB), request budget and tool deadline. Large rasters may need a smaller radius/coarser pixel scale. Raster decoding/solar-installation design is outside this adapter.
+- EXPANDED_COVERAGE requests are pre-GA. EEA billing projects can have different terms and omitted content: <https://developers.google.com/maps/comms/eea/solar>
+- Solar endpoints have distinct billing/quotas; enabling the service does not make requests free. Preserve Google Maps attribution when displaying Google content.
+
+### Result
+
+building_insights/data_layers return the full native Google JSON including imagery dates, quality, solar potential and temporary raster URLs. Credentials are removed from returned URLs. geo_tiff returns bounded binary data with its actual MIME type and retained HTTP cache/attribution metadata; CLI JSON uses base64.
+
+### Example
+
+MCP arguments:
+
+```json
+{
+  "operation": "data_layers",
+  "location": {
+    "latitude": 37.444,
+    "longitude": -122.16
+  },
+  "radiusMeters": 100,
+  "view": "IMAGERY_AND_ANNUAL_FLUX_LAYERS"
+}
+```
+
+Equivalent CLI call:
+
+```sh
+mcp-gmap-rs call maps_solar --args '{"operation":"data_layers","location":{"latitude":37.444,"longitude":-122.16},"radiusMeters":100,"view":"IMAGERY_AND_ANNUAL_FLUX_LAYERS"}'
+```
+
+## maps_aerial_view
+
+Look up Aerial View playback URLs or free metadata by US postal address or video ID. lookup is billable; metadata omits playback URLs. Coverage is limited to supported US locations. Returns Google's original metadata and short-lived URLs; videos must not be downloaded, stored or cached.
+
+Retrieve an existing Aerial View video’s short-lived playback URLs or metadata without downloading the video.
+
+**CLI command:** `aerial-view`. **Google access:** API key required in this implementation, including when OAuth mode is selected.
+
+### Parameters
+
+| Parameter / CLI flag | Type and schema limits | Required | Default when omitted | Description |
+| --- | --- | --- | --- | --- |
+| `address` / `--address` | string; at least 1 character(s) | No | Not supplied | Supported US postal address. Supply exactly one of address or videoId. |
+| `operation` / `--operation` | string; values: `lookup`, `metadata` | No | lookup | lookup retrieves playback URLs and metadata (billable); metadata retrieves available video data excluding playback URLs (free-to-call Google method). |
+| `videoId` / `--video-id` | string; at least 1 character(s) | No | Not supplied | Previously returned Aerial View video ID. Supply exactly one of videoId or address. |
+
+### Behavior and restrictions
+
+- Aerial View accepts only supported US postal addresses where Google can render 3D videos. Missing videos return NOT_FOUND; use the separate maps_render_aerial_video action to request a render.
+- Use metadata to check state without requesting billable playback URLs. lookup itself is a billable event; poll metadata at a reasonable interval while a render is processing.
+- Playback URIs expire quickly; obtain fresh URIs for each display. Google prohibits downloading, storing or caching these videos. This tool returns URLs without fetching them. Video IDs may be stored under the documented caching exception. <https://developers.google.com/maps/documentation/aerial-view/lookup-video>
+- Keep Google Maps attribution visible during playback. EEA terms/functionality may differ. <https://developers.google.com/maps/documentation/aerial-view/policies>
+
+### Result
+
+The native Google response, including processing/active state, available video metadata and, for active lookup responses, playback URIs grouped by format/resolution. Metadata lookup omits playback URIs.
+
+### Example
+
+MCP arguments:
+
+```json
+{
+  "operation": "metadata",
+  "address": "600 Montgomery St, San Francisco, CA 94111"
+}
+```
+
+Equivalent CLI call:
+
+```sh
+mcp-gmap-rs call maps_aerial_view --args '{"operation":"metadata","address":"600 Montgomery St, San Francisco, CA 94111"}'
+```
+
+## maps_render_aerial_video
+
+Explicitly request asynchronous rendering of an Aerial View video for a supported US postal address. This mutates Google's render queue; an existing video returns metadata. Does not wait for completion or download video. Poll maps_aerial_view with operation metadata and then lookup for playback URLs.
+
+Explicitly queue an asynchronous Aerial View video render for a supported US postal address; kept separate from read-only lookup so agents can recognize the upstream mutation.
+
+**CLI command:** `render-aerial-video`. **Google access:** API key required in this implementation, including when OAuth mode is selected.
+
+### Parameters
+
+| Parameter / CLI flag | Type and schema limits | Required | Default when omitted | Description |
+| --- | --- | --- | --- | --- |
+| `address` / `--address` | string; at least 1 character(s) | Yes | — | Supported US postal address to render. |
+
+### Behavior and restrictions
+
+- This action changes Google’s render queue. It is not automatically retried after a transient failure, does not wait for completion, and never downloads the resulting video.
+- Check progress using maps_aerial_view operation metadata with the address or returned videoId; use lookup only when playback URLs are needed.
+- US/3D coverage, quotas and Google service terms apply; API enablement does not guarantee that an address can be rendered. <https://developers.google.com/maps/documentation/aerial-view/reference/rest/v1/videos/renderVideo>
+- Do not download, store or cache Aerial View videos; display current short-lived playback URLs with required attribution.
+
+### Result
+
+The native render response with state and any available video metadata. PROCESSING means the render is queued/in progress; an existing video can return ACTIVE metadata immediately.
+
+### Example
+
+MCP arguments:
+
+```json
+{
+  "address": "600 Montgomery St, San Francisco, CA 94111"
+}
+```
+
+Equivalent CLI call:
+
+```sh
+mcp-gmap-rs call maps_render_aerial_video --args '{"address":"600 Montgomery St, San Francisco, CA 94111"}'
+```
+
+## maps_map_tiles
+
+Map Tiles sessions, 2D/3D imagery, viewport attribution and Street View tiles. Licensed for visualization only: do not use imagery for machine interpretation, analysis, extraction or offline maps. Preserve attribution and cache directives.
+
+Create Map Tiles sessions and retrieve 2D, photorealistic 3D, and Street View resources for a map viewer. This is a retrieval interface, not a renderer. Google licenses Map Tiles for visualization only, prohibiting machine interpretation, image analysis, object detection, geodata extraction and offline use.
+
+**CLI command:** `map-tiles`. **Google access:** API key or OAuth with cloud-platform scope and a billed quota project. Enable Map Tiles API. Service accounts are supported by Google for Map Tiles; quota-project Service Usage permissions are required. See <https://developers.google.com/maps/documentation/tile/get-api-key> .
+
+### Parameters
+
+| Parameter / CLI flag | Type and schema limits | Required | Default when omitted | Description |
+| --- | --- | --- | --- | --- |
+| `east` / `--east` | number; -180.0–180.0 | No | Not supplied; required for the operations described | Required viewport eastern longitude. A negative east with positive west can cross the antimeridian. |
+| `fov` / `--fov` | number; 30.0–120.0 | No | 90 | Thumbnail horizontal field of view, 30..120 degrees. |
+| `height` / `--height` | integer; 16–250 | No | 250 | Thumbnail height, 16..250 pixels. |
+| `latitude` / `--latitude` | number; -90.0–90.0 | No | Not supplied; required for the operations described | For streetview_metadata, latitude of the search center; requires longitude and excludes panoId. |
+| `locations` / `--locations` | array of object; 1–100 items | No | Not supplied; required for the operations described | For streetview_pano_ids, one to 100 native location objects, each containing lat and lng. |
+| `locations[].lat` | number; -90.0–90.0 | When parent is supplied | Not supplied; required for the operations described | WGS84 search-center latitude. |
+| `locations[].lng` | number; -180.0–180.0 | When parent is supplied | Not supplied; required for the operations described | WGS84 search-center longitude. |
+| `longitude` / `--longitude` | number; -180.0–180.0 | No | Not supplied; required for the operations described | For streetview_metadata, longitude of the search center; requires latitude and excludes panoId. |
+| `north` / `--north` | number; -90.0–90.0 | No | Not supplied; required for the operations described | Required viewport northern latitude in WGS84 degrees; must exceed south. |
+| `operation` / `--operation` | string; values: `create_session`, `tile_2d`, `viewport`, `root_3d`, `resource_3d`, `streetview_pano_ids`, `streetview_metadata`, `streetview_thumbnail`, `streetview_tile` | Yes | — | create_session, tile_2d, viewport, root_3d, resource_3d, streetview_pano_ids, streetview_metadata, streetview_thumbnail or streetview_tile. Selects the endpoint and required arguments. |
+| `panoId` / `--pano-id` | string; at least 1 character(s) | No | Not supplied; required for the operations described | Required for streetview_tile/thumbnail, or an alternative to latitude+longitude for streetview_metadata. IDs are transient and should not be relied on beyond one user session. |
+| `pitch` / `--pitch` | number; -90.0–90.0 | No | 0 | Thumbnail vertical camera direction, -90..90 degrees. |
+| `radius` / `--radius` | number; 0.0–100000.0 | No | 50 meters | Street View search radius in meters for pano_ids or metadata coordinate search. This implementation accepts 0..100000. Cannot accompany a metadata panoId. |
+| `resourceUrl` / `--resource-url` | string; at least 1 character(s) | No | Not supplied; required for the operations described | For resource_3d, an absolute Google-issued <https://tile.googleapis.com/v1/3dtiles/>... URL from a tileset. No custom origin, port, userinfo, fragment or encoded path segments. Returned API-key query parameters are discarded and configured credentials are applied. |
+| `session` / `--session` | string; at least 1 character(s) | No | Not supplied; required for the operations described | The returned createSession session token. Required for every 2D and Street View request, but not 3D. Follow the response expiry rather than assuming a fixed lifetime. |
+| `sessionOptions` / `--session-options` | object | No | Not supplied; required for the operations described | Required for create_session. Native createSession options; mapType, language and region are mandatory. |
+| `sessionOptions.highDpi` | boolean | No | false | Increase pixel dimensions with 2x/4x scale; has no effect at 1x. |
+| `sessionOptions.imageFormat` | string; values: `jpeg`, `png` | No | Google chooses the best format | jpeg or png tile encoding. JPEG does not support transparent overlays. |
+| `sessionOptions.language` | string; at least 1 character(s) | When parent is supplied | Not supplied; required for the operations described | IETF language tag such as en-US. |
+| `sessionOptions.layerTypes` | array of string; 1–3 items; values: `layerRoadmap`, `layerStreetview`, `layerTraffic` | No | No additional layers | One to three values from layerRoadmap, layerStreetview and layerTraffic. terrain requires layerRoadmap. |
+| `sessionOptions.mapType` | string; values: `roadmap`, `satellite`, `terrain`, `streetview` | When parent is supplied | Not supplied; required for the operations described | roadmap, satellite, terrain or streetview. terrain requires layerTypes containing layerRoadmap. |
+| `sessionOptions.overlay` | boolean | No | false | Render requested layerTypes without base imagery when true. |
+| `sessionOptions.region` | string; pattern: `^[A-Z]{2}$` | When parent is supplied | Not supplied; required for the operations described | Two uppercase CLDR region letters, such as US; the physical location of the user. |
+| `sessionOptions.scale` | string; values: `scaleFactor1x`, `scaleFactor2x`, `scaleFactor4x` | No | scaleFactor1x | scaleFactor1x, scaleFactor2x or scaleFactor4x controls map element size. |
+| `sessionOptions.styles` | array of object; 1–100 items | No | Google default styling | Native Google map-style JSON objects. Valid only for roadmap. See <https://developers.google.com/maps/documentation/tile/style-reference> . |
+| `south` / `--south` | number; -90.0–90.0 | No | Not supplied; required for the operations described | Required viewport southern latitude in WGS84 degrees. |
+| `west` / `--west` | number; -180.0–180.0 | No | Not supplied; required for the operations described | Required viewport western longitude. |
+| `width` / `--width` | integer; 16–600 | No | 600 | Thumbnail width, 16..600 pixels. |
+| `x` / `--x` | integer; 0–4194303 | No | Not supplied; required for the operations described | Tile column for tile_2d or streetview_tile. 2D requires x < 2^zoom; Street View bounds depend on panorama dimensions in metadata. |
+| `y` / `--y` | integer; 0–4194303 | No | Not supplied; required for the operations described | Tile row for tile_2d or streetview_tile. 2D requires y < 2^zoom; Street View bounds depend on panorama dimensions in metadata. |
+| `yaw` / `--yaw` | number; -360.0–360.0 | No | 0 | Thumbnail horizontal camera direction, -360..360 degrees. |
+| `zoom` / `--zoom` | integer; 0–22 | No | Not supplied; required for the operations described | Integer zoom: 0..22 for tile_2d/viewport; 0..5 for streetview_tile. Availability varies; use viewport metadata for the maximum available zoom. |
+
+### Behavior and restrictions
+
+- Operation contracts: create_session needs sessionOptions; tile_2d needs session/zoom/x/y; viewport needs session/zoom/north/south/east/west; root_3d takes no other fields; resource_3d needs resourceUrl; streetview_pano_ids needs session/locations; streetview_metadata needs session plus panoId OR latitude+longitude; streetview_thumbnail needs session/panoId; streetview_tile needs session/panoId/zoom/x/y. Unused operation fields are rejected.
+- create_session obtains a Google session and is not retried automatically. Panorama lookups are read-only POST requests. A downstream viewer must implement stitching/3D rendering; this tool does not include a web or native renderer.
+- Map Tiles policy prohibits unauthorized prefetching, indexing, storage and caching; respect Cache-Control, ETag and your agreement. Use only for map visualization. See <https://developers.google.com/maps/documentation/tile/policies> . Do not submit imagery to agents for image interpretation or geodata extraction.
+- Display the Google Maps logo and provider attribution. Use viewport copyright for 2D maps, and streetview_metadata copyright plus its Report a problem link for Street View. A 3D renderer must display tile copyright attribution. Do not crop or hide credits.
+- Coverage, EEA terms/functionality, billing and quotas vary. Native session expiry is authoritative. Panorama IDs are short-lived. No tile cache, bulk area download, offline map or image-analysis operation is implemented.
+- Primary contracts: <https://developers.google.com/maps/documentation/tile/session_tokens> ; <https://developers.google.com/maps/documentation/tile/2d-tiles-overview> ; <https://developers.google.com/maps/documentation/tile/streetview> ; <https://developers.google.com/maps/documentation/tile/3d-tiles> .
+
+### Result
+
+Native Google JSON for sessions, viewport, panorama lookup/metadata, 3D root and child JSON tilesets; attribution, copyrights, reportProblemLink and session expiry are preserved. Tiles, thumbnails and non-JSON 3D resources return binary content with MIME type plus cache-control/ETag metadata. MCP inlines supported images; other resources use base64 JSON. CLI --output writes the original bytes.
+
+### Example
+
+MCP arguments:
+
+```json
+{
+  "operation": "root_3d"
+}
+```
+
+Equivalent CLI call:
+
+```sh
+mcp-gmap-rs call maps_map_tiles --args '{"operation":"root_3d"}'
+```
+
+## maps_streetview
+
+Get Street View Static metadata or a JPEG image by location or panorama ID. Preserve the Google attribution embedded in imagery and obey Street View usage policies.
+
+Inspect Street View panorama metadata or retrieve a static JPEG image at a location or panorama ID. Metadata can establish imagery availability before a billed image request.
+
+**CLI command:** `streetview`. **Google access:** API key required for Street View Static in this implementation; OAuth-only credentials cannot call it. Enable Street View Static API. Google recommends a digital signature, required in some account configurations.
+
+### Parameters
+
+| Parameter / CLI flag | Type and schema limits | Required | Default when omitted | Description |
+| --- | --- | --- | --- | --- |
+| `fov` / `--fov` | number; 1.0–120.0 | No | 90 | Image horizontal field of view, 1..120 degrees. |
+| `heading` / `--heading` | number; 0.0–360.0 | No | Google points toward the supplied location | Image camera compass heading in degrees, 0..360. |
+| `height` / `--height` | integer; 1–640 | No | 400 | Image height in pixels, 1..640. Used only by image. |
+| `location` / `--location` | string; at least 1 character(s) | No | Not supplied; required for the operations described | Address, latitude/longitude string (for example 48.8584,2.2945), or place_id:PLACE_ID. Exactly one of location and panoId is required. |
+| `operation` / `--operation` | string; values: `metadata`, `image` | Yes | — | metadata or image. Metadata returns JSON; image returns JPEG bytes. |
+| `panoId` / `--pano-id` | string; at least 1 character(s) | No | Not supplied; required for the operations described | Specific panorama ID; mutually exclusive with location. Panorama IDs can change, so retain the original search location to refresh them. |
+| `pitch` / `--pitch` | number; -90.0–90.0 | No | 0 | Image vertical camera angle, -90..90 degrees. |
+| `radius` / `--radius` | integer; 0–100000 | No | 50 | Search radius in meters. This implementation accepts integer 0..100000. |
+| `returnErrorCode` / `--return-error-code` | boolean | No | true in this implementation | For image, return an HTTP error instead of the gray no-imagery placeholder. |
+| `signature` / `--signature` | string; at least 1 character(s) | No | Not supplied | Optional URL signature for the exact encoded request. Google recommends signing and requires it for some accounts. This tool forwards a supplied signature; it does not generate one. For signed requests the executable appends signature last, after the API key. Sign the exact encoded unsigned path/query including generated defaults. Image order: location, radius, source, pano, size, heading, fov, pitch, return_error_code, key (omitted optional fields are skipped); metadata omits image fields. Spaces encode as +. Defaults are size=640x400 and return_error_code=true. |
+| `source` / `--source` | string; values: `default`, `google`, `outdoor` | No | default | Search source: default, google or outdoor. Availability depends on the collection and region. |
+| `width` / `--width` | integer; 1–640 | No | 640 | Image width in pixels, 1..640. Used only by image. Larger images requiring special Google access are outside this implementation. |
+
+### Behavior and restrictions
+
+- Exactly one of location and panoId is required. Width, height, heading, fov, pitch and returnErrorCode are used only by image. Unused operation arguments are rejected.
+- Metadata requests are currently free of charge and do not consume Street View image quota; image requests are billed. See <https://developers.google.com/maps/documentation/streetview/metadata> .
+- Keep the embedded Google Maps attribution intact. Street View imagery may not be used for print, and Maps storage/caching restrictions apply. This tool does not grant a license to retain, redistribute or analyze imagery. See <https://developers.google.com/maps/documentation/streetview/policies> and <https://about.google/brand-resource-center/products-and-services/geo-guidelines/> .
+- Native image requests and optional signatures follow <https://developers.google.com/maps/documentation/streetview/request-streetview> . Signing is forwarded only; premium-sized imagery and URL-signing-key configuration are not implemented.
+- Coverage and EEA terms vary by project and location. Panorama IDs and capture dates can change or be unavailable.
+
+### Result
+
+Native panorama metadata JSON, including status, date, location, pano_id and copyright when available; or JPEG bytes with MIME type and safe HTTP cache metadata. A missing image is an error by default. CLI --output saves bytes; MCP exposes an image plus metadata.
+
+### Example
+
+MCP arguments:
+
+```json
+{
+  "operation": "metadata",
+  "location": "Eiffel Tower, Paris, France"
+}
+```
+
+Equivalent CLI call:
+
+```sh
+mcp-gmap-rs call maps_streetview --args '{"operation":"metadata","location":"Eiffel Tower, Paris, France"}'
+```
+
+## maps_streetview_publish
+
+Manage the authenticated user's Street View photos and photo sequences, including bounded byte upload and publishing. Requires end-user OAuth consent with streetviewpublish scope; API keys and service accounts alone cannot authorize this tool. Create/update/delete operations change public imagery.
+
+Manage photos and photo sequences belonging to the consenting Google user. Supports the complete documented v1 REST method set plus bounded photo-byte upload. Publishing and deletion are explicit caller-controlled operations and are never retried automatically.
+
+**CLI command:** `streetview-publish`. **Google access:** End-user OAuth only, with <https://www.googleapis.com/auth/streetviewpublish> scope granted by the user. Use explicit authorized_user credentials in GOOGLE_APPLICATION_CREDENTIALS and OAuth mode; a service-account key, implicit ADC or API key alone is rejected for this tool. Configure the OAuth client consent flow separately; this executable refreshes authorized-user credentials but does not host a browser consent callback.
+
+### Parameters
+
+| Parameter / CLI flag | Type and schema limits | Required | Default when omitted | Description |
+| --- | --- | --- | --- | --- |
+| `dataBase64` / `--data-base64` | string; at least 4 character(s) | No | Not supplied; required for the operations described | Standard padded base64 of media bytes for upload. Decoded size must be 1 byte to 8 MiB. This is an implementation bound, not Google’s product limit. |
+| `filter` / `--filter` | string; at least 1 character(s) | No | Not supplied; required for the operations described | Native Google filter expression for list, list_sequences or get_sequence; endpoint-specific grammar applies. See the official method reference. |
+| `inputType` / `--input-type` | string; values: `VIDEO`, `XDM` | No | Not supplied; required for the operations described | Required for create_sequence: VIDEO or XDM. |
+| `languageCode` / `--language-code` | string; at least 1 character(s) | No | Google default | Preferred language tag for list, get or batch_get photo metadata. |
+| `mimeType` / `--mime-type` | string; values: `image/jpeg`, `application/octet-stream`, `video/mp4` | No | image/jpeg | Media Content-Type for upload: image/jpeg, video/mp4 or application/octet-stream. |
+| `operation` / `--operation` | string; values: `list`, `get`, `start_upload`, `upload`, `create`, `update`, `delete`, `batch_get`, `batch_update`, `batch_delete`, `list_sequences`, `get_sequence`, `start_sequence_upload`, `create_sequence`, `delete_sequence` | Yes | — | list, get, start_upload, upload, create, update, delete, batch_get, batch_update, batch_delete, list_sequences, get_sequence, start_sequence_upload, create_sequence or delete_sequence. |
+| `pageSize` / `--page-size` | integer; 1–100 | No | Google service default | Requested page size, 1..100, for list or list_sequences. Google may return fewer items. |
+| `pageToken` / `--page-token` | string; at least 1 character(s) | No | Not supplied; required for the operations described | Opaque nextPageToken from a previous list or list_sequences response. Pagination is explicit; the tool does not fetch every page. |
+| `photo` / `--photo` | object | No | Not supplied; required for the operations described | Native Google Photo JSON for create/update. create requires uploadReference.uploadUrl from start_upload after successful byte upload; update requires photoId separately and updateMask. Photo schema: <https://developers.google.com/streetview/publish/reference/rest/v1/photo> . |
+| `photoId` / `--photo-id` | string; at least 1 character(s) | No | Not supplied; required for the operations described | Google photo ID for get, update or delete. Pass the ID only, without resource paths or URL parameters. |
+| `photoIds` / `--photo-ids` | array of string; 1–100 items; each item at least 1 character(s) | No | Not supplied; required for the operations described | One to 100 photo IDs for batch_get or batch_delete. |
+| `photoSequence` / `--photo-sequence` | object | No | Not supplied; required for the operations described | Native Google PhotoSequence JSON for create_sequence. Requires uploadReference.uploadUrl; include required GPS/CAMM/IMU and capture metadata for the media format. Schema: <https://developers.google.com/streetview/publish/reference/rest/v1/photoSequence/create> . |
+| `sequenceId` / `--sequence-id` | string; at least 1 character(s) | No | Not supplied; required for the operations described | Google sequence ID for get_sequence or delete_sequence. The create operation name carries the sequence ID. |
+| `updateMask` / `--update-mask` | string; at least 1 character(s) | No | Not supplied; required for the operations described | Required comma-separated native Google FieldMask for update, for example pose.heading or pose.latLngPair. |
+| `updatePhotoRequests` / `--update-photo-requests` | array of object; 1–100 items | No | Not supplied; required for the operations described | One to 100 native UpdatePhotoRequest objects for batch_update. Each needs photo.photoId.id and updateMask. Schema: <https://developers.google.com/streetview/publish/reference/rest/v1/photos/batchUpdate> . |
+| `uploadUrl` / `--upload-url` | string; at least 1 character(s) | No | Not supplied; required for the operations described | Exact HTTPS UploadRef URL returned by start_upload or start_sequence_upload. Only streetviewpublish.googleapis.com/media/user/{account}/photo/{reference} (or photoSequence) is accepted; no redirects, custom origins, userinfo, fragments or encoded path segments. |
+| `view` / `--view` | string; values: `BASIC`, `INCLUDE_DOWNLOAD_URL` | No | BASIC | BASIC or INCLUDE_DOWNLOAD_URL for list, get, batch_get or get_sequence. Download URLs are sensitive user-resource URLs; this tool does not fetch them. |
+
+### Behavior and restrictions
+
+- Photo lifecycle: start_upload -> upload the returned URL with dataBase64 -> create with photo.uploadReference.uploadUrl and required metadata. Uploading bytes alone does not publish a photo. Images must satisfy Google’s 360-degree Photo Sphere/XMP and publishing acceptance criteria: <https://developers.google.com/streetview/publish/first-app> .
+- Photo updates use PUT and updateMask; updating photo pixels is unsupported by Google. delete and batch_delete remove the user’s published photos. No write, publish, upload or delete is part of doctor or live smoke checks.
+- Sequence lifecycle: start_sequence_upload -> upload -> create_sequence(inputType, photoSequence) -> get_sequence. Actual large video uploads commonly exceed this CLI/MCP 8 MiB limit; resumable/chunked uploads are not implemented. Use Google’s upload flow externally when larger media is necessary, then pass its UploadRef to create_sequence. Metadata/list/get/delete sequence endpoints remain available.
+- Native objects use Google’s official schemas rather than duplicating complex GPS, pose, IMU, connections and place fields. Unknown top-level tool arguments are rejected; endpoint-specific nested semantics are validated by Google. Every batch_update entry must include photo.photoId.id and updateMask.
+- All documented v1 REST endpoints are implemented: photo create/delete/get/startUpload/update; photos list/batchGet/batchUpdate/batchDelete; photoSequence create/delete/get/startUpload; photoSequences list. Reference: <https://developers.google.com/streetview/publish/reference/rest> . This does not mean every accepted native nested field was tested live.
+- Upload requests are fixed-origin, bounded, non-retrying POSTs; all mutations disable automatic retries because ambiguous network failures could otherwise duplicate public changes. Review operation results explicitly.
+- Google ownership, privacy, copyright, 360-imagery acceptance, processing and quota restrictions apply. End-user consent and ownership cannot be replaced by service-account IAM permissions. See <https://developers.google.com/streetview/publish/authorizing> .
+- Publish operations have not been live-tested with the supplied service-account credential: a real consenting user credential is required, and public mutations are deliberately excluded from smoke tests.
+
+### Result
+
+Unmodified native Google Photo, list/pagination, UploadRef, batch result, or long-running Operation JSON as appropriate; successful empty upload/delete responses become {}. Photos retain publication status and ownership metadata. Sequence operations can remain pending; call get_sequence to inspect progress. No automatic polling, mutation or publishing occurs.
+
+### Example
+
+MCP arguments:
+
+```json
+{
+  "operation": "list",
+  "pageSize": 10,
+  "view": "BASIC"
+}
+```
+
+Equivalent CLI call:
+
+```sh
+mcp-gmap-rs call maps_streetview_publish --args '{"operation":"list","pageSize":10,"view":"BASIC"}'
+```
+
+## maps_datasets
+
+Manage Maps Platform datasets using OAuth/IAM: list, get/status, create, update, delete, import from GCS, download, or fetch errors. Writes change cloud resources; import is asynchronous. No version-list endpoint exists in v1.
+
+Manage geospatial datasets for Google Maps data-driven styling, including asynchronous imports from an existing Cloud Storage object.
+
+**CLI command:** `datasets`. **Google access:** OAuth 2.0 only, using a service account or ADC and <https://www.googleapis.com/auth/cloud-platform>. API keys are not accepted. Configure the resource project and quota-project permissions separately.
+
+### Parameters
+
+| Parameter / CLI flag | Type and schema limits | Required | Default when omitted | Description |
+| --- | --- | --- | --- | --- |
+| `dataset` / `--dataset` | object | No | Required for create/update | Native Dataset JSON for create/update; Google validates the official schema. Create requires a unique displayName and usage:["USAGE_DATA_DRIVEN_STYLING"]. Update forwards metadata and injects the matching resource name. |
+| `gcsSource` / `--gcs-source` | object | No | Required for import | Cloud Storage source for import; the caller must already have access to the object. No local files are read by this tool. |
+| `gcsSource.fileFormat` | string; values: `FILE_FORMAT_GEOJSON`, `FILE_FORMAT_KML`, `FILE_FORMAT_CSV` | When parent is supplied | Required when gcsSource is supplied | Source encoding: FILE_FORMAT_GEOJSON, FILE_FORMAT_KML or FILE_FORMAT_CSV. |
+| `gcsSource.inputUri` | string; at least 1 character(s) | When parent is supplied | Required when gcsSource is supplied | Existing gs://bucket/object URI. The caller needs storage.objects.get, for example Storage Object Viewer. |
+| `name` / `--name` | string; pattern: `^projects/[A-Za-z0-9][A-Za-z0-9._:-]*/datasets/[A-Za-z0-9_-]+(@active)?$` | No | Required for resource operations | projects/{project}/datasets/{dataset}; required except list/create. Only get also accepts @active to inspect the latest completed version. |
+| `operation` / `--operation` | string; values: `list`, `get`, `create`, `update`, `delete`, `import`, `download`, `fetch_errors` | Yes | Required | Select list, get, create, update, delete, import, download or fetch_errors. Create/update/delete/import modify cloud resources. |
+| `pageSize` / `--page-size` | integer; 1–500 | No | list: 100; fetch_errors: Google default 50 | Maximum datasets/errors to return in one page; wrapper accepts 1–500. |
+| `pageToken` / `--page-token` | string; at least 1 character(s) | No | First page | Token from the preceding list/fetch_errors result. Keep other request arguments unchanged. |
+| `parent` / `--parent` | string; pattern: `^projects/[A-Za-z0-9][A-Za-z0-9._:-]*$` | No | Required for list/create | projects/{project ID or number}; required for list and create. |
+| `tag` / `--tag` | string; values: `active` | No | Latest version regardless of processing state | For list, active returns each dataset’s latest completed version and skips datasets with none. |
+| `updateMask` / `--update-mask` | string; at least 1 character(s) | No | Google defaults to * (full metadata replacement) | Comma-separated native metadata field paths for update, for example description,displayName. |
+| `versionDescription` / `--version-description` | string; at least 1 character(s) | No | Omitted | Description for the new imported data version. Used only by import. |
+
+### Behavior and restrictions
+
+- [Official REST resource and native Dataset schema](https://developers.google.com/maps/documentation/datasets/reference/rest/v1/projects.datasets). Permissions include mapsplatformdatasets.datasets.list/get/create/update/delete/import/export, according to the operation.
+- [GCS import](https://developers.google.com/maps/documentation/datasets/create) creates a new version asynchronously. Call get explicitly to inspect status; fetch_errors retrieves processing errors. The tool never polls automatically.
+- Google’s current public v1 REST API does not document listVersions. Use get (latest), get with @active, and returned versionId; complete version history enumeration is not claimed.
+- [Download media](https://developers.google.com/maps/documentation/datasets/reference/rest/v1/media/download) requires mapsplatformdatasets.datasets.export. CLI --output writes downloaded bytes.
+- [Maps Datasets API has no usage charge](https://developers.google.com/maps/documentation/datasets/overview), but requires a configured Cloud project; Google Maps display and Cloud Storage may have their own charges and terms. Data-driven styling is the supported usage. Local multipart upload is not exposed; use an existing GCS object.
+
+### Result
+
+Native Dataset/list/error JSON, import version resource name, or downloaded source bytes with MIME type and cache headers. get preserves status.state, status.errorMessage and versionId; importing does not mean processing has completed.
+
+### Example
+
+MCP arguments:
+
+```json
+{
+  "operation": "list",
+  "parent": "projects/my-project",
+  "pageSize": 20
+}
+```
+
+Equivalent CLI call:
+
+```sh
+mcp-gmap-rs call maps_datasets --args '{"operation":"list","parent":"projects/my-project","pageSize":20}'
+```
+
+## maps_route_optimization
+
+Optimize or validate a native ShipmentModel with the Route Optimization API (OAuth/IAM). Explicit batch/long-running/URI operations create billable jobs; get_operation polls once. Long-running/URI variants are experimental; cancellation is unsupported by Google.
+
+Optimize delivery or service fleets with the actual Route Optimization API and an intact native ShipmentModel, including capacities, time windows and cost constraints.
+
+**CLI command:** `route-optimization`. **Google access:** OAuth 2.0 only, using a service account or ADC and <https://www.googleapis.com/auth/cloud-platform>. API keys are not accepted. Configure the resource project and quota-project permissions separately.
+
+### Parameters
+
+| Parameter / CLI flag | Type and schema limits | Required | Default when omitted | Description |
+| --- | --- | --- | --- | --- |
+| `name` / `--name` | string; pattern: `^projects/[A-Za-z0-9][A-Za-z0-9._:-]*(/locations/[A-Za-z0-9_-]+)?/operations/[A-Za-z0-9_-]+$` | No | Required for get_operation | Exact projects/{project}[/locations/{location}]/operations/{ID} returned by Google. Used only for get_operation. |
+| `operation` / `--operation` | string; values: `optimize`, `validate`, `batch`, `optimize_long_running`, `optimize_uri`, `get_operation` | Yes | Required | optimize solves synchronously; validate sets solvingMode=VALIDATE_ONLY; batch creates a GCS-backed job; optimize_long_running and optimize_uri create experimental jobs; get_operation reads one status. |
+| `parent` / `--parent` | string; pattern: `^projects/[A-Za-z0-9][A-Za-z0-9._:-]*(/locations/[A-Za-z0-9_-]+)?$` | No | Required except get_operation | projects/{project ID}; optionally /locations/-. Synchronous and long-running optimization reject regional location IDs. Batch/URI accept the native location form. |
+| `request` / `--request` | object | No | Required except get_operation | Complete native request object, without parent. For optimize/validate/optimize_long_running supply model with shipments/vehicles and all needed native constraints; Google validates the full schema. Batch requires 1–100 modelConfigs with inputConfig.gcsSource.uri, outputConfig.gcsDestination.uri and JSON or PROTO_TEXT dataFormat. URI requires input.uri/output.uri as gs:// paths ending .json or .txtpb. |
+
+### Behavior and restrictions
+
+- [Native optimizeTours request/ShipmentModel reference](https://developers.google.com/maps/documentation/route-optimization/reference/rest/v1/projects/optimizeTours). validate still calls Google; it does not solve the fleet model.
+- [IAM setup](https://developers.google.com/maps/documentation/route-optimization/cloud-setup): roles/routeoptimization.viewer permits OptimizeTours and reading operations; roles/routeoptimization.editor also permits batch jobs. Permissions include routeoptimization.locations.use, routeoptimization.operations.create/get. The API must be enabled on the project.
+- [Batch jobs](https://developers.google.com/maps/documentation/route-optimization/reference/rest/v1/projects/batchOptimizeTours) read inputs and write outputs in Cloud Storage. Supply explicit object URIs and storage permissions; jobs can continue after the CLI/MCP request ends. No files are uploaded and no automatic polling occurs.
+- [Long-running and URI variants are experimental](https://github.com/googleapis/googleapis/blob/master/google/maps/routeoptimization/v1/route_optimization_service.proto); URI uses the documented case-sensitive :OptimizeToursUri endpoint. Google may change pre-GA behavior.
+- [Operation cancel, delete and list are currently unsupported by Google](https://developers.google.com/maps/documentation/route-optimization/reference/rest/v1/operations). This tool therefore exposes get_operation only; no cancellation guarantee is made.
+- [Billing](https://developers.google.com/maps/documentation/route-optimization/usage-and-billing) depends on shipments and the Single Vehicle Routing or Fleet Routing SKU. This is separate from Routes API waypoint optimization. Transport timeouts do not cancel jobs.
+
+### Result
+
+Native OptimizeToursResponse or long-running Operation JSON. Polling preserves done:false, metadata, and completed response/error objects without hiding failed-operation status.
+
+### Example
+
+MCP arguments:
+
+```json
+{
+  "operation": "validate",
+  "parent": "projects/my-project",
+  "request": {
+    "model": {
+      "shipments": [],
+      "vehicles": [
+        {
+          "startLocation": {
+            "latitude": 48.85,
+            "longitude": 2.35
+          }
+        }
+      ]
+    },
+    "maxValidationErrors": 10
+  }
+}
+```
+
+Equivalent CLI call:
+
+```sh
+mcp-gmap-rs call maps_route_optimization --args '{"operation":"validate","parent":"projects/my-project","request":{"model":{"shipments":[],"vehicles":[{"startLocation":{"latitude":48.85,"longitude":2.35}}]},"maxValidationErrors":10}}'
+```
+
+## maps_air_quality_forecast
+
+Get one explicit page of hourly air quality forecasts, up to 96 hours ahead, with optional pollutants and health recommendations. Choose dateTime or period.
+
+Retrieve hourly air quality forecasts for an explicit time or interval, up to 96 hours ahead.
+
+**CLI command:** `air-quality-forecast`. **Google access:** API key or OAuth 2.0 bearer token with cloud-platform scope; enable the named API and billing. With OAuth, the quota-project principal needs serviceusage.services.use.
+
+### Parameters
+
+| Parameter / CLI flag | Type and schema limits | Required | Default when omitted | Description |
+| --- | --- | --- | --- | --- |
+| `customLocalAqis` / `--custom-local-aqis` | array of object; 1–250 items | No | Google selects local indexes | Override the local index selected for particular ISO country/region codes. |
+| `customLocalAqis[].aqi` | string; at least 1 character(s) | When parent is supplied | Required for each override | Supported local AQI code, for example us_epa. Google validates supported combinations. |
+| `customLocalAqis[].regionCode` | string; pattern: `^[A-Za-z]{2}$` | When parent is supplied | Required for each override | Two-letter country/region code receiving the AQI override. |
+| `dateTime` / `--date-time` | string; at least 20 character(s) | No | Choose a time selector | Single RFC3339 UTC Z timestamp; Google rounds it down to the preceding hour. Mutually exclusive with period and hours. |
+| `extraComputations` / `--extra-computations` | array of string; 1–5 items; values: `LOCAL_AQI`, `HEALTH_RECOMMENDATIONS`, `POLLUTANT_ADDITIONAL_INFO`, `DOMINANT_POLLUTANT_CONCENTRATION`, `POLLUTANT_CONCENTRATION` | No | No extra computations | Request LOCAL_AQI, HEALTH_RECOMMENDATIONS, POLLUTANT_ADDITIONAL_INFO, DOMINANT_POLLUTANT_CONCENTRATION and/or POLLUTANT_CONCENTRATION. |
+| `languageCode` / `--language-code` | string; at least 1 character(s) | No | Google: en | IETF language code for available localized text; Google chooses the closest supported language. |
+| `location` / `--location` | object | Yes | Required | Location whose conditions are requested. |
+| `location.latitude` | number; -90.0–90.0 | When parent is supplied | Required when location is supplied | Latitude in degrees, -90 through 90. |
+| `location.longitude` | number; -180.0–180.0 | When parent is supplied | Required when location is supplied | Longitude in degrees, -180 through 180. |
+| `pageSize` / `--page-size` | integer; 1–96 | No | Google: forecast 24; history 72 | Maximum hourly records in this page; wrapper caps forecast at 96 and history at Google’s maximum of 168. |
+| `pageToken` / `--page-token` | string; at least 1 character(s) | No | First page | nextPageToken from a preceding request; keep other request fields unchanged. |
+| `period` / `--period` | object | No | Choose a time selector | Inclusive hourly time interval; ordered and bounded to 96 forecast hours or 720 historical hours. Mutually exclusive with dateTime and hours. |
+| `period.endTime` | string; at least 20 character(s) | When parent is supplied | Required when period is supplied | Inclusive interval end in valid RFC3339 UTC notation ending Z. |
+| `period.startTime` | string; at least 20 character(s) | When parent is supplied | Required when period is supplied | Interval start in valid RFC3339 UTC notation ending Z. |
+| `uaqiColorPalette` / `--uaqi-color-palette` | string; values: `RED_GREEN`, `INDIGO_PERSIAN_DARK`, `INDIGO_PERSIAN_LIGHT` | No | Google default palette | Universal AQI palette: RED_GREEN, INDIGO_PERSIAN_DARK or INDIGO_PERSIAN_LIGHT. Local index palettes remain fixed. |
+| `universalAqi` / `--universal-aqi` | boolean | No | Google: true | Include the Universal Air Quality Index. |
+
+### Behavior and restrictions
+
+- [Forecast request reference](https://developers.google.com/maps/documentation/air-quality/reference/rest/v1/forecast/lookup). Choose dateTime or period.
+- Exactly one time selector is required. Timestamp syntax and interval order/maximum span are validated locally; Google validates current availability and geographic coverage.
+- One page is returned per call. Follow nextPageToken explicitly; all native indexes, concentrations, recommendations and region metadata are preserved.
+- [Air Quality policies](https://developers.google.com/maps/documentation/air-quality/policies) apply, including attribution, display and caching requirements. Coverage and local index availability vary by country.
+
+### Result
+
+Google’s native hourlyForecasts, regionCode and nextPageToken, including optional pollutant and health fields.
+
+### Example
+
+MCP arguments:
+
+```json
+{
+  "location": {
+    "latitude": 48.85,
+    "longitude": 2.35
+  },
+  "dateTime": "2026-11-01T12:00:00Z",
+  "pageSize": 24
+}
+```
+
+Equivalent CLI call:
+
+```sh
+mcp-gmap-rs call maps_air_quality_forecast --args '{"location":{"latitude":48.85,"longitude":2.35},"dateTime":"2026-11-01T12:00:00Z","pageSize":24}'
+```
+
+## maps_air_quality_history
+
+Get one explicit page of air quality history for the previous 30 days. Choose exactly one of dateTime, period or hours.
+
+Retrieve historical air quality information from the previous 30 days.
+
+**CLI command:** `air-quality-history`. **Google access:** API key or OAuth 2.0 bearer token with cloud-platform scope; enable the named API and billing. With OAuth, the quota-project principal needs serviceusage.services.use.
+
+### Parameters
+
+| Parameter / CLI flag | Type and schema limits | Required | Default when omitted | Description |
+| --- | --- | --- | --- | --- |
+| `customLocalAqis` / `--custom-local-aqis` | array of object; 1–250 items | No | Google selects local indexes | Override the local index selected for particular ISO country/region codes. |
+| `customLocalAqis[].aqi` | string; at least 1 character(s) | When parent is supplied | Required for each override | Supported local AQI code, for example us_epa. Google validates supported combinations. |
+| `customLocalAqis[].regionCode` | string; pattern: `^[A-Za-z]{2}$` | When parent is supplied | Required for each override | Two-letter country/region code receiving the AQI override. |
+| `dateTime` / `--date-time` | string; at least 20 character(s) | No | Choose a time selector | Single RFC3339 UTC Z timestamp; Google rounds it down to the preceding hour. Mutually exclusive with period and hours. |
+| `extraComputations` / `--extra-computations` | array of string; 1–5 items; values: `LOCAL_AQI`, `HEALTH_RECOMMENDATIONS`, `POLLUTANT_ADDITIONAL_INFO`, `DOMINANT_POLLUTANT_CONCENTRATION`, `POLLUTANT_CONCENTRATION` | No | No extra computations | Request LOCAL_AQI, HEALTH_RECOMMENDATIONS, POLLUTANT_ADDITIONAL_INFO, DOMINANT_POLLUTANT_CONCENTRATION and/or POLLUTANT_CONCENTRATION. |
+| `hours` / `--hours` | integer; 1–720 | No | Choose exactly one of hours/dateTime/period | Number of previous hours to retrieve, 1–720 (30 days). Mutually exclusive with dateTime and period. |
+| `languageCode` / `--language-code` | string; at least 1 character(s) | No | Google: en | IETF language code for available localized text; Google chooses the closest supported language. |
+| `location` / `--location` | object | Yes | Required | Location whose conditions are requested. |
+| `location.latitude` | number; -90.0–90.0 | When parent is supplied | Required when location is supplied | Latitude in degrees, -90 through 90. |
+| `location.longitude` | number; -180.0–180.0 | When parent is supplied | Required when location is supplied | Longitude in degrees, -180 through 180. |
+| `pageSize` / `--page-size` | integer; 1–168 | No | Google: forecast 24; history 72 | Maximum hourly records in this page; wrapper caps forecast at 96 and history at Google’s maximum of 168. |
+| `pageToken` / `--page-token` | string; at least 1 character(s) | No | First page | nextPageToken from a preceding request; keep other request fields unchanged. |
+| `period` / `--period` | object | No | Choose a time selector | Inclusive hourly time interval; ordered and bounded to 96 forecast hours or 720 historical hours. Mutually exclusive with dateTime and hours. |
+| `period.endTime` | string; at least 20 character(s) | When parent is supplied | Required when period is supplied | Inclusive interval end in valid RFC3339 UTC notation ending Z. |
+| `period.startTime` | string; at least 20 character(s) | When parent is supplied | Required when period is supplied | Interval start in valid RFC3339 UTC notation ending Z. |
+| `uaqiColorPalette` / `--uaqi-color-palette` | string; values: `RED_GREEN`, `INDIGO_PERSIAN_DARK`, `INDIGO_PERSIAN_LIGHT` | No | Google default palette | Universal AQI palette: RED_GREEN, INDIGO_PERSIAN_DARK or INDIGO_PERSIAN_LIGHT. Local index palettes remain fixed. |
+| `universalAqi` / `--universal-aqi` | boolean | No | Google: true | Include the Universal Air Quality Index. |
+
+### Behavior and restrictions
+
+- [History request reference](https://developers.google.com/maps/documentation/air-quality/reference/rest/v1/history/lookup).
+- Exactly one time selector is required. Timestamp syntax and interval order/maximum span are validated locally; Google validates current availability and geographic coverage.
+- One page is returned per call. Follow nextPageToken explicitly; all native indexes, concentrations, recommendations and region metadata are preserved.
+- [Air Quality policies](https://developers.google.com/maps/documentation/air-quality/policies) apply, including attribution, display and caching requirements. Coverage and local index availability vary by country.
+
+### Result
+
+Google’s native hoursInfo, regionCode and nextPageToken, including optional pollutant and health fields.
+
+### Example
+
+MCP arguments:
+
+```json
+{
+  "location": {
+    "latitude": 48.85,
+    "longitude": 2.35
+  },
+  "hours": 24,
+  "pageSize": 12
+}
+```
+
+Equivalent CLI call:
+
+```sh
+mcp-gmap-rs call maps_air_quality_history --args '{"location":{"latitude":48.85,"longitude":2.35},"hours":24,"pageSize":12}'
+```
+
+## maps_air_quality_heatmap
+
+Download a real 256-pixel air quality heatmap PNG tile. Preserve Google attribution and caching restrictions when displaying it.
+
+Download a real air quality heatmap image tile for an index or pollutant.
+
+**CLI command:** `air-quality-heatmap`. **Google access:** API key or OAuth 2.0 bearer token with cloud-platform scope; enable the named API and billing. With OAuth, the quota-project principal needs serviceusage.services.use.
+
+### Parameters
+
+| Parameter / CLI flag | Type and schema limits | Required | Default when omitted | Description |
+| --- | --- | --- | --- | --- |
+| `mapType` / `--map-type` | string; values: `UAQI_RED_GREEN`, `UAQI_INDIGO_PERSIAN`, `PM25_INDIGO_PERSIAN`, `GBR_DEFRA`, `DEU_UBA`, `CAN_EC`, `FRA_ATMO`, `US_AQI` | Yes | Required | UAQI_RED_GREEN, UAQI_INDIGO_PERSIAN, PM25_INDIGO_PERSIAN, GBR_DEFRA, DEU_UBA, CAN_EC, FRA_ATMO or US_AQI. |
+| `x` / `--x` | integer; 0–65535 | Yes | Required | Tile column; 0 through 2^zoom−1. Bounds are checked before contacting Google. |
+| `y` / `--y` | integer; 0–65535 | Yes | Required | Tile row; 0 through 2^zoom−1. Bounds are checked before contacting Google. |
+| `zoom` / `--zoom` | integer; 0–16 | Yes | Required | Web Mercator zoom, 0–16; level zero has one tile. |
+
+### Behavior and restrictions
+
+- [Heatmap tile reference](https://developers.google.com/maps/documentation/air-quality/reference/rest/v1/mapTypes.heatmapTiles/lookupHeatmapTile). Tile availability depends on index/country coverage.
+- [Air Quality policies](https://developers.google.com/maps/documentation/air-quality/policies) require the applicable attribution and restrict content storage/display. Preserve response cache headers; the wrapper does not grant a content license.
+
+### Result
+
+Binary tile bytes with Google’s MIME/cache headers; MCP returns an inline image, and CLI can write --output.
+
+### Example
+
+MCP arguments:
+
+```json
+{
+  "mapType": "UAQI_RED_GREEN",
+  "zoom": 2,
+  "x": 2,
+  "y": 1
+}
+```
+
+Equivalent CLI call:
+
+```sh
+mcp-gmap-rs call maps_air_quality_heatmap --args '{"mapType":"UAQI_RED_GREEN","zoom":2,"x":2,"y":1}'
+```
+
+## maps_pollen_heatmap
+
+Download a real pollen heatmap PNG tile (tree, grass or weed). Availability depends on supported countries, season and Google Maps content terms.
+
+Download a real tree, grass or weed pollen index heatmap tile.
+
+**CLI command:** `pollen-heatmap`. **Google access:** API key authentication. Enable Pollen API and billing; service-account OAuth is not supported for this API by this executable.
+
+### Parameters
+
+| Parameter / CLI flag | Type and schema limits | Required | Default when omitted | Description |
+| --- | --- | --- | --- | --- |
+| `mapType` / `--map-type` | string; values: `TREE_UPI`, `GRASS_UPI`, `WEED_UPI` | Yes | Required | TREE_UPI, GRASS_UPI or WEED_UPI. |
+| `x` / `--x` | integer; 0–65535 | Yes | Required | Tile column; 0 through 2^zoom−1. Bounds are checked before contacting Google. |
+| `y` / `--y` | integer; 0–65535 | Yes | Required | Tile row; 0 through 2^zoom−1. Bounds are checked before contacting Google. |
+| `zoom` / `--zoom` | integer; 0–16 | Yes | Required | Web Mercator zoom, 0–16; level zero has one tile. |
+
+### Behavior and restrictions
+
+- [Pollen heatmap reference](https://developers.google.com/maps/documentation/pollen/reference/rest/v1/mapTypes.heatmapTiles/lookupHeatmapTile). Availability varies by supported countries and season.
+- [Pollen policies](https://developers.google.com/maps/documentation/pollen/policies) govern attribution, Google Maps display and caching. Enabled API access does not remove content license restrictions.
+
+### Result
+
+Binary PNG tile with MIME/cache metadata; CLI --output saves it and MCP returns an image.
+
+### Example
+
+MCP arguments:
+
+```json
+{
+  "mapType": "TREE_UPI",
+  "zoom": 2,
+  "x": 2,
+  "y": 1
+}
+```
+
+Equivalent CLI call:
+
+```sh
+mcp-gmap-rs call maps_pollen_heatmap --args '{"mapType":"TREE_UPI","zoom":2,"x":2,"y":1}'
+```
+
+## maps_weather_history
+
+Get one explicit page of hourly weather history for the previous 24 hours.
+
+Retrieve up to 24 previous hours of weather history with explicit pagination.
+
+**CLI command:** `weather-history`. **Google access:** API key or OAuth 2.0 bearer token with cloud-platform scope; enable the named API and billing. With OAuth, the quota-project principal needs serviceusage.services.use.
+
+### Parameters
+
+| Parameter / CLI flag | Type and schema limits | Required | Default when omitted | Description |
+| --- | --- | --- | --- | --- |
+| `hours` / `--hours` | integer; 1–24 | No | Google: 24 | Number of previous hours starting from the last hour, 1–24. |
+| `languageCode` / `--language-code` | string; at least 1 character(s) | No | Google: en | IETF BCP-47 response language. |
+| `location` / `--location` | object | Yes | Required | Location whose conditions are requested. |
+| `location.latitude` | number; -90.0–90.0 | When parent is supplied | Required when location is supplied | Latitude in degrees, -90 through 90. |
+| `location.longitude` | number; -180.0–180.0 | When parent is supplied | Required when location is supplied | Longitude in degrees, -180 through 180. |
+| `pageSize` / `--page-size` | integer; 1–24 | No | History: Google 24; others: Google default | Maximum records in this page. History accepts 1–24; alerts/minute forecast use a wrapper limit of 1–1000. |
+| `pageToken` / `--page-token` | string; at least 1 character(s) | No | First page | Token from the previous response; keep the other arguments unchanged. |
+| `unitsSystem` / `--units-system` | string; values: `METRIC`, `IMPERIAL` | No | Google: METRIC | METRIC or IMPERIAL. |
+
+### Behavior and restrictions
+
+- [Hourly history reference](https://developers.google.com/maps/documentation/weather/reference/rest/v1/history.hours/lookup). This endpoint covers only the previous 24 hours, not arbitrary historical dates.
+- [Weather policies](https://developers.google.com/maps/documentation/weather/policies) and geographic coverage apply. No pages are fetched automatically.
+
+### Result
+
+Native historyHours, timeZone and nextPageToken with all hourly conditions.
+
+### Example
+
+MCP arguments:
+
+```json
+{
+  "location": {
+    "latitude": 48.85,
+    "longitude": 2.35
+  },
+  "hours": 12,
+  "pageSize": 6
+}
+```
+
+Equivalent CLI call:
+
+```sh
+mcp-gmap-rs call maps_weather_history --args '{"location":{"latitude":48.85,"longitude":2.35},"hours":12,"pageSize":6}'
+```
+
+## maps_weather_alerts
+
+Get one explicit page of public weather alerts whose affected area intersects a location. Preserve the issuing authority and alert attribution.
+
+Retrieve public weather alerts intersecting a location, including native severity and issuing-authority information.
+
+**CLI command:** `weather-alerts`. **Google access:** API key or OAuth 2.0 bearer token with cloud-platform scope; enable the named API and billing. With OAuth, the quota-project principal needs serviceusage.services.use.
+
+### Parameters
+
+| Parameter / CLI flag | Type and schema limits | Required | Default when omitted | Description |
+| --- | --- | --- | --- | --- |
+| `languageCode` / `--language-code` | string; at least 1 character(s) | No | Google: en | IETF BCP-47 response language where available. |
+| `location` / `--location` | object | Yes | Required | Location whose conditions are requested. |
+| `location.latitude` | number; -90.0–90.0 | When parent is supplied | Required when location is supplied | Latitude in degrees, -90 through 90. |
+| `location.longitude` | number; -180.0–180.0 | When parent is supplied | Required when location is supplied | Longitude in degrees, -180 through 180. |
+| `pageSize` / `--page-size` | integer; 1–1000 | No | History: Google 24; others: Google default | Maximum records in this page. History accepts 1–24; alerts/minute forecast use a wrapper limit of 1–1000. |
+| `pageToken` / `--page-token` | string; at least 1 character(s) | No | First page | Token from the previous response; keep the other arguments unchanged. |
+
+### Behavior and restrictions
+
+- [Public alerts reference](https://developers.google.com/maps/documentation/weather/reference/rest/v1/publicAlerts/lookup). Coverage, delivery latency and available alert fields depend on the issuing authority.
+- [Weather policies](https://developers.google.com/maps/documentation/weather/policies) apply. Preserve alert provider attribution and do not treat absence of returned alerts as a safety guarantee.
+
+### Result
+
+Google’s native weatherAlerts collection, authority/area details and nextPageToken when available.
+
+### Example
+
+MCP arguments:
+
+```json
+{
+  "location": {
+    "latitude": 48.85,
+    "longitude": 2.35
+  },
+  "pageSize": 5
+}
+```
+
+Equivalent CLI call:
+
+```sh
+mcp-gmap-rs call maps_weather_alerts --args '{"location":{"latitude":48.85,"longitude":2.35},"pageSize":5}'
+```
+
+## maps_weather_minute_forecast
+
+EXPERIMENTAL/pre-GA: get one page of minute precipitation forecasts over six hours. Google requires attribution, limits caching to one hour, and prohibits recreating a primary-purpose weather app/model.
+
+EXPERIMENTAL: retrieve high-resolution precipitation forecasts over a six-hour timeframe.
+
+**CLI command:** `weather-minute-forecast`. **Google access:** API key or OAuth 2.0 bearer token with cloud-platform scope; enable the named API and billing. With OAuth, the quota-project principal needs serviceusage.services.use.
+
+### Parameters
+
+| Parameter / CLI flag | Type and schema limits | Required | Default when omitted | Description |
+| --- | --- | --- | --- | --- |
+| `location` / `--location` | object | Yes | Required | Location whose conditions are requested. |
+| `location.latitude` | number; -90.0–90.0 | When parent is supplied | Required when location is supplied | Latitude in degrees, -90 through 90. |
+| `location.longitude` | number; -180.0–180.0 | When parent is supplied | Required when location is supplied | Longitude in degrees, -180 through 180. |
+| `pageSize` / `--page-size` | integer; 1–1000 | No | History: Google 24; others: Google default | Maximum records in this page. History accepts 1–24; alerts/minute forecast use a wrapper limit of 1–1000. |
+| `pageToken` / `--page-token` | string; at least 1 character(s) | No | First page | Token from the previous response; keep the other arguments unchanged. |
+| `unitsSystem` / `--units-system` | string; values: `METRIC`, `IMPERIAL` | No | Google: METRIC | METRIC or IMPERIAL units for precipitation amounts. |
+
+### Behavior and restrictions
+
+- Experimental/pre-GA: limited support and incompatible changes are possible. See the [minute forecast guide and additional terms](https://developers.google.com/maps/documentation/weather/minute-forecast) and [weather-map guide](https://developers.google.com/maps/documentation/weather/weather-map).
+- Google requires attribution and limits caching of minute forecasts/map tiles to one hour, after which the cached content must be deleted.
+- Google prohibits using this Weather content to recreate a Google service/product, including an app or model whose primary purpose is providing weather information. These upstream restrictions apply to downstream consumers too.
+- Minute forecasts and map tiles may not be synchronized. One explicit page per call; availability depends on location and upstream access.
+
+### Result
+
+Native overallPredictionTimeframe, timeZone, segments and nextPageToken; segments preserve type, probability, quantities and intensity.
+
+### Example
+
+MCP arguments:
+
+```json
+{
+  "location": {
+    "latitude": 37.60451,
+    "longitude": -80.59044
+  },
+  "pageSize": 5
+}
+```
+
+Equivalent CLI call:
+
+```sh
+mcp-gmap-rs call maps_weather_minute_forecast --args '{"location":{"latitude":37.60451,"longitude":-80.59044},"pageSize":5}'
+```
+
+## maps_weather_map
+
+EXPERIMENTAL/pre-GA: download a real US or EU precipitation map PNG tile. Limited geographical coverage, Google attribution and a one-hour cache maximum apply; primary-purpose weather apps/models are prohibited.
+
+EXPERIMENTAL: download a precipitation nowcast image tile for the United States or Europe.
+
+**CLI command:** `weather-map`. **Google access:** API key or OAuth 2.0 bearer token with cloud-platform scope; enable the named API and billing. With OAuth, the quota-project principal needs serviceusage.services.use.
+
+### Parameters
+
+| Parameter / CLI flag | Type and schema limits | Required | Default when omitted | Description |
+| --- | --- | --- | --- | --- |
+| `mapType` / `--map-type` | string; values: `US_PRECIPITATION_CURRENT`, `EU_PRECIPITATION_CURRENT` | Yes | Required | US_PRECIPITATION_CURRENT or EU_PRECIPITATION_CURRENT; geographically limited nowcast products. |
+| `x` / `--x` | integer; 0–65535 | Yes | Required | Tile column; 0 through 2^zoom−1. Bounds are checked before contacting Google. |
+| `y` / `--y` | integer; 0–65535 | Yes | Required | Tile row; 0 through 2^zoom−1. Bounds are checked before contacting Google. |
+| `zoom` / `--zoom` | integer; 0–16 | Yes | Required | Web Mercator zoom, 0–16; level zero has one tile. |
+
+### Behavior and restrictions
+
+- Experimental/pre-GA: limited support and incompatible changes are possible. See the [minute forecast guide and additional terms](https://developers.google.com/maps/documentation/weather/minute-forecast) and [weather-map guide](https://developers.google.com/maps/documentation/weather/weather-map).
+- Google requires attribution and limits caching of minute forecasts/map tiles to one hour, after which the cached content must be deleted.
+- Google prohibits using this Weather content to recreate a Google service/product, including an app or model whose primary purpose is providing weather information. These upstream restrictions apply to downstream consumers too.
+- US/EU coverage is limited to the regions shown in Google’s guide. Tile grid bounds do not imply that data exists for a location.
+
+### Result
+
+Binary PNG tile preserving upstream MIME/cache headers; CLI --output writes bytes and MCP renders an image.
+
+### Example
+
+MCP arguments:
+
+```json
+{
+  "mapType": "US_PRECIPITATION_CURRENT",
+  "zoom": 12,
+  "x": 1025,
+  "y": 1688
+}
+```
+
+Equivalent CLI call:
+
+```sh
+mcp-gmap-rs call maps_weather_map --args '{"mapType":"US_PRECIPITATION_CURRENT","zoom":12,"x":1025,"y":1688}'
 ```

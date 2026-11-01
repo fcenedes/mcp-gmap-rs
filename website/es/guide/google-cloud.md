@@ -61,3 +61,23 @@ mcp-gmap-rs geocode --address 'Paris, France'
 ## Pasos siguientes
 
 Para JSON de cuenta de servicio, ADC, suplantación local e identidad de GKE, siga [Autenticación](./authentication). Después, elija [CLI](./cli) o [MCP](./mcp). La [referencia de herramientas](../reference/tools) indica los requisitos de credenciales de cada herramienta.
+
+
+## Servicios adicionales y límites {#expanded-services}
+
+Solar y Map Tiles también admiten OAuth. Datasets y Route Optimization requieren OAuth y permisos IAM por operación. Street View Publish exige un archivo authorized_user explícito y consentimiento para el ámbito streetviewpublish.
+
+| Servicio | API | Autenticación |
+| --- | --- | --- |
+| Geolocation API | `geolocation.googleapis.com` | Clave API |
+| Solar API | `solar.googleapis.com` | Clave API / OAuth |
+| Aerial View API | `aerialview.googleapis.com` | Clave API |
+| Map Tiles API | `tile.googleapis.com` | Clave API / OAuth |
+| Street View Static API | `street-view-image-backend.googleapis.com` | Clave API |
+| Maps Platform Datasets API | `mapsplatformdatasets.googleapis.com` | OAuth / IAM |
+| Route Optimization API | `routeoptimization.googleapis.com` | OAuth / IAM |
+| Street View Publish API | `streetviewpublish.googleapis.com` | OAuth de usuario con consentimiento; se rechazan cuentas de servicio |
+
+Speed Limits requiere acceso restringido de Asset Tracking. Aerial View solo cubre direcciones de EE. UU. compatibles y prohíbe descargar o almacenar vídeos en caché. Map Tiles es para visualización: se prohíben el análisis automático y la extracción. Weather minute/map son experimentales, con caché máxima de una hora y restricciones adicionales. La referencia de cada herramienta detalla condiciones, atribución y límites.
+
+[Google: Speed Limits](https://developers.google.com/maps/documentation/roads/speed-limits), [Map Tiles](https://developers.google.com/maps/documentation/tile/policies), [Aerial View](https://developers.google.com/maps/documentation/aerial-view/policies), [Street View Publish](https://developers.google.com/streetview/publish/authorizing).

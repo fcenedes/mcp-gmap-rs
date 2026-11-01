@@ -138,3 +138,23 @@ cargo test --locked --test live live_oauth_ -- --ignored --test-threads=1
 | API キーの IP 拒否 | サーバー・クラスターの公開送信元 IP と制限を一致させます。 |
 | トークンのタイムアウト | Google のトークン・STS・IAM エンドポイントまたはメタデータサーバーへの接続を許可し、`GOOGLE_MAPS_TIMEOUT` を確認します。 |
 | この MCP サーバーの HTTP `401` | サーバーの `MCP_HTTP_TOKEN` を送ります。Google のサービスアカウントトークンは別の外向き接続を認証するものです。 |
+
+
+## 追加サービスと制限 {#expanded-services}
+
+Solar と Map Tiles も OAuth に対応します。Datasets と Route Optimization は OAuth と操作別の IAM 権限が必要です。Street View Publish は明示的な authorized_user 認証情報ファイルと streetviewpublish スコープへのユーザー同意が必要です。
+
+| サービス | API | 認証 |
+| --- | --- | --- |
+| Geolocation API | `geolocation.googleapis.com` | API キー |
+| Solar API | `solar.googleapis.com` | API キー / OAuth |
+| Aerial View API | `aerialview.googleapis.com` | API キー |
+| Map Tiles API | `tile.googleapis.com` | API キー / OAuth |
+| Street View Static API | `street-view-image-backend.googleapis.com` | API キー |
+| Maps Platform Datasets API | `mapsplatformdatasets.googleapis.com` | OAuth / IAM |
+| Route Optimization API | `routeoptimization.googleapis.com` | OAuth / IAM |
+| Street View Publish API | `streetviewpublish.googleapis.com` | 同意済みユーザー OAuth。サービス アカウントは不可 |
+
+Speed Limits は制限付きの Asset Tracking 利用資格が必要です。Aerial View は対応する米国の住所に限られ、動画のダウンロードやキャッシュは禁止です。Map Tiles は表示専用で、機械による分析やデータ抽出は禁止されています。Weather の分単位予報と地図は実験機能で、キャッシュは最大 1 時間、追加の利用制限があります。各ツールのリファレンスに利用条件、帰属表示、制限を記載しています。
+
+[Google: Speed Limits](https://developers.google.com/maps/documentation/roads/speed-limits), [Map Tiles](https://developers.google.com/maps/documentation/tile/policies), [Aerial View](https://developers.google.com/maps/documentation/aerial-view/policies), [Street View Publish](https://developers.google.com/streetview/publish/authorizing).

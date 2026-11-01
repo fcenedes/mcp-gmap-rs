@@ -1,6 +1,12 @@
 # Erste Schritte
 
-Installieren Sie eine ausführbare Datei, konfigurieren Sie den Google-Zugriff und verwenden Sie dieselben 23 Werkzeuge im Terminal oder mit einem MCP-Client. Dieses Handbuch beschreibt v0.3.1.
+Version 0.4.0 bietet 42 Werkzeuge in einer ausführbaren Datei, nutzbar im Terminal oder über einen MCP-Client. Dieses Handbuch beschreibt Installation, Google-Zugang und die vollständige Werkzeugschnittstelle.
+
+Im lokalen Repository:
+
+```sh
+cargo install --path . --locked
+```
 
 ## Installation
 
@@ -9,7 +15,7 @@ Vorgefertigte Binärdateien für Linux x86_64, macOS Apple Silicon und macOS Int
 Mit Rust 1.88 oder neuer installieren Sie das Programm über crates.io:
 
 ```sh
-cargo install mcp-gmap-rs --version 0.3.1 --locked
+cargo install mcp-gmap-rs --version 0.4.0 --locked
 mcp-gmap-rs --version
 ```
 

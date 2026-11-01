@@ -1,4 +1,4 @@
-use chrono::DateTime;
+use chrono::{DateTime, SecondsFormat, Utc};
 use serde_json::{Value, json};
 
 use crate::client::{Error, MapsClient, Result};
@@ -122,23 +122,56 @@ impl MapsClient {
         if optimize && stops.len() > 3 && mode != "TRANSIT" {
             body["optimizeWaypointOrder"] = json!(true);
         }
-        let data = self
+        let traffic_segments = options["trafficSegments"].as_bool().unwrap_or(false);
+        if let Some(quality) = options["polylineQuality"].as_str() {
+            body["polylineQuality"] = json!(quality);
+        } else if traffic_segments {
+            body["polylineQuality"] = json!("HIGH_QUALITY");
+        }
+        let traffic_mask;
+        let mask = if traffic_segments {
+            body["extraComputations"] = json!(["TRAFFIC_ON_POLYLINE"]);
+            body["polylineEncoding"] = json!("ENCODED_POLYLINE");
+            // TRAFFIC_AWARE remains compatible with waypoint optimization.
+            traffic_mask = format!(
+                "{ROUTE_MASK},routes.travelAdvisory.speedReadingIntervals,routes.staticDuration,fallbackInfo"
+            );
+            traffic_mask.as_str()
+        } else {
+            ROUTE_MASK
+        };
+        let mut data = self
             .post(
                 "routes.googleapis.com",
                 "/directions/v2:computeRoutes",
                 &body,
-                Some(ROUTE_MASK),
+                Some(mask),
             )
             .await?;
+        if traffic_segments {
+            let retrieved_at = Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
+            if let Some(routes) = data["routes"].as_array_mut() {
+                for (index, route) in routes.iter_mut().enumerate() {
+                    crate::segments::enrich(
+                        route,
+                        index,
+                        &retrieved_at,
+                        body["departureTime"].as_str(),
+                    )?;
+                }
+            }
+        }
         let route = data["routes"]
             .as_array()
             .and_then(|r| r.first())
             .ok_or_else(|| Error::Api("no route found for the selected travel mode".into()))?;
         let meters = route["distanceMeters"].as_f64().unwrap_or(0.);
         let seconds = duration_seconds(&route["duration"]);
-        Ok(
-            json!({"routes":data["routes"],"summary":route["description"],"total_distance":{"value":meters,"text":distance_text(meters)},"total_duration":{"value":seconds,"text":duration_text(seconds)},"optimizedIntermediateWaypointIndex":route["optimizedIntermediateWaypointIndex"]}),
-        )
+        let mut result = json!({"routes":data["routes"],"summary":route["description"],"total_distance":{"value":meters,"text":distance_text(meters)},"total_duration":{"value":seconds,"text":duration_text(seconds)},"optimizedIntermediateWaypointIndex":route["optimizedIntermediateWaypointIndex"]});
+        if traffic_segments && let Some(fallback) = data.get("fallbackInfo") {
+            result["fallbackInfo"] = fallback.clone();
+        }
+        Ok(result)
     }
 
     pub async fn matrix(
@@ -277,6 +310,9 @@ pub(crate) fn travel_mode(options: &Value) -> &'static str {
 
 pub(crate) fn route_options(options: &Value) -> Result<Value> {
     let mode = travel_mode(options);
+    if options["trafficSegments"] == true && mode != "DRIVE" {
+        return Err(Error::Input("trafficSegments requires driving mode".into()));
+    }
     let avoid_tolls = options["avoid_tolls"].as_bool().unwrap_or(false);
     let avoid_highways = options["avoid_highways"].as_bool().unwrap_or(false);
     if (avoid_tolls || avoid_highways) && mode != "DRIVE" {

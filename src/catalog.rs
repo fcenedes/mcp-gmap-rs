@@ -30,7 +30,20 @@ pub(crate) struct Catalog(Arc<Vec<ToolDefinition>>);
 impl Catalog {
     pub fn new(filter: Option<&str>) -> Result<Self> {
         let mut definitions = Vec::new();
-        for (name, description, schema) in builtin_definitions() {
+        let mut builtins = builtin_definitions();
+        builtins.extend(crate::geo_services::definitions());
+        builtins.extend(crate::media_services::definitions());
+        builtins.extend(crate::cloud_services::definitions());
+        for (name, description, schema) in builtins {
+            let writes = matches!(
+                name,
+                "maps_render_aerial_video"
+                    | "maps_datasets"
+                    | "maps_route_optimization"
+                    | "maps_streetview_publish"
+                    | "maps_map_tiles"
+            );
+            let destructive = matches!(name, "maps_datasets" | "maps_streetview_publish");
             let validator = jsonschema::validator_for(&schema)
                 .map_err(|_| Error::Input(format!("invalid built-in schema for {name}")))?;
             let schema = schema
@@ -40,9 +53,9 @@ impl Catalog {
             definitions.push(ToolDefinition {
                 tool: Tool::new(name, description, schema).with_annotations(
                     ToolAnnotations::new()
-                        .read_only(true)
-                        .destructive(false)
-                        .idempotent(true)
+                        .read_only(!writes)
+                        .destructive(destructive)
+                        .idempotent(!writes)
                         .open_world(true),
                 ),
                 validator,
@@ -78,26 +91,26 @@ impl Catalog {
     }
 }
 
-fn object(properties: Value, required: &[&str]) -> Value {
+pub(crate) fn object(properties: Value, required: &[&str]) -> Value {
     json!({"type":"object", "properties":properties, "required":required, "additionalProperties":false})
 }
 
-fn string() -> Value {
+pub(crate) fn string() -> Value {
     json!({"type":"string","minLength":1})
 }
-fn number(min: f64, max: f64) -> Value {
+pub(crate) fn number(min: f64, max: f64) -> Value {
     json!({"type":"number","minimum":min,"maximum":max})
 }
-fn integer(min: u32, max: u32) -> Value {
+pub(crate) fn integer(min: u32, max: u32) -> Value {
     json!({"type":"integer","minimum":min,"maximum":max})
 }
-fn array(items: Value, min: u32, max: u32) -> Value {
+pub(crate) fn array(items: Value, min: u32, max: u32) -> Value {
     json!({"type":"array","items":items,"minItems":min,"maxItems":max})
 }
-fn boolean() -> Value {
+pub(crate) fn boolean() -> Value {
     json!({"type":"boolean"})
 }
-fn coordinate() -> Value {
+pub(crate) fn coordinate() -> Value {
     object(
         json!({"latitude":number(-90.,90.),"longitude":number(-180.,180.)}),
         &["latitude", "longitude"],
@@ -115,16 +128,22 @@ fn builtin_definitions() -> Vec<(&'static str, &'static str, Value)> {
         &["latitude", "longitude"],
     );
     let route_options = json!({"mode":travel(),"departure_time":string(),"avoid_tolls":boolean(),"avoid_highways":boolean()});
+    let traffic_segments = json!({"type":"boolean","description":"Opt into driving traffic intervals and higher-priced Compute Routes Enterprise billing. Defaults to false. Omitted polylineQuality defaults to HIGH_QUALITY when enabled; an explicit quality wins."});
+    let polyline_quality = json!({"type":"string","enum":["OVERVIEW","HIGH_QUALITY"],"description":"Provider geometry detail. HIGH_QUALITY returns more points, with larger responses and potentially higher latency. If omitted, trafficSegments=true selects HIGH_QUALITY; other calls retain Google's OVERVIEW default. Explicit selection wins and does not enable traffic interval calculations."});
     let mut directions = route_options.clone();
     directions["origin"] = string();
     directions["destination"] = string();
     directions["arrival_time"] = string();
+    directions["trafficSegments"] = traffic_segments.clone();
+    directions["polylineQuality"] = polyline_quality.clone();
     let mut matrix = route_options.clone();
     matrix["origins"] = array(string(), 1, 50);
     matrix["destinations"] = array(string(), 1, 50);
     let mut plan = route_options;
     plan["stops"] = array(string(), 2, 27);
     plan["optimize"] = boolean();
+    plan["trafficSegments"] = traffic_segments;
+    plan["polylineQuality"] = polyline_quality;
     vec![
         (
             "maps_geocode",
@@ -139,7 +158,7 @@ fn builtin_definitions() -> Vec<(&'static str, &'static str, Value)> {
                     "addressLines":array(string(),1,10),
                     "regionCode":{"type":"string","pattern":"^[A-Z]{2}$"},
                     "locality":string(),"administrativeArea":string(),"postalCode":string(),
-                    "enableUspsCass":boolean()
+                    "enableUspsCass":boolean(),"sessionToken":string()
                 }),
                 &["addressLines"],
             ),
@@ -207,7 +226,7 @@ fn builtin_definitions() -> Vec<(&'static str, &'static str, Value)> {
             "maps_place_details",
             "Get full place details, reviews and attribution. Optional photo URLs retain author attribution. Display source/disclosure metadata alongside content.",
             object(
-                json!({"placeId":string(),"maxPhotos":integer(0,10)}),
+                json!({"placeId":string(),"maxPhotos":integer(0,10),"sessionToken":string()}),
                 &["placeId"],
             ),
         ),

@@ -1,6 +1,12 @@
 # はじめに {#getting-started}
 
-実行ファイルを 1 つインストールして Google の認証を設定すれば、ターミナルや MCP クライアントから同じ 23 ツールを使えます。本マニュアルは v0.3.1 を対象としています。
+バージョン 0.4.0 は、ターミナルまたは MCP クライアントから利用できる 42 ツールを 1 つの実行ファイルで提供します。本マニュアルは、インストール、Google の認証設定、ツールの全インターフェースを説明します。
+
+リポジトリの作業ディレクトリでビルド：
+
+```sh
+cargo install --path . --locked
+```
 
 ## インストール {#install}
 
@@ -9,7 +15,7 @@ Linux x86_64、macOS Apple Silicon、macOS Intel のビルド済みバイナリ�
 Rust 1.88 以降では crates.io からインストールできます。
 
 ```sh
-cargo install mcp-gmap-rs --version 0.3.1 --locked
+cargo install mcp-gmap-rs --version 0.4.0 --locked
 mcp-gmap-rs --version
 ```
 

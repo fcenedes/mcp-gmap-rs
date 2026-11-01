@@ -1,6 +1,12 @@
 # Getting started
 
-Install one executable, configure Google access, then use the same 23 tools from your terminal or an MCP client. This manual describes v0.3.1.
+Version 0.4.0 provides 42 tools through one executable, available from the terminal or an MCP client. This manual documents installation, Google access and the complete tool interface.
+
+Build from the repository checkout:
+
+```sh
+cargo install --path . --locked
+```
 
 ## Install
 
@@ -9,7 +15,7 @@ Prebuilt Linux x86_64, macOS Apple Silicon and macOS Intel binaries are availabl
 With Rust 1.88 or newer, install from crates.io:
 
 ```sh
-cargo install mcp-gmap-rs --version 0.3.1 --locked
+cargo install mcp-gmap-rs --version 0.4.0 --locked
 mcp-gmap-rs --version
 ```
 

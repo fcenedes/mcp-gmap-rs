@@ -204,7 +204,8 @@ onUnmounted(() => {
             /></label>
           </div>
           <div class="tool-count" aria-live="polite">
-            {{ tools.length.toString().padStart(2, "0") }} / 23 {{ t.count }}
+            {{ tools.length.toString().padStart(2, "0") }} /
+            {{ catalog.tools.length }} {{ t.count }}
           </div>
           <div class="tool-list">
             <a

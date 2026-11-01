@@ -54,4 +54,4 @@ mcp-gmap-rs serve http --listen 0.0.0.0:3000 \
   --allowed-origin https://app.example.com:443
 ```
 
-The default rejects present Origin headers unless allowlisted. Request bodies are limited to 1 MiB. `/health` checks process liveness without calling Google. For public access, configure [native TLS/mTLS or a gateway](./production). Proxies must preserve authorization and MCP protocol/session headers and allow unbuffered streaming. Sessions and Google identity are process-local; see [deployment](./deployment) before adding replicas.
+The default rejects present Origin headers unless allowlisted. Request bodies are limited to 12 MiB. `/health` checks process liveness without calling Google. For public access, configure [native TLS/mTLS or a gateway](./production). Proxies must preserve authorization and MCP protocol/session headers and allow unbuffered streaming. Sessions and Google identity are process-local; see [deployment](./deployment) before adding replicas.

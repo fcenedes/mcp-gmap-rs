@@ -139,3 +139,23 @@ cargo test --locked --test live live_oauth_ -- --ignored --test-threads=1
 | דחיית IP במפתח API | התאימו הגבלות לכתובת היציאה הציבורית של השרת או האשכול. |
 | פג תוקף ההמתנה לאסימון | אפשרו גישה לנקודות האסימון, STS ו-IAM של Google או לשרת המטא-נתונים של עומס העבודה; בדקו `GOOGLE_MAPS_TIMEOUT`. |
 | HTTP `401` משרת MCP זה | שלחו את `MCP_HTTP_TOKEN` שלו; אסימוני חשבון שירות של Google מאמתים חיבור יוצא נפרד. |
+
+
+## שירותים נוספים ומגבלות {#expanded-services}
+
+Solar ו־Map Tiles תומכים גם ב־OAuth. שירותי Datasets ו־Route Optimization דורשים OAuth והרשאות IAM לכל פעולה. Street View Publish דורש קובץ authorized_user שנבחר במפורש והסכמת המשתמש להיקף streetviewpublish.
+
+| שירות | API | אימות |
+| --- | --- | --- |
+| Geolocation API | `geolocation.googleapis.com` | מפתח API |
+| Solar API | `solar.googleapis.com` | מפתח API / OAuth |
+| Aerial View API | `aerialview.googleapis.com` | מפתח API |
+| Map Tiles API | `tile.googleapis.com` | מפתח API / OAuth |
+| Street View Static API | `street-view-image-backend.googleapis.com` | מפתח API |
+| Maps Platform Datasets API | `mapsplatformdatasets.googleapis.com` | OAuth / IAM |
+| Route Optimization API | `routeoptimization.googleapis.com` | OAuth / IAM |
+| Street View Publish API | `streetviewpublish.googleapis.com` | OAuth של משתמש שנתן הסכמה; חשבונות שירות נדחים |
+
+Speed Limits דורש זכאות מוגבלת ל־Asset Tracking. Aerial View מוגבל לכתובות נתמכות בארצות הברית ואוסר הורדה או שמירה במטמון של סרטונים. Map Tiles מיועד להצגה בלבד; ניתוח אוטומטי וחילוץ נתונים אסורים. כלי Weather לדקות ולמפות הם ניסיוניים, עם מטמון לשעה לכל היותר ומגבלות שימוש נוספות. תיעוד כל כלי מפרט תנאים, ייחוס ומגבלות.
+
+[Google: Speed Limits](https://developers.google.com/maps/documentation/roads/speed-limits), [Map Tiles](https://developers.google.com/maps/documentation/tile/policies), [Aerial View](https://developers.google.com/maps/documentation/aerial-view/policies), [Street View Publish](https://developers.google.com/streetview/publish/authorizing).

@@ -54,4 +54,4 @@ mcp-gmap-rs serve http --listen 0.0.0.0:3000 \
   --allowed-origin https://app.example.com:443
 ```
 
-Vorhandene Origin-Header werden standardmäßig abgewiesen, sofern sie nicht zugelassen wurden. Anfragekörper sind auf 1 MiB begrenzt. `/health` prüft die Prozesslebendigkeit ohne Google-Aufruf. Für öffentlichen Zugriff konfigurieren Sie [natives TLS/mTLS oder ein Gateway](./production). Proxys müssen Autorisierung sowie MCP-Protokoll- und Sitzungsheader erhalten und ungepuffertes Streaming erlauben. Sitzungen und Google-Identität sind prozesslokal; lesen Sie [Bereitstellung](./deployment), bevor Sie Replikate hinzufügen.
+Vorhandene Origin-Header werden standardmäßig abgewiesen, sofern sie nicht zugelassen wurden. Anfragekörper sind auf 12 MiB begrenzt. `/health` prüft die Prozesslebendigkeit ohne Google-Aufruf. Für öffentlichen Zugriff konfigurieren Sie [natives TLS/mTLS oder ein Gateway](./production). Proxys müssen Autorisierung sowie MCP-Protokoll- und Sitzungsheader erhalten und ungepuffertes Streaming erlauben. Sitzungen und Google-Identität sind prozesslokal; lesen Sie [Bereitstellung](./deployment), bevor Sie Replikate hinzufügen.

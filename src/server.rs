@@ -45,7 +45,7 @@ impl ServerHandler for MapsServer {
     fn get_info(&self) -> ServerConfig {
         ServerConfig::new(ServerCapabilities::builder().enable_tools().build())
             .with_server_info(Implementation::new("mcp-gmap-rs",env!("CARGO_PKG_VERSION")))
-            .with_instructions("Google Maps read-only tools. Results may incur Google API charges. Preserve Google Maps attribution, review authors, photo authors and AI summary disclosures when displaying content.")
+            .with_instructions("Google Maps tools, including explicitly annotated write operations. Results may incur Google API charges. Preserve Google Maps attribution, review authors, photo authors and AI summary disclosures when displaying content.")
     }
 
     fn get_tool(&self, name: &str) -> Option<Tool> {
@@ -83,6 +83,26 @@ impl ServerHandler for MapsServer {
                 STANDARD.encode(data),
                 "image/png",
             )]),
+            Ok(Output::Binary(value)) => {
+                let metadata = serde_json::json!({"mimeType":value.mime_type,"headers":value.headers,"bytes":value.data.len()});
+                if matches!(
+                    value.mime_type.as_str(),
+                    "image/png" | "image/jpeg" | "image/webp"
+                ) {
+                    let mut result = CallToolResult::success(vec![
+                        ContentBlock::image(STANDARD.encode(value.data), value.mime_type),
+                        ContentBlock::text(metadata.to_string()),
+                    ]);
+                    result.structured_content = Some(metadata);
+                    result
+                } else {
+                    let value = Output::Binary(value).into_json();
+                    let mut result =
+                        CallToolResult::success(vec![ContentBlock::text(value.to_string())]);
+                    result.structured_content = Some(value);
+                    result
+                }
+            }
             Err(error) => CallToolResult::error(vec![ContentBlock::text(error.to_string())]),
         };
         Ok(result.into())
@@ -129,7 +149,7 @@ pub(crate) fn http_router(
         .with_allowed_origins(options.allowed_origins.clone())
         .enforce_origin_validation();
     config.cancellation_token = cancellation;
-    config.max_request_body_bytes = 1024 * 1024;
+    config.max_request_body_bytes = 12 * 1024 * 1024;
     if !options.allowed_hosts.is_empty() {
         config = config.with_allowed_hosts(options.allowed_hosts.clone());
     }

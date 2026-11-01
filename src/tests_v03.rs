@@ -29,7 +29,13 @@ async fn live_doctor_probes_distinct_dependencies_and_continues_after_api_failur
         .iter()
         .filter(|check| check["name"].as_str().unwrap().starts_with("api:"))
         .collect();
-    assert_eq!(apis.len(), 12);
+    assert_eq!(apis.len(), 21);
+    assert_eq!(
+        apis.iter()
+            .filter(|check| check["status"] == "not_tested")
+            .count(),
+        9
+    );
     assert_eq!(
         apis.iter()
             .filter(|check| check["status"] == "fail")

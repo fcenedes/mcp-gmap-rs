@@ -89,7 +89,7 @@ async fn cli_discovers_tools_without_a_key_and_reports_failures() {
             .as_array()
             .unwrap()
             .len(),
-        23
+        42
     );
     let filtered = binary()
         .args(["--enabled-tools", "maps_geocode", "tools"])
@@ -209,7 +209,7 @@ async fn stdio_executable_initializes_lists_tools_and_returns_tool_errors() {
             }
         };
         if id == 2 {
-            assert_eq!(response["result"]["tools"].as_array().unwrap().len(), 23);
+            assert_eq!(response["result"]["tools"].as_array().unwrap().len(), 42);
         } else {
             assert_eq!(response["result"]["isError"], true);
         }
@@ -220,4 +220,77 @@ async fn stdio_executable_initializes_lists_tools_and_returns_tool_errors() {
         .unwrap()
         .unwrap();
     assert!(status.success());
+}
+
+#[tokio::test]
+async fn traffic_segments_cli_flag_and_generic_json_share_mode_validation() {
+    for args in [
+        vec![
+            "directions",
+            "--origin",
+            "Paris",
+            "--destination",
+            "Lyon",
+            "--mode",
+            "walking",
+            "--traffic-segments",
+        ],
+        vec![
+            "call",
+            "maps_directions",
+            "--args",
+            r#"{"origin":"Paris","destination":"Lyon","mode":"walking","trafficSegments":true}"#,
+        ],
+    ] {
+        let output = binary().args(args).output().await.unwrap();
+        assert!(!output.status.success());
+        assert!(
+            String::from_utf8_lossy(&output.stderr)
+                .contains("trafficSegments requires driving mode")
+        );
+        assert!(output.stdout.is_empty());
+    }
+}
+
+#[tokio::test]
+async fn polyline_quality_cli_flag_and_json_alias_reach_shared_schema_validation() {
+    for args in [
+        vec![
+            "directions",
+            "--origin",
+            "Paris",
+            "--destination",
+            "Lyon",
+            "--polyline-quality",
+            "HIGH_QUALITY",
+        ],
+        vec![
+            "call",
+            "maps_directions",
+            "--args",
+            r#"{"origin":"Paris","destination":"Lyon","polylineQuality":"HIGH_QUALITY"}"#,
+        ],
+    ] {
+        let output = binary().args(args).output().await.unwrap();
+        assert!(!output.status.success());
+        assert!(
+            String::from_utf8_lossy(&output.stderr).contains("GOOGLE_MAPS_API_KEY is required")
+        );
+        assert!(output.stdout.is_empty());
+    }
+    let output = binary()
+        .args([
+            "directions",
+            "--origin",
+            "Paris",
+            "--destination",
+            "Lyon",
+            "--polyline-quality",
+            "DENSE",
+        ])
+        .output()
+        .await
+        .unwrap();
+    assert!(!output.status.success());
+    assert!(String::from_utf8_lossy(&output.stderr).contains("invalid arguments"));
 }

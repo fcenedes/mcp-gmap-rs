@@ -24,11 +24,32 @@ pub(crate) async fn report(engine: &EngineState, settings: &Settings, live: bool
         || apis.iter().any(|api| {
             matches!(
                 *api,
-                "geocoding" | "elevation" | "timezone" | "static_map" | "pollen" | "roads"
+                "geocoding"
+                    | "elevation"
+                    | "timezone"
+                    | "static_map"
+                    | "pollen"
+                    | "roads"
+                    | "geolocation"
+                    | "aerial_view"
+                    | "streetview"
             )
         })
     {
         checks.push(json!({"name":"api_key","status":"fail","message":"GOOGLE_MAPS_API_KEY is required by one or more enabled tool paths"}));
+    }
+    if engine.client.oauth.is_none()
+        && apis.iter().any(|api| {
+            matches!(
+                *api,
+                "datasets" | "route_optimization" | "streetview_publish"
+            )
+        })
+    {
+        checks.push(json!({"name":"oauth_only_services","status":"not_tested","message":"Enabled Datasets, Route Optimization and Street View Publish paths require OAuth; an API key cannot authorize them. Use an allowlist matching this deployment's credentials."}));
+    }
+    if apis.contains("streetview_publish") {
+        checks.push(json!({"name":"streetview_user_consent","status":"not_tested","message":"Street View Publish needs an explicit authorized_user credential file with streetviewpublish consent. A service-account file is insufficient. Consent and imagery ownership are not validated by offline diagnostics."}));
     }
     if let Some(oauth) = &engine.client.oauth {
         match oauth.check_local().await {
@@ -61,7 +82,10 @@ pub(crate) async fn report(engine: &EngineState, settings: &Settings, live: bool
                 catalog,
             };
             for api in apis {
-                let (tool, args) = probe(api);
+                let Some((tool, args)) = probe(api) else {
+                    checks.push(json!({"name":format!("api:{api}"),"status":"not_tested","message":"Requires a service-specific location, resource, end-user consent or license; use the documented explicit tool call. Diagnostics never create, upload, delete or render resources."}));
+                    continue;
+                };
                 match probe_engine.call(tool, args).await {
                     Ok(_) => checks.push(json!({"name":format!("api:{api}"),"status":"pass","message":"Google accepted the probe"})),
                     Err(error) => checks.push(json!({"name":format!("api:{api}"),"status":"fail","message":error.to_string()})),
@@ -82,7 +106,10 @@ pub(crate) async fn report(engine: &EngineState, settings: &Settings, live: bool
 fn requirements(tool: &str) -> &'static [&'static str] {
     match tool {
         "maps_geocode" | "maps_reverse_geocode" | "maps_batch_geocode" => &["geocoding"],
-        "maps_search_places" | "maps_place_details" | "maps_local_rank_tracker" => &["places"],
+        "maps_search_places"
+        | "maps_place_details"
+        | "maps_local_rank_tracker"
+        | "maps_autocomplete" => &["places"],
         "maps_search_nearby" | "maps_explore_area" => &["geocoding", "places"],
         "maps_directions"
         | "maps_distance_matrix"
@@ -91,20 +118,36 @@ fn requirements(tool: &str) -> &'static [&'static str] {
         | "maps_search_along_route" => &["geocoding", "places", "routes"],
         "maps_elevation" => &["elevation"],
         "maps_timezone" => &["timezone"],
-        "maps_weather" => &["weather"],
-        "maps_air_quality" => &["air_quality"],
+        "maps_weather"
+        | "maps_weather_history"
+        | "maps_weather_alerts"
+        | "maps_weather_minute_forecast"
+        | "maps_weather_map" => &["weather"],
+        "maps_air_quality"
+        | "maps_air_quality_forecast"
+        | "maps_air_quality_history"
+        | "maps_air_quality_heatmap" => &["air_quality"],
         "maps_static_map" => &["static_map"],
         "maps_validate_address" => &["address_validation"],
         "maps_area_insights" => &["area_insights"],
-        "maps_pollen" => &["pollen"],
+        "maps_pollen" | "maps_pollen_heatmap" => &["pollen"],
         "maps_snap_to_roads" | "maps_nearest_roads" => &["roads"],
+        "maps_speed_limits" => &["roads", "speed_limits_access"],
+        "maps_geolocate" => &["geolocation"],
+        "maps_solar" => &["solar"],
+        "maps_aerial_view" | "maps_render_aerial_video" => &["aerial_view"],
+        "maps_map_tiles" => &["map_tiles"],
+        "maps_streetview" => &["streetview"],
+        "maps_streetview_publish" => &["streetview_publish"],
+        "maps_datasets" => &["datasets"],
+        "maps_route_optimization" => &["route_optimization"],
         _ => &[],
     }
 }
 
-fn probe(api: &str) -> (&'static str, Value) {
+fn probe(api: &str) -> Option<(&'static str, Value)> {
     let location = json!({"latitude":48.8584,"longitude":2.2945});
-    match api {
+    Some(match api {
         "geocoding" => (
             "maps_geocode",
             json!({"address":"Eiffel Tower, Paris, France"}),
@@ -134,6 +177,7 @@ fn probe(api: &str) -> (&'static str, Value) {
             json!({"area":{"circle":{"latLng":location,"radius":500}},"includedTypes":["restaurant"]}),
         ),
         "pollen" => ("maps_pollen", location),
-        _ => ("maps_nearest_roads", json!({"points":[location]})),
-    }
+        "roads" => ("maps_nearest_roads", json!({"points":[location]})),
+        _ => return None,
+    })
 }

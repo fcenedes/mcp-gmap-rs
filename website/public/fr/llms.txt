@@ -1,6 +1,6 @@
 # mcp-gmap-rs
 
-Les 23 outils, avec tous leurs paramètres, valeurs par défaut, contraintes et exemples. La même interface est disponible via MCP et le CLI.
+Les 42 outils, avec tous leurs paramètres, valeurs par défaut, contraintes et exemples. La même interface est disponible via MCP et le CLI.
 
 ## Outils
 

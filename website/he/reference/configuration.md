@@ -35,7 +35,7 @@
 | `MCP_TLS_KEY` | לא מוגדר | `--tls-key` | נתיב מפתח פרטי של שרת ב-PEM. שמרו קריא לזהות הריצה ומחוץ למקור ולתמונות. |
 | `MCP_TLS_CLIENT_CA` | לא מוגדר | `--tls-client-ca` | חבילת CA ללקוחות ב-PEM המחייבת תעודות לקוח בכל נתיבי המאזין. אינה מחליפה אסימון bearer. |
 
-דלי אסימוני HTTP כללי לתהליך, ולא לכל משתמש או IP. בקשות לא מורשות אינן צורכות ממנו; בריאות ומדדים פטורים. דחייה מחזירה 429 עם `Retry-After`. מגבלת גוף הבקשה היא 1 MiB. ראו [גישת MCP](../guide/mcp#bind-addresses-and-access) ו[תפעול TLS](../guide/production#native-tls-and-mutual-tls).
+דלי אסימוני HTTP כללי לתהליך, ולא לכל משתמש או IP. בקשות לא מורשות אינן צורכות ממנו; בריאות ומדדים פטורים. דחייה מחזירה 429 עם `Retry-After`. מגבלת גוף הבקשה היא 12 MiB. ראו [גישת MCP](../guide/mcp#bind-addresses-and-access) ו[תפעול TLS](../guide/production#native-tls-and-mutual-tls).
 
 ## אירועי אבחון {#diagnostic-events}
 

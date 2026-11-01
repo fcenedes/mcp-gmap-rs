@@ -74,3 +74,23 @@ Le chiavi dei service account sono credenziali di lunga durata: escludile da Git
 OAuth copre Places (New), Routes, Weather, Air Quality, Address Validation e Places Aggregate. Geocoding v3, Elevation, Time Zone, Static Maps, Pollen e Roads richiedono ancora una chiave in questa implementazione. Mantieni una chiave limitata se utilizzi questi endpoint; coordinate esatte evitano alcune risoluzioni Geocoding nei compositi.
 
 Un errore OAuth non provoca mai un ripiego silenzioso sulla chiave. Per un'istanza esclusivamente OAuth, rimuovi la chiave e limita strumenti e input alle API supportate. Verifica una chiamata reale con `--auth-mode oauth search-places --query 'caffè a Roma'`; è potenzialmente fatturabile.
+
+
+## Servizi aggiuntivi e limiti {#expanded-services}
+
+Solar e Map Tiles supportano anche OAuth. Datasets e Route Optimization richiedono OAuth e permessi IAM per operazione. Street View Publish richiede un file authorized_user esplicito e il consenso per lo scope streetviewpublish.
+
+| Servizio | API | Autenticazione |
+| --- | --- | --- |
+| Geolocation API | `geolocation.googleapis.com` | Chiave API |
+| Solar API | `solar.googleapis.com` | Chiave API / OAuth |
+| Aerial View API | `aerialview.googleapis.com` | Chiave API |
+| Map Tiles API | `tile.googleapis.com` | Chiave API / OAuth |
+| Street View Static API | `street-view-image-backend.googleapis.com` | Chiave API |
+| Maps Platform Datasets API | `mapsplatformdatasets.googleapis.com` | OAuth / IAM |
+| Route Optimization API | `routeoptimization.googleapis.com` | OAuth / IAM |
+| Street View Publish API | `streetviewpublish.googleapis.com` | OAuth utente con consenso; account di servizio rifiutato |
+
+Speed Limits richiede accesso Asset Tracking limitato. Aerial View copre indirizzi statunitensi supportati e vieta download e cache dei video. Map Tiles è destinato alla visualizzazione: analisi automatica ed estrazione non sono consentite. Weather minute/map sono sperimentali, con cache massima di un’ora e restrizioni d’uso. I riferimenti dei singoli strumenti descrivono condizioni, attribuzione e limiti.
+
+[Google: Speed Limits](https://developers.google.com/maps/documentation/roads/speed-limits), [Map Tiles](https://developers.google.com/maps/documentation/tile/policies), [Aerial View](https://developers.google.com/maps/documentation/aerial-view/policies), [Street View Publish](https://developers.google.com/streetview/publish/authorizing).

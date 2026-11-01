@@ -138,3 +138,23 @@ Die Tests entfernen den API-Schlüssel ausdrücklich aus jedem Kindprozess; ein 
 | IP-Ablehnung des API-Schlüssels | Die Einschränkung muss zur öffentlichen Ausgangs-IP des Servers oder Clusters passen. |
 | Token-Zeitüberschreitung | Zugriff auf Google-Token-/STS-/IAM-Endpunkte oder den Workload-Metadatenserver erlauben und `GOOGLE_MAPS_TIMEOUT` prüfen. |
 | HTTP `401` von diesem MCP-Server | Dessen `MCP_HTTP_TOKEN` senden; Google-Dienstkonto-Tokens authentifizieren eine andere ausgehende Verbindung. |
+
+
+## Zusätzliche Dienste und Grenzen {#expanded-services}
+
+Solar und Map Tiles unterstützen auch OAuth. Datasets und Route Optimization erfordern OAuth sowie die jeweiligen IAM-Berechtigungen. Street View Publish verlangt eine ausdrücklich gewählte authorized_user-Datei und die Einwilligung für den Scope streetviewpublish.
+
+| Dienst | API | Authentifizierung |
+| --- | --- | --- |
+| Geolocation API | `geolocation.googleapis.com` | API-Schlüssel |
+| Solar API | `solar.googleapis.com` | API-Schlüssel / OAuth |
+| Aerial View API | `aerialview.googleapis.com` | API-Schlüssel |
+| Map Tiles API | `tile.googleapis.com` | API-Schlüssel / OAuth |
+| Street View Static API | `street-view-image-backend.googleapis.com` | API-Schlüssel |
+| Maps Platform Datasets API | `mapsplatformdatasets.googleapis.com` | OAuth / IAM |
+| Route Optimization API | `routeoptimization.googleapis.com` | OAuth / IAM |
+| Street View Publish API | `streetviewpublish.googleapis.com` | Nutzer-OAuth mit Einwilligung; Dienstkonten werden abgelehnt |
+
+Speed Limits benötigt beschränkten Asset-Tracking-Zugang. Aerial View gilt für unterstützte US-Adressen und verbietet das Herunterladen oder Zwischenspeichern von Videos. Map Tiles dient der Visualisierung; maschinelle Analyse und Datenextraktion sind untersagt. Weather minute/map sind experimentell, mit höchstens einer Stunde Cache und zusätzlichen Nutzungsgrenzen. Die Werkzeugreferenzen erläutern Bedingungen, Quellenangaben und Grenzen.
+
+[Google: Speed Limits](https://developers.google.com/maps/documentation/roads/speed-limits), [Map Tiles](https://developers.google.com/maps/documentation/tile/policies), [Aerial View](https://developers.google.com/maps/documentation/aerial-view/policies), [Street View Publish](https://developers.google.com/streetview/publish/authorizing).

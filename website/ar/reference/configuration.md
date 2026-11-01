@@ -35,7 +35,7 @@
 | `MCP_TLS_KEY` | غير مضبوط | `--tls-key` | مسار مفتاح خادم PEM الخاص. أبقه قابلًا للقراءة بهوية التشغيل وخارج المصدر والصور. |
 | `MCP_TLS_CLIENT_CA` | غير مضبوط | `--tls-client-ca` | حزمة CA للعملاء بصيغة PEM لتفعيل شهادات عميل إلزامية في كل مسارات المستمع. لا تحل محل رمز bearer. |
 
-دلو رموز HTTP عام للعملية وليس لكل مستخدم أو IP. لا تستهلك الطلبات غير المخولة سعته؛ وتُستثنى الصحة والمقاييس. يُرجع الرفض 429 مع `Retry-After`. حد جسم الطلب 1 MiB. راجع [وصول MCP](../guide/mcp#bind-addresses-and-access) و[تشغيل TLS](../guide/production#native-tls-and-mutual-tls).
+دلو رموز HTTP عام للعملية وليس لكل مستخدم أو IP. لا تستهلك الطلبات غير المخولة سعته؛ وتُستثنى الصحة والمقاييس. يُرجع الرفض 429 مع `Retry-After`. حد جسم الطلب 12 MiB. راجع [وصول MCP](../guide/mcp#bind-addresses-and-access) و[تشغيل TLS](../guide/production#native-tls-and-mutual-tls).
 
 ## أحداث التشخيص {#diagnostic-events}
 

@@ -44,6 +44,10 @@
       "enableUspsCass": {
         "description": "Richiede l’elaborazione USPS CASS; questa implementazione richiede regionCode US oppure PR quando true.",
         "default": "false"
+      },
+      "sessionToken": {
+        "description": "Token sicuro per URL generato dal chiamante, massimo 36 caratteri ASCII; consigliato un nuovo UUID v4 per sessione. Riutilizzarlo nella chiamata conclusiva Place Details o Address Validation.",
+        "default": "Nessun raggruppamento; fatturazione per richiesta"
       }
     },
     "result": "La risposta completa di validazione, normalmente con `result.verdict`, `result.address`, `result.geocode` e `responseId`; Google può omettere campi non disponibili.",
@@ -411,6 +415,10 @@
       "maxPhotos": {
         "description": "Numero massimo di ricerche di URL dei media fotografici.",
         "default": "0"
+      },
+      "sessionToken": {
+        "description": "Token sicuro per URL generato dal chiamante, massimo 36 caratteri ASCII; consigliato un nuovo UUID v4 per sessione. Riutilizzarlo nella chiamata conclusiva Place Details o Address Validation.",
+        "default": "Nessun raggruppamento; fatturazione per richiesta"
       }
     },
     "result": "Un oggetto Google Place nativo relativo alla maschera di campi richiesta. Quando vengono richieste foto, `photoUrls` contiene URL dei media, attribuzioni degli autori e link alle fonti.",
@@ -455,9 +463,17 @@
       "arrival_time": {
         "description": "Arrivo desiderato in RFC 3339 con fuso orario; soltanto modalità transit.",
         "default": "Non fornito"
+      },
+      "trafficSegments": {
+        "description": "Opzione booleana solo per la guida. Richiede TRAFFIC_ON_POLYLINE con geometria ENCODED_POLYLINE; usa HIGH_QUALITY salvo polylineQuality esplicita. Il traffico sulle polilinee attiva lo SKU Compute Routes Enterprise, più costoso; lasciare false se il dettaglio non serve.",
+        "default": "false"
+      },
+      "polylineQuality": {
+        "description": "Qualità geometrica: OVERVIEW o HIGH_QUALITY. La scelta esplicita ha sempre precedenza, anche OVERVIEW insieme a trafficSegments=true. Controlla la densità dei punti indipendentemente dai calcoli del traffico.",
+        "default": "HIGH_QUALITY con trafficSegments=true; altrimenti Google usa OVERVIEW per impostazione predefinita"
       }
     },
-    "result": "Un oggetto con `routes`, `summary`, `total_distance` (valore in metri), `total_duration` (valore in secondi) ed eventuali indici di ottimizzazione. Le voci di percorso contengono tratte, passi, polilinea e avvertenze selezionati.",
+    "result": "Un oggetto con `routes`, `summary`, `total_distance` (valore in metri), `total_duration` (valore in secondi) ed eventuali indici di ottimizzazione. Le voci di percorso contengono tratte, passi, polilinea e avvertenze selezionati. Con trafficSegments=true, percorsi e tratte includono anche segments normalizzati e segmentMetadata.",
     "example": {
       "origin": "48.8584,2.2945",
       "destination": "48.8606,2.3376",
@@ -466,7 +482,11 @@
     "notes": [
       "departure_time e arrival_time non possono essere forniti insieme. arrival_time è accettato soltanto con transit.",
       "Le opzioni per evitare strade richiedono driving. Google applica ulteriori restrizioni di modalità, orario e regione.",
-      "L’assenza di un percorso disponibile produce un errore esplicito."
+      "L’assenza di un percorso disponibile produce un errore esplicito.",
+      "Con trafficSegments=true, Routes fornisce intervalli NORMAL, SLOW o TRAFFIC_JAM. I segmenti normalizzati di percorso e tratta usano la rispettiva polilinea, con indici dei punti indipendenti. Gli intervalli Google sono [start,end); la geometria conserva il vertice finale condiviso per coprire l’ultimo arco. La copertura assente o non valida viene segnalata, senza inventare traffico normale.",
+      "segmentMetadata.retrievedAt è l’ora locale di ricezione della risposta, non l’ora di osservazione del traffico del fornitore; trafficObservedAt è null perché Routes non la restituisce. roadCategory e speedLimit sono null perché questa risposta Routes non li fornisce. Nessuna chiamata implicita a Roads né moltiplicatore locale della durata: le durate restano previsioni Google.",
+      "I segmenti di traffico sono facoltativi e limitati alla guida in questo eseguibile. Richiederli attiva le polilinee con traffico e la fatturazione Compute Routes Enterprise. [Contratto degli intervalli](https://developers.google.com/maps/documentation/routes/traffic_on_polylines); [attivazione degli SKU attuali](https://developers.google.com/maps/billing-and-pricing/sku-details/routes).",
+      "polylineQuality seleziona il dettaglio geometrico fornito da Google: HIGH_QUALITY usa più punti, aumenta la risposta e può aumentare la latenza. OVERVIEW esplicito resta valido con trafficSegments=true. Se omesso, i segmenti di traffico usano HIGH_QUALITY; altrimenti Google usa OVERVIEW. Il programma non sintetizza né interpola dettagli aggiuntivi. La qualità è indipendente da extraComputations: HIGH_QUALITY da solo non attiva TRAFFIC_ON_POLYLINE. [Definizione ufficiale di PolylineQuality](https://developers.google.com/maps/documentation/routes/reference/rest/v2/TopLevel/computeRoutes#PolylineQuality)."
     ],
     "authentication": "Routes e Places accettano chiave API oppure OAuth. La risoluzione di luoghi per nome richiede anche una chiave API per Geocoding; le stringhe di coordinate esatte evitano tale ricerca.",
     "summary": "Ottiene indicazioni, geometria del percorso, istruzioni di navigazione e durata del viaggio."
@@ -781,9 +801,17 @@
       "optimize": {
         "description": "Richiede l’ottimizzazione delle tappe intermedie quando le tappe totali sono più di tre e mode non è transit.",
         "default": "true, alle condizioni indicate"
+      },
+      "trafficSegments": {
+        "description": "Opzione booleana solo per la guida. Richiede TRAFFIC_ON_POLYLINE con geometria ENCODED_POLYLINE; usa HIGH_QUALITY salvo polylineQuality esplicita. Il traffico sulle polilinee attiva lo SKU Compute Routes Enterprise, più costoso; lasciare false se il dettaglio non serve.",
+        "default": "false"
+      },
+      "polylineQuality": {
+        "description": "Qualità geometrica: OVERVIEW o HIGH_QUALITY. La scelta esplicita ha sempre precedenza, anche OVERVIEW insieme a trafficSegments=true. Controlla la densità dei punti indipendentemente dai calcoli del traffico.",
+        "default": "HIGH_QUALITY con trafficSegments=true; altrimenti Google usa OVERVIEW per impostazione predefinita"
       }
     },
-    "result": "Un oggetto con `mode`, valore effettivo di `optimized`, `stops` risolte e ordinate, `legs` per la visualizzazione, total_distance, total_duration, polyline e warnings. durationSeconds delle tratte è un numero di secondi.",
+    "result": "Un oggetto con `mode`, valore effettivo di `optimized`, `stops` risolte e ordinate, `legs` per la visualizzazione, total_distance, total_duration, polyline e warnings. durationSeconds delle tratte è un numero di secondi. Con trafficSegments=true, percorsi e tratte includono anche segments normalizzati e segmentMetadata.",
     "example": {
       "stops": [
         "48.8584,2.2945",
@@ -796,7 +824,11 @@
     "notes": [
       "transit supporta soltanto due estremi, senza tappe intermedie.",
       "L’ottimizzazione diventa effettiva soltanto con almeno quattro tappe totali, cioè almeno due tappe intermedie.",
-      "Ottimizza l’ordine delle tappe di un percorso, non l’assegnazione di veicoli o incarichi a una flotta."
+      "Ottimizza l’ordine delle tappe di un percorso, non l’assegnazione di veicoli o incarichi a una flotta.",
+      "Con trafficSegments=true, Routes fornisce intervalli NORMAL, SLOW o TRAFFIC_JAM. I segmenti normalizzati di percorso e tratta usano la rispettiva polilinea, con indici dei punti indipendenti. Gli intervalli Google sono [start,end); la geometria conserva il vertice finale condiviso per coprire l’ultimo arco. La copertura assente o non valida viene segnalata, senza inventare traffico normale.",
+      "segmentMetadata.retrievedAt è l’ora locale di ricezione della risposta, non l’ora di osservazione del traffico del fornitore; trafficObservedAt è null perché Routes non la restituisce. roadCategory e speedLimit sono null perché questa risposta Routes non li fornisce. Nessuna chiamata implicita a Roads né moltiplicatore locale della durata: le durate restano previsioni Google.",
+      "I segmenti di traffico sono facoltativi e limitati alla guida in questo eseguibile. Richiederli attiva le polilinee con traffico e la fatturazione Compute Routes Enterprise. [Contratto degli intervalli](https://developers.google.com/maps/documentation/routes/traffic_on_polylines); [attivazione degli SKU attuali](https://developers.google.com/maps/billing-and-pricing/sku-details/routes).",
+      "polylineQuality seleziona il dettaglio geometrico fornito da Google: HIGH_QUALITY usa più punti, aumenta la risposta e può aumentare la latenza. OVERVIEW esplicito resta valido con trafficSegments=true. Se omesso, i segmenti di traffico usano HIGH_QUALITY; altrimenti Google usa OVERVIEW. Il programma non sintetizza né interpola dettagli aggiuntivi. La qualità è indipendente da extraComputations: HIGH_QUALITY da solo non attiva TRAFFIC_ON_POLYLINE. [Definizione ufficiale di PolylineQuality](https://developers.google.com/maps/documentation/routes/reference/rest/v2/TopLevel/computeRoutes#PolylineQuality)."
     ],
     "authentication": "Routes e Places accettano chiave API oppure OAuth. La risoluzione di luoghi per nome richiede anche una chiave API per Geocoding; le stringhe di coordinate esatte evitano tale ricerca.",
     "summary": "Pianifica un percorso di 2–27 tappe. Ottimizza 2–25 tappe intermedie, escluso transit. Le coordinate esatte vengono mantenute."
@@ -937,5 +969,1208 @@
     ],
     "authentication": "Chiave API oppure OAuth per l’API principale.",
     "summary": "Misura il posizionamento di ricerca su una griglia geografica per 1–3 parole chiave; restituisce ARP, ATRP, SoLV ed errori per punto."
+  },
+  "maps_datasets": {
+    "purpose": "Gestisce dataset geospaziali per lo stile basato sui dati di Google Maps, con importazione asincrona da oggetti Cloud Storage esistenti.",
+    "parameters": {
+      "operation": {
+        "description": "Scegliere list/get/create/update/delete/import/download/fetch_errors; create/update/delete/import modificano risorse cloud.",
+        "default": "Obbligatorio"
+      },
+      "parent": {
+        "description": "projects/{project}; obbligatorio per list/create.",
+        "default": "Obbligatorio per list/create"
+      },
+      "name": {
+        "description": "projects/{project}/datasets/{dataset}; richiesto tranne list/create. Solo get accetta @active per l’ultima versione completata.",
+        "default": "Obbligatorio per operazioni sulla risorsa"
+      },
+      "dataset": {
+        "description": "Oggetto Dataset nativo per create/update. Creazione: displayName univoco e usage:[\"USAGE_DATA_DRIVEN_STYLING\"]. L’aggiornamento inserisce il nome risorsa coerente.",
+        "default": "Obbligatorio per create/update"
+      },
+      "gcsSource": {
+        "description": "Sorgente Cloud Storage esistente da importare; occorre accesso. Nessuna lettura di file locali.",
+        "default": "Obbligatorio per import"
+      },
+      "gcsSource.inputUri": {
+        "description": "URI esistente gs://bucket/object; serve storage.objects.get, ad esempio Storage Object Viewer.",
+        "default": "Obbligatorio quando viene fornito gcsSource"
+      },
+      "gcsSource.fileFormat": {
+        "description": "Formato sorgente FILE_FORMAT_GEOJSON, FILE_FORMAT_KML o FILE_FORMAT_CSV.",
+        "default": "Obbligatorio quando viene fornito gcsSource"
+      },
+      "versionDescription": {
+        "description": "Descrizione della nuova versione; solo per import.",
+        "default": "Omesso"
+      },
+      "updateMask": {
+        "description": "Campi dei metadati separati da virgole, come description,displayName; omissione significa sostituzione completa.",
+        "default": "Google usa * (sostituzione completa dei metadati)"
+      },
+      "pageSize": {
+        "description": "Numero massimo di dataset o errori per pagina; limite del wrapper 1–500.",
+        "default": "list: 100; fetch_errors: predefinito Google 50"
+      },
+      "pageToken": {
+        "description": "Token della pagina successiva dalla risposta precedente; mantenere invariati gli altri parametri. Nessuna paginazione automatica.",
+        "default": "Prima pagina"
+      },
+      "tag": {
+        "description": "Per list: active seleziona l’ultima versione completata ed esclude i dataset che ne sono privi.",
+        "default": "Ultima versione indipendentemente dallo stato"
+      }
+    },
+    "result": "JSON Dataset, elenco o errori nativi, nome versione importata oppure byte sorgenti con MIME e intestazioni cache. get conserva status.state, status.errorMessage e versionId; importazione avviata non significa elaborazione completata.",
+    "example": {
+      "operation": "list",
+      "parent": "projects/my-project",
+      "pageSize": 20
+    },
+    "notes": [
+      "Servono permessi mapsplatformdatasets.datasets.list/get/create/update/delete/import/export secondo l’operazione. L’import GCS crea una versione asincrona; controllare get e fetch_errors. Nessun polling automatico.",
+      "La v1 pubblica non documenta listVersions: usare get, @active e versionId; nessuna enumerazione completa dello storico. Download richiede export; CLI --output salva i byte.",
+      "Maps Datasets API non ha costi d’uso, ma richiede un progetto configurato; Google Maps e Cloud Storage possono avere costi e termini propri. Uso supportato: stile basato sui dati. Niente upload locale multipart: usare un oggetto GCS esistente.",
+      "Riferimenti ufficiali e limiti: https://developers.google.com/maps/documentation/datasets/create ; https://developers.google.com/maps/documentation/datasets/overview ; https://developers.google.com/maps/documentation/datasets/reference/rest/v1/media/download ; https://developers.google.com/maps/documentation/datasets/reference/rest/v1/projects.datasets ; https://www.googleapis.com/auth/cloud-platform"
+    ],
+    "authentication": "Solo OAuth2 con account di servizio o ADC e ambito https://www.googleapis.com/auth/cloud-platform; chiavi API non accettate. Configurare separatamente progetto risorsa e permessi quota.",
+    "summary": "Gestisce dataset cartografici."
+  },
+  "maps_route_optimization": {
+    "purpose": "Ottimizza flotte di consegna o assistenza con Route Optimization API e ShipmentModel nativo completo, comprese capacità, finestre temporali e costi.",
+    "parameters": {
+      "operation": {
+        "description": "optimize risolve sincronicamente; validate usa VALIDATE_ONLY; batch crea un job GCS; optimize_long_running e optimize_uri sono sperimentali; get_operation legge lo stato.",
+        "default": "Obbligatorio"
+      },
+      "parent": {
+        "description": "projects/{project}, opzionalmente /locations/-. Ottimizzazione sincrona e lunga rifiutano regioni specifiche; batch/URI accettano il formato nativo.",
+        "default": "Obbligatorio tranne per get_operation"
+      },
+      "name": {
+        "description": "Nome esatto projects/{project}[/locations/{location}]/operations/{ID} restituito da Google; solo per get_operation.",
+        "default": "Obbligatorio per get_operation"
+      },
+      "request": {
+        "description": "Richiesta Google completa senza parent. Soluzione e convalida richiedono model con spedizioni, veicoli e vincoli. Batch: 1–100 modelConfigs con sorgente e destinazione GCS e JSON/PROTO_TEXT. URI: input.uri/output.uri gs:// terminanti .json o .txtpb.",
+        "default": "Obbligatorio tranne per get_operation"
+      }
+    },
+    "result": "OptimizeToursResponse o Operation nativi; la lettura conserva done:false, metadati e response/error finali senza nascondere gli errori.",
+    "example": {
+      "operation": "validate",
+      "parent": "projects/my-project",
+      "request": {
+        "model": {
+          "shipments": [],
+          "vehicles": [
+            {
+              "startLocation": {
+                "latitude": 48.85,
+                "longitude": 2.35
+              }
+            }
+          ]
+        },
+        "maxValidationErrors": 10
+      }
+    },
+    "notes": [
+      "validate chiama Google con VALIDATE_ONLY senza risolvere il modello. Abilitare il servizio; roles/routeoptimization.viewer permette ottimizzazione e lettura operazioni, editor anche batch. Permessi inclusi: locations.use e operations.create/get.",
+      "I job batch leggono e scrivono GCS con permessi espliciti e possono continuare dopo la richiesta. Nessun upload o polling automatico. Le varianti lunghe e URI sono sperimentali; endpoint sensibile alle maiuscole :OptimizeToursUri. Google non supporta attualmente annullamento, eliminazione o elenco operazioni: solo get_operation.",
+      "Fatturazione per spedizioni e SKU Single Vehicle Routing o Fleet Routing. Servizio distinto dall’ottimizzazione tappe Routes API; un timeout di trasporto non annulla il job.",
+      "Riferimenti ufficiali e limiti: https://developers.google.com/maps/documentation/route-optimization/cloud-setup ; https://developers.google.com/maps/documentation/route-optimization/reference/rest/v1/operations ; https://developers.google.com/maps/documentation/route-optimization/reference/rest/v1/projects/batchOptimizeTours ; https://developers.google.com/maps/documentation/route-optimization/reference/rest/v1/projects/optimizeTours ; https://developers.google.com/maps/documentation/route-optimization/usage-and-billing ; https://github.com/googleapis/googleapis/blob/master/google/maps/routeoptimization/v1/route_optimization_service.proto ; https://www.googleapis.com/auth/cloud-platform"
+    ],
+    "authentication": "Solo OAuth2 con account di servizio o ADC e ambito https://www.googleapis.com/auth/cloud-platform; chiavi API non accettate. Configurare separatamente progetto risorsa e permessi quota.",
+    "summary": "Ottimizza gli itinerari della flotta."
+  },
+  "maps_air_quality_forecast": {
+    "purpose": "Recupera previsioni orarie per un istante o intervallo esplicito, fino a 96 ore.",
+    "parameters": {
+      "location": {
+        "description": "Coordinate del luogo richiesto; i campi interni sono obbligatori.",
+        "default": "Obbligatorio"
+      },
+      "location.latitude": {
+        "description": "Latitudine WGS84 in gradi, da -90 a 90.",
+        "default": "Obbligatorio quando viene fornito location"
+      },
+      "location.longitude": {
+        "description": "Longitudine WGS84 in gradi, da -180 a 180.",
+        "default": "Obbligatorio quando viene fornito location"
+      },
+      "dateTime": {
+        "description": "Istante UTC RFC3339 terminante in Z; Google arrotonda all’ora precedente. Esclude period e hours.",
+        "default": "Scegliere un selettore temporale"
+      },
+      "period": {
+        "description": "Intervallo orario inclusivo ordinato: massimo 96 ore di previsione o 720 di storico. Esclude dateTime e hours.",
+        "default": "Scegliere un selettore temporale"
+      },
+      "period.startTime": {
+        "description": "Inizio dell’intervallo RFC3339 UTC terminante in Z.",
+        "default": "Obbligatorio quando viene fornito period"
+      },
+      "period.endTime": {
+        "description": "Fine inclusiva dell’intervallo RFC3339 UTC terminante in Z.",
+        "default": "Obbligatorio quando viene fornito period"
+      },
+      "pageSize": {
+        "description": "Numero di record orari: massimo 96 per previsione e 168 per storico.",
+        "default": "Google: previsione 24; storico 72"
+      },
+      "pageToken": {
+        "description": "Token della pagina successiva dalla risposta precedente; mantenere invariati gli altri parametri. Nessuna paginazione automatica.",
+        "default": "Prima pagina"
+      },
+      "universalAqi": {
+        "description": "Include l’indice universale della qualità dell’aria.",
+        "default": "Google: true"
+      },
+      "languageCode": {
+        "description": "Lingua IETF BCP-47 per il testo disponibile; Google può scegliere la lingua supportata più vicina.",
+        "default": "Google: en"
+      },
+      "uaqiColorPalette": {
+        "description": "Tavolozza UAQI: RED_GREEN, INDIGO_PERSIAN_DARK o INDIGO_PERSIAN_LIGHT. Gli indici locali hanno colori fissi.",
+        "default": "Tavolozza predefinita Google"
+      },
+      "extraComputations": {
+        "description": "Calcoli aggiuntivi: LOCAL_AQI, HEALTH_RECOMMENDATIONS, POLLUTANT_ADDITIONAL_INFO, DOMINANT_POLLUTANT_CONCENTRATION e POLLUTANT_CONCENTRATION.",
+        "default": "Nessun calcolo aggiuntivo"
+      },
+      "customLocalAqis": {
+        "description": "Sostituisce l’indice locale per paesi o regioni specifici.",
+        "default": "Google sceglie gli indici locali"
+      },
+      "customLocalAqis[].regionCode": {
+        "description": "Codice paese o regione di due lettere per la sostituzione.",
+        "default": "Obbligatorio per ogni sostituzione"
+      },
+      "customLocalAqis[].aqi": {
+        "description": "Codice di indice locale supportato, per esempio us_epa; Google verifica la combinazione.",
+        "default": "Obbligatorio per ogni sostituzione"
+      }
+    },
+    "result": "hourlyForecasts, regionCode e nextPageToken nativi, con eventuali dati su inquinanti e salute.",
+    "example": {
+      "location": {
+        "latitude": 48.85,
+        "longitude": 2.35
+      },
+      "dateTime": "2026-11-01T12:00:00Z",
+      "pageSize": 24
+    },
+    "notes": [
+      "Scegliere esattamente un selettore temporale; sintassi, ordine e durata sono verificati localmente, disponibilità e copertura da Google. Una pagina per chiamata: seguire nextPageToken esplicitamente. Indici, concentrazioni e consigli conservati. Applicare politiche Air Quality su attribuzione, visualizzazione e cache; copertura variabile per paese.",
+      "Riferimenti ufficiali e limiti: https://developers.google.com/maps/documentation/air-quality/policies ; https://developers.google.com/maps/documentation/air-quality/reference/rest/v1/forecast/lookup"
+    ],
+    "authentication": "Chiave API o token OAuth2 con ambito cloud-platform; abilitare API e fatturazione. Il principale del progetto quota richiede serviceusage.services.use.",
+    "summary": "Previsioni orarie della qualità dell’aria."
+  },
+  "maps_air_quality_history": {
+    "purpose": "Recupera lo storico della qualità dell’aria degli ultimi 30 giorni.",
+    "parameters": {
+      "location": {
+        "description": "Coordinate del luogo richiesto; i campi interni sono obbligatori.",
+        "default": "Obbligatorio"
+      },
+      "location.latitude": {
+        "description": "Latitudine WGS84 in gradi, da -90 a 90.",
+        "default": "Obbligatorio quando viene fornito location"
+      },
+      "location.longitude": {
+        "description": "Longitudine WGS84 in gradi, da -180 a 180.",
+        "default": "Obbligatorio quando viene fornito location"
+      },
+      "dateTime": {
+        "description": "Istante UTC RFC3339 terminante in Z; Google arrotonda all’ora precedente. Esclude period e hours.",
+        "default": "Scegliere un selettore temporale"
+      },
+      "period": {
+        "description": "Intervallo orario inclusivo ordinato: massimo 96 ore di previsione o 720 di storico. Esclude dateTime e hours.",
+        "default": "Scegliere un selettore temporale"
+      },
+      "period.startTime": {
+        "description": "Inizio dell’intervallo RFC3339 UTC terminante in Z.",
+        "default": "Obbligatorio quando viene fornito period"
+      },
+      "period.endTime": {
+        "description": "Fine inclusiva dell’intervallo RFC3339 UTC terminante in Z.",
+        "default": "Obbligatorio quando viene fornito period"
+      },
+      "pageSize": {
+        "description": "Numero di record orari: massimo 96 per previsione e 168 per storico.",
+        "default": "Google: previsione 24; storico 72"
+      },
+      "pageToken": {
+        "description": "Token della pagina successiva dalla risposta precedente; mantenere invariati gli altri parametri. Nessuna paginazione automatica.",
+        "default": "Prima pagina"
+      },
+      "universalAqi": {
+        "description": "Include l’indice universale della qualità dell’aria.",
+        "default": "Google: true"
+      },
+      "languageCode": {
+        "description": "Lingua IETF BCP-47 per il testo disponibile; Google può scegliere la lingua supportata più vicina.",
+        "default": "Google: en"
+      },
+      "uaqiColorPalette": {
+        "description": "Tavolozza UAQI: RED_GREEN, INDIGO_PERSIAN_DARK o INDIGO_PERSIAN_LIGHT. Gli indici locali hanno colori fissi.",
+        "default": "Tavolozza predefinita Google"
+      },
+      "extraComputations": {
+        "description": "Calcoli aggiuntivi: LOCAL_AQI, HEALTH_RECOMMENDATIONS, POLLUTANT_ADDITIONAL_INFO, DOMINANT_POLLUTANT_CONCENTRATION e POLLUTANT_CONCENTRATION.",
+        "default": "Nessun calcolo aggiuntivo"
+      },
+      "customLocalAqis": {
+        "description": "Sostituisce l’indice locale per paesi o regioni specifici.",
+        "default": "Google sceglie gli indici locali"
+      },
+      "customLocalAqis[].regionCode": {
+        "description": "Codice paese o regione di due lettere per la sostituzione.",
+        "default": "Obbligatorio per ogni sostituzione"
+      },
+      "customLocalAqis[].aqi": {
+        "description": "Codice di indice locale supportato, per esempio us_epa; Google verifica la combinazione.",
+        "default": "Obbligatorio per ogni sostituzione"
+      },
+      "hours": {
+        "description": "Numero di ore precedenti, 1–720 (30 giorni); esclude dateTime e period.",
+        "default": "Scegliere esattamente uno fra hours/dateTime/period"
+      }
+    },
+    "result": "hoursInfo, regionCode e nextPageToken nativi, con eventuali dati su inquinanti e salute.",
+    "example": {
+      "location": {
+        "latitude": 48.85,
+        "longitude": 2.35
+      },
+      "hours": 24,
+      "pageSize": 12
+    },
+    "notes": [
+      "Scegliere esattamente un selettore temporale; sintassi, ordine e durata sono verificati localmente, disponibilità e copertura da Google. Una pagina per chiamata: seguire nextPageToken esplicitamente. Indici, concentrazioni e consigli conservati. Applicare politiche Air Quality su attribuzione, visualizzazione e cache; copertura variabile per paese.",
+      "Riferimenti ufficiali e limiti: https://developers.google.com/maps/documentation/air-quality/policies ; https://developers.google.com/maps/documentation/air-quality/reference/rest/v1/history/lookup"
+    ],
+    "authentication": "Chiave API o token OAuth2 con ambito cloud-platform; abilitare API e fatturazione. Il principale del progetto quota richiede serviceusage.services.use.",
+    "summary": "Storico qualità dell’aria fino a 30 giorni."
+  },
+  "maps_air_quality_heatmap": {
+    "purpose": "Scarica una tessera reale della mappa di un indice o inquinante.",
+    "parameters": {
+      "mapType": {
+        "description": "Tipo indice: UAQI_RED_GREEN, UAQI_INDIGO_PERSIAN, PM25_INDIGO_PERSIAN, GBR_DEFRA, DEU_UBA, CAN_EC, FRA_ATMO o US_AQI.",
+        "default": "Obbligatorio"
+      },
+      "zoom": {
+        "description": "Livello Web Mercator da 0 a 16; il livello zero contiene una sola tessera.",
+        "default": "Obbligatorio"
+      },
+      "x": {
+        "description": "Colonna della tessera da 0 a 2^zoom−1; controllo prima della chiamata.",
+        "default": "Obbligatorio"
+      },
+      "y": {
+        "description": "Riga della tessera da 0 a 2^zoom−1; controllo prima della chiamata.",
+        "default": "Obbligatorio"
+      }
+    },
+    "result": "Byte della tessera con MIME e intestazioni cache originali; MCP mostra un’immagine e CLI --output salva i byte.",
+    "example": {
+      "mapType": "UAQI_RED_GREEN",
+      "zoom": 2,
+      "x": 2,
+      "y": 1
+    },
+    "notes": [
+      "Disponibilità secondo indice e paese. Le politiche Air Quality impongono attribuzione e limiti a conservazione e visualizzazione; preservare le intestazioni cache. Il wrapper non concede licenze.",
+      "Riferimenti ufficiali e limiti: https://developers.google.com/maps/documentation/air-quality/policies ; https://developers.google.com/maps/documentation/air-quality/reference/rest/v1/mapTypes.heatmapTiles/lookupHeatmapTile"
+    ],
+    "authentication": "Chiave API o token OAuth2 con ambito cloud-platform; abilitare API e fatturazione. Il principale del progetto quota richiede serviceusage.services.use.",
+    "summary": "Tessere della mappa qualità dell’aria."
+  },
+  "maps_pollen_heatmap": {
+    "purpose": "Scarica una tessera PNG reale dell’indice pollini di alberi, graminacee o infestanti.",
+    "parameters": {
+      "mapType": {
+        "description": "Indice pollini TREE_UPI, GRASS_UPI o WEED_UPI.",
+        "default": "Obbligatorio"
+      },
+      "zoom": {
+        "description": "Livello Web Mercator da 0 a 16; il livello zero contiene una sola tessera.",
+        "default": "Obbligatorio"
+      },
+      "x": {
+        "description": "Colonna della tessera da 0 a 2^zoom−1; controllo prima della chiamata.",
+        "default": "Obbligatorio"
+      },
+      "y": {
+        "description": "Riga della tessera da 0 a 2^zoom−1; controllo prima della chiamata.",
+        "default": "Obbligatorio"
+      }
+    },
+    "result": "Byte della tessera con MIME e intestazioni cache originali; MCP mostra un’immagine e CLI --output salva i byte.",
+    "example": {
+      "mapType": "TREE_UPI",
+      "zoom": 2,
+      "x": 2,
+      "y": 1
+    },
+    "notes": [
+      "Disponibilità per paesi supportati e stagione. Le politiche Pollen regolano attribuzione, visualizzazione su Google Maps e cache; abilitare l’API non elimina i limiti della licenza.",
+      "Riferimenti ufficiali e limiti: https://developers.google.com/maps/documentation/pollen/policies ; https://developers.google.com/maps/documentation/pollen/reference/rest/v1/mapTypes.heatmapTiles/lookupHeatmapTile"
+    ],
+    "authentication": "Chiave API richiesta anche in modalità OAuth; abilitare servizio, fatturazione e restrizioni appropriate.",
+    "summary": "Tessere delle mappe pollini."
+  },
+  "maps_weather_history": {
+    "purpose": "Recupera fino a 24 ore precedenti di meteo con paginazione esplicita.",
+    "parameters": {
+      "location": {
+        "description": "Coordinate del luogo richiesto; i campi interni sono obbligatori.",
+        "default": "Obbligatorio"
+      },
+      "location.latitude": {
+        "description": "Latitudine WGS84 in gradi, da -90 a 90.",
+        "default": "Obbligatorio quando viene fornito location"
+      },
+      "location.longitude": {
+        "description": "Longitudine WGS84 in gradi, da -180 a 180.",
+        "default": "Obbligatorio quando viene fornito location"
+      },
+      "pageSize": {
+        "description": "Record massimi per pagina: 1–24 per storico, 1–1000 per allerte e previsione al minuto.",
+        "default": "Storico: Google 24; altri: predefinito Google"
+      },
+      "pageToken": {
+        "description": "Token della pagina successiva dalla risposta precedente; mantenere invariati gli altri parametri. Nessuna paginazione automatica.",
+        "default": "Prima pagina"
+      },
+      "hours": {
+        "description": "Ore precedenti a partire dall’ultima ora, da 1 a 24.",
+        "default": "Google: 24"
+      },
+      "unitsSystem": {
+        "description": "Sistema di unità METRIC o IMPERIAL.",
+        "default": "Google: METRIC"
+      },
+      "languageCode": {
+        "description": "Lingua IETF BCP-47 per il testo disponibile; Google può scegliere la lingua supportata più vicina.",
+        "default": "Google: en"
+      }
+    },
+    "result": "historyHours, timeZone e nextPageToken nativi, con tutte le condizioni orarie.",
+    "example": {
+      "location": {
+        "latitude": 48.85,
+        "longitude": 2.35
+      },
+      "hours": 12,
+      "pageSize": 6
+    },
+    "notes": [
+      "Copre solo le 24 ore precedenti, non date storiche arbitrarie. Si applicano politiche Weather e copertura; nessuna pagina aggiuntiva automatica.",
+      "Riferimenti ufficiali e limiti: https://developers.google.com/maps/documentation/weather/policies ; https://developers.google.com/maps/documentation/weather/reference/rest/v1/history.hours/lookup"
+    ],
+    "authentication": "Chiave API o token OAuth2 con ambito cloud-platform; abilitare API e fatturazione. Il principale del progetto quota richiede serviceusage.services.use.",
+    "summary": "Storico orario del meteo del giorno precedente."
+  },
+  "maps_weather_alerts": {
+    "purpose": "Recupera allerte meteo applicabili a un luogo, conservando gravità e autorità emittente.",
+    "parameters": {
+      "location": {
+        "description": "Coordinate del luogo richiesto; i campi interni sono obbligatori.",
+        "default": "Obbligatorio"
+      },
+      "location.latitude": {
+        "description": "Latitudine WGS84 in gradi, da -90 a 90.",
+        "default": "Obbligatorio quando viene fornito location"
+      },
+      "location.longitude": {
+        "description": "Longitudine WGS84 in gradi, da -180 a 180.",
+        "default": "Obbligatorio quando viene fornito location"
+      },
+      "pageSize": {
+        "description": "Record massimi per pagina: 1–24 per storico, 1–1000 per allerte e previsione al minuto.",
+        "default": "Storico: Google 24; altri: predefinito Google"
+      },
+      "pageToken": {
+        "description": "Token della pagina successiva dalla risposta precedente; mantenere invariati gli altri parametri. Nessuna paginazione automatica.",
+        "default": "Prima pagina"
+      },
+      "languageCode": {
+        "description": "Lingua IETF BCP-47 per il testo disponibile; Google può scegliere la lingua supportata più vicina.",
+        "default": "Google: en"
+      }
+    },
+    "result": "weatherAlerts nativi, dettagli di autorità e area e nextPageToken se disponibile.",
+    "example": {
+      "location": {
+        "latitude": 48.85,
+        "longitude": 2.35
+      },
+      "pageSize": 5
+    },
+    "notes": [
+      "Copertura, ritardi e campi dipendono dall’autorità. Conservare l’attribuzione e rispettare le politiche Weather; l’assenza di allerte non garantisce sicurezza.",
+      "Riferimenti ufficiali e limiti: https://developers.google.com/maps/documentation/weather/policies ; https://developers.google.com/maps/documentation/weather/reference/rest/v1/publicAlerts/lookup"
+    ],
+    "authentication": "Chiave API o token OAuth2 con ambito cloud-platform; abilitare API e fatturazione. Il principale del progetto quota richiede serviceusage.services.use.",
+    "summary": "Allerte meteo pubbliche locali."
+  },
+  "maps_weather_minute_forecast": {
+    "purpose": "SPERIMENTALE: previsioni di precipitazioni ad alta risoluzione su sei ore.",
+    "parameters": {
+      "location": {
+        "description": "Coordinate del luogo richiesto; i campi interni sono obbligatori.",
+        "default": "Obbligatorio"
+      },
+      "location.latitude": {
+        "description": "Latitudine WGS84 in gradi, da -90 a 90.",
+        "default": "Obbligatorio quando viene fornito location"
+      },
+      "location.longitude": {
+        "description": "Longitudine WGS84 in gradi, da -180 a 180.",
+        "default": "Obbligatorio quando viene fornito location"
+      },
+      "pageSize": {
+        "description": "Record massimi per pagina: 1–24 per storico, 1–1000 per allerte e previsione al minuto.",
+        "default": "Storico: Google 24; altri: predefinito Google"
+      },
+      "pageToken": {
+        "description": "Token della pagina successiva dalla risposta precedente; mantenere invariati gli altri parametri. Nessuna paginazione automatica.",
+        "default": "Prima pagina"
+      },
+      "unitsSystem": {
+        "description": "Sistema di unità METRIC o IMPERIAL.",
+        "default": "Google: METRIC"
+      }
+    },
+    "result": "overallPredictionTimeframe, timeZone, segments e nextPageToken; segmenti con tipo, probabilità, quantità e intensità.",
+    "example": {
+      "location": {
+        "latitude": 37.60451,
+        "longitude": -80.59044
+      },
+      "pageSize": 5
+    },
+    "notes": [
+      "Sperimentale pre-GA: supporto limitato e possibili modifiche incompatibili. Attribuzione obbligatoria; cache di previsioni al minuto e mappe limitata a un’ora, poi cancellare. Google vieta di ricreare suoi prodotti o servizi, inclusi app o modelli dedicati principalmente alle informazioni meteo. Le restrizioni valgono anche a valle.",
+      "Previsione al minuto e tessere possono non essere sincronizzate. Una pagina per chiamata; disponibilità secondo luogo e accesso.",
+      "Riferimenti ufficiali e limiti: https://developers.google.com/maps/documentation/weather/minute-forecast ; https://developers.google.com/maps/documentation/weather/weather-map"
+    ],
+    "authentication": "Chiave API o token OAuth2 con ambito cloud-platform; abilitare API e fatturazione. Il principale del progetto quota richiede serviceusage.services.use.",
+    "summary": "Previsioni precipitazioni al minuto, sperimentali."
+  },
+  "maps_weather_map": {
+    "purpose": "SPERIMENTALE: scarica una tessera di precipitazioni attuali per Stati Uniti o Europa.",
+    "parameters": {
+      "mapType": {
+        "description": "US_PRECIPITATION_CURRENT o EU_PRECIPITATION_CURRENT; copertura geografica limitata.",
+        "default": "Obbligatorio"
+      },
+      "zoom": {
+        "description": "Livello Web Mercator da 0 a 16; il livello zero contiene una sola tessera.",
+        "default": "Obbligatorio"
+      },
+      "x": {
+        "description": "Colonna della tessera da 0 a 2^zoom−1; controllo prima della chiamata.",
+        "default": "Obbligatorio"
+      },
+      "y": {
+        "description": "Riga della tessera da 0 a 2^zoom−1; controllo prima della chiamata.",
+        "default": "Obbligatorio"
+      }
+    },
+    "result": "Byte della tessera con MIME e intestazioni cache originali; MCP mostra un’immagine e CLI --output salva i byte.",
+    "example": {
+      "mapType": "US_PRECIPITATION_CURRENT",
+      "zoom": 12,
+      "x": 1025,
+      "y": 1688
+    },
+    "notes": [
+      "Sperimentale pre-GA: supporto limitato e possibili modifiche incompatibili. Attribuzione obbligatoria; cache di previsioni al minuto e mappe limitata a un’ora, poi cancellare. Google vieta di ricreare suoi prodotti o servizi, inclusi app o modelli dedicati principalmente alle informazioni meteo. Le restrizioni valgono anche a valle.",
+      "Copertura limitata alle aree USA/Europa della guida Google. Coordinate valide non garantiscono dati per quel luogo.",
+      "Riferimenti ufficiali e limiti: https://developers.google.com/maps/documentation/weather/minute-forecast ; https://developers.google.com/maps/documentation/weather/weather-map"
+    ],
+    "authentication": "Chiave API o token OAuth2 con ambito cloud-platform; abilitare API e fatturazione. Il principale del progetto quota richiede serviceusage.services.use.",
+    "summary": "Mappa precipitazioni attuali, sperimentale."
+  },
+  "maps_speed_limits": {
+    "purpose": "Recupera limiti automobilistici per segmenti da un percorso GPS o ID Roads. Funzione limitata ad Asset Tracking; abilitare Roads non basta.",
+    "parameters": {
+      "path": {
+        "description": "Da 1 a 100 punti GPS; esclude roadPlaceIds. Google adatta il tracciato alla strada prima della ricerca.",
+        "default": "Non fornito"
+      },
+      "path[].latitude": {
+        "description": "Latitudine WGS84 in gradi, da -90 a 90.",
+        "default": "Obbligatorio per ogni punto"
+      },
+      "path[].longitude": {
+        "description": "Longitudine WGS84 in gradi, da -180 a 180.",
+        "default": "Obbligatorio per ogni punto"
+      },
+      "roadPlaceIds": {
+        "description": "Da 1 a 100 ID di segmenti dagli strumenti Roads; gli ID delle attività normali possono non avere dati. Esclude path.",
+        "default": "Non fornito"
+      },
+      "units": {
+        "description": "Unità: KPH per km/h o MPH per miglia/ora.",
+        "default": "KPH"
+      }
+    },
+    "result": "Risposta Roads completa: speedLimits con placeId, speedLimit, units, eventuali snappedPoints del tracciato, avvisi e metadati.",
+    "example": {
+      "roadPlaceIds": [
+        "ChIJs5ydyTiuEmsR0fRSlU0C7k0"
+      ],
+      "units": "KPH"
+    },
+    "notes": [
+      "Google richiede una licenza Asset Tracking; progetti Premium migrati con tale capacità possono mantenerla. Fatturazione ordinaria o API attiva non provano l’accesso. Ogni voce speedLimits è fatturata: una richiesta può includere più addebiti; usare batch minimi.",
+      "Per limiti variabili si restituisce il massimo automobilistico. Dati non in tempo reale, talvolta assenti, stimati o obsoleti: seguire segnaletica e requisiti di sicurezza. Il 403 conserva la causa Google depurata e un suggerimento; può dipendere anche da API, chiave o permessi, non sempre dalla licenza.",
+      "Riferimenti ufficiali e limiti: https://developers.google.com/maps/documentation/roads/speed-limits"
+    ],
+    "authentication": "Chiave API richiesta anche in modalità OAuth; abilitare servizio, fatturazione e restrizioni appropriate.",
+    "summary": "Limiti di velocità con accesso Asset Tracking."
+  },
+  "maps_autocomplete": {
+    "purpose": "Suggerimenti Places API New durante la digitazione, con luoghi/query, preferenze o restrizioni geografiche, filtri, cursore e sessioni di fatturazione gestite dal chiamante.",
+    "parameters": {
+      "input": {
+        "description": "Testo non vuoto, anche nome di luogo o indirizzo parziale.",
+        "default": "—"
+      },
+      "locationBias": {
+        "description": "Preferenza attorno a un solo cerchio o rettangolo; i risultati possono uscirne. Esclude locationRestriction.",
+        "default": "Preferenza Google basata su IP senza opzioni geografiche"
+      },
+      "locationRestriction": {
+        "description": "Limita a un solo cerchio o rettangolo; esclude locationBias.",
+        "default": "Preferenza Google basata su IP senza opzioni geografiche"
+      },
+      "includedPrimaryTypes": {
+        "description": "Fino a cinque tipi primari; (cities) o (regions), se usato, deve essere l’unico valore.",
+        "default": "Tutti i tipi"
+      },
+      "includedRegionCodes": {
+        "description": "Fino a 15 codici CLDR di due lettere; si intersecano con locationRestriction. Un array vuoto non limita i risultati.",
+        "default": "Tutte le regioni"
+      },
+      "languageCode": {
+        "description": "Lingua IETF BCP-47 per il testo disponibile; Google può scegliere la lingua supportata più vicina.",
+        "default": "Valore configurato di GOOGLE_MAPS_LANGUAGE"
+      },
+      "regionCode": {
+        "description": "Codice regione CLDR di due lettere per formato e ordinamento; non limita i risultati alla regione.",
+        "default": "Non fornito"
+      },
+      "origin": {
+        "description": "Coordinate di riferimento per la distanza geodetica distanceMeters.",
+        "default": "Distanza omessa"
+      },
+      "origin.latitude": {
+        "description": "Latitudine WGS84 in gradi, da -90 a 90.",
+        "default": "Obbligatorio con origin"
+      },
+      "origin.longitude": {
+        "description": "Longitudine WGS84 in gradi, da -180 a 180.",
+        "default": "Obbligatorio con origin"
+      },
+      "inputOffset": {
+        "description": "Posizione del cursore da zero in caratteri Unicode; non supera la lunghezza di input.",
+        "default": "Fine del testo"
+      },
+      "includeQueryPredictions": {
+        "description": "Include suggerimenti di query oltre ai luoghi.",
+        "default": "false"
+      },
+      "sessionToken": {
+        "description": "Token sicuro per URL generato dal chiamante, massimo 36 caratteri ASCII; consigliato un nuovo UUID v4 per sessione. Riutilizzarlo nella chiamata conclusiva Place Details o Address Validation.",
+        "default": "Nessun raggruppamento; fatturazione per richiesta"
+      },
+      "includePureServiceAreaBusinesses": {
+        "description": "Include attività che visitano o servono i clienti senza sede pubblica.",
+        "default": "false"
+      },
+      "includeFutureOpeningBusinesses": {
+        "description": "Include attività che apriranno in futuro.",
+        "default": "false"
+      },
+      "locationBias.circle": {
+        "description": "Area circolare; esclude rectangle.",
+        "default": "Non fornito"
+      },
+      "locationBias.circle.center": {
+        "description": "Centro WGS84 del cerchio.",
+        "default": "Obbligatorio con circle"
+      },
+      "locationBias.circle.center.latitude": {
+        "description": "Latitudine WGS84 in gradi, da -90 a 90.",
+        "default": "Obbligatorio con il centro"
+      },
+      "locationBias.circle.center.longitude": {
+        "description": "Longitudine WGS84 in gradi, da -180 a 180.",
+        "default": "Obbligatorio con il centro"
+      },
+      "locationBias.circle.radius": {
+        "description": "Raggio in metri, massimo 50000; positivo per locationRestriction.",
+        "default": "Obbligatorio con circle"
+      },
+      "locationBias.rectangle": {
+        "description": "Rettangolo chiuso, esclude circle; le longitudini possono attraversare l’antimeridiano.",
+        "default": "Non fornito"
+      },
+      "locationBias.rectangle.low": {
+        "description": "Limite sud-ovest; la latitudine non supera high.latitude.",
+        "default": "Obbligatorio con rectangle"
+      },
+      "locationBias.rectangle.low.latitude": {
+        "description": "Latitudine WGS84 in gradi, da -90 a 90.",
+        "default": "Obbligatorio con il limite"
+      },
+      "locationBias.rectangle.low.longitude": {
+        "description": "Longitudine WGS84 in gradi, da -180 a 180.",
+        "default": "Obbligatorio con il limite"
+      },
+      "locationBias.rectangle.high": {
+        "description": "Limite nord-est; la latitudine non è inferiore a low.latitude.",
+        "default": "Obbligatorio con rectangle"
+      },
+      "locationBias.rectangle.high.latitude": {
+        "description": "Latitudine WGS84 in gradi, da -90 a 90.",
+        "default": "Obbligatorio con il limite"
+      },
+      "locationBias.rectangle.high.longitude": {
+        "description": "Longitudine WGS84 in gradi, da -180 a 180.",
+        "default": "Obbligatorio con il limite"
+      },
+      "locationRestriction.circle": {
+        "description": "Area circolare; esclude rectangle.",
+        "default": "Non fornito"
+      },
+      "locationRestriction.circle.center": {
+        "description": "Centro WGS84 del cerchio.",
+        "default": "Obbligatorio con circle"
+      },
+      "locationRestriction.circle.center.latitude": {
+        "description": "Latitudine WGS84 in gradi, da -90 a 90.",
+        "default": "Obbligatorio con il centro"
+      },
+      "locationRestriction.circle.center.longitude": {
+        "description": "Longitudine WGS84 in gradi, da -180 a 180.",
+        "default": "Obbligatorio con il centro"
+      },
+      "locationRestriction.circle.radius": {
+        "description": "Raggio in metri, massimo 50000; positivo per locationRestriction.",
+        "default": "Obbligatorio con circle"
+      },
+      "locationRestriction.rectangle": {
+        "description": "Rettangolo chiuso, esclude circle; le longitudini possono attraversare l’antimeridiano.",
+        "default": "Non fornito"
+      },
+      "locationRestriction.rectangle.low": {
+        "description": "Limite sud-ovest; la latitudine non supera high.latitude.",
+        "default": "Obbligatorio con rectangle"
+      },
+      "locationRestriction.rectangle.low.latitude": {
+        "description": "Latitudine WGS84 in gradi, da -90 a 90.",
+        "default": "Obbligatorio con il limite"
+      },
+      "locationRestriction.rectangle.low.longitude": {
+        "description": "Longitudine WGS84 in gradi, da -180 a 180.",
+        "default": "Obbligatorio con il limite"
+      },
+      "locationRestriction.rectangle.high": {
+        "description": "Limite nord-est; la latitudine non è inferiore a low.latitude.",
+        "default": "Obbligatorio con rectangle"
+      },
+      "locationRestriction.rectangle.high.latitude": {
+        "description": "Latitudine WGS84 in gradi, da -90 a 90.",
+        "default": "Obbligatorio con il limite"
+      },
+      "locationRestriction.rectangle.high.longitude": {
+        "description": "Longitudine WGS84 in gradi, da -180 a 180.",
+        "default": "Obbligatorio con il limite"
+      }
+    },
+    "result": "Risposta suggestions completa: placePrediction/queryPrediction, corrispondenze del testo, formattazione, ID, distanceMeters opzionale e metadati; nessuna maschera elimina campi.",
+    "example": {
+      "input": "coffee near Paris",
+      "sessionToken": "550e8400-e29b-41d4-a716-446655440000",
+      "includedRegionCodes": [
+        "FR"
+      ],
+      "locationBias": {
+        "circle": {
+          "center": {
+            "latitude": 48.8566,
+            "longitude": 2.3522
+          },
+          "radius": 5000
+        }
+      },
+      "includeQueryPredictions": true
+    },
+    "notes": [
+      "Lo strumento non crea né conclude sessioni automaticamente. Stesso progetto Google Cloud per tutta la sessione, conclusa con Place Details o Address Validation idoneo. Nuovo token per la sessione successiva; assenza o riuso può causare fatturazione per richiesta.",
+      "Raggio massimo 50000 m, positivo nelle restrizioni. Latitudini del rettangolo ordinate; longitudini possono attraversare l’antimeridiano. Conservare attribuzione Google Maps/fornitori; termini EEA e campi possono differire.",
+      "Riferimenti ufficiali e limiti: https://developers.google.com/maps/documentation/places/web-service/reference/rest/v1/places/autocomplete"
+    ],
+    "authentication": "Chiave API oppure OAuth Places con ambito Places/cloud-platform.",
+    "summary": "Suggerisce luoghi e indirizzi durante la digitazione."
+  },
+  "maps_geolocate": {
+    "purpose": "Stima la posizione del dispositivo da celle o access point Wi-Fi con il corpo Geolocation nativo completo.",
+    "parameters": {
+      "body": {
+        "description": "Oggetto Geolocation nativo: homeMobileCountryCode, homeMobileNetworkCode, radioType gsm/cdma/wcdma/lte/nr, carrier, considerIp, cellTowers e wifiAccessPoints. Supporta cellId/newRadioCellId e segnale. Un oggetto vuoto permette il ripiego sull’IP del server; Google convalida i campi interni.",
+        "default": "—"
+      }
+    },
+    "result": "location.lat, location.lng e accuracy (raggio di incertezza in metri), con ulteriori campi Google.",
+    "example": {
+      "body": {
+        "considerIp": false,
+        "wifiAccessPoints": [
+          {
+            "macAddress": "00:25:9c:cf:1c:ac",
+            "signalStrength": -43
+          },
+          {
+            "macAddress": "00:25:9c:cf:1c:ad",
+            "signalStrength": -55
+          }
+        ]
+      }
+    },
+    "notes": [
+      "considerIp è true per default. Senza osservazioni radio valide, il ripiego localizza l’IP di uscita del server, non la persona; impostare body.considerIp=false per impedirlo.",
+      "Wi-Fi richiede almeno due access point fissi fisicamente distinti. Google esclude MAC locali e riservati; hotspot mobili e osservazioni non valide possono fallire. Google convalida i dettagli del protocollo; il wrapper rifiuta parametri esterni sconosciuti. Stima approssimata, possibile NOT_FOUND: controllare accuracy.",
+      "Riferimenti ufficiali e limiti: https://developers.google.com/maps/documentation/geolocation/requests-geolocation"
+    ],
+    "authentication": "Chiave API richiesta anche in modalità OAuth; abilitare servizio, fatturazione e restrizioni appropriate.",
+    "summary": "Stima la posizione da celle e Wi-Fi."
+  },
+  "maps_solar": {
+    "purpose": "Usa i tre metodi Solar principali: edificio vicino, metadati raster regionali e download GeoTIFF limitati tramite ID.",
+    "parameters": {
+      "operation": {
+        "description": "building_insights, data_layers o geo_tiff; accetta solo parametri dell’operazione scelta.",
+        "default": "—"
+      },
+      "location": {
+        "description": "Coordinate del fabbricato o centro delle mappe; obbligatorie per building_insights/data_layers.",
+        "default": "Non fornito"
+      },
+      "location.latitude": {
+        "description": "Latitudine WGS84 in gradi, da -90 a 90.",
+        "default": "Obbligatorio con location"
+      },
+      "location.longitude": {
+        "description": "Longitudine WGS84 in gradi, da -180 a 180.",
+        "default": "Obbligatorio con location"
+      },
+      "requiredQuality": {
+        "description": "Qualità minima HIGH, MEDIUM o BASE; BASE usa immagini satellitari migliorate. Disponibilità variabile.",
+        "default": "HIGH (predefinito Google)"
+      },
+      "exactQualityRequired": {
+        "description": "Richiede la qualità esatta invece di accettarne una superiore, per dati edificio e livelli.",
+        "default": "false"
+      },
+      "experiments": {
+        "description": "Esperimento facoltativo EXPANDED_COVERAGE per edificio e livelli; classificato pre-GA da Google.",
+        "default": "Nessun esperimento"
+      },
+      "additionalInsights": {
+        "description": "DETECTED_ARRAYS facoltativo per building_insights, per i pannelli già presenti sui tetti.",
+        "default": "Nessuna informazione aggiuntiva"
+      },
+      "radiusMeters": {
+        "description": "Raggio positivo data_layers, massimo 1000 m. Oltre 100 non supera pixelSizeMeters×1000; oltre 175 serve una vista senza flussi mensili o ombra oraria.",
+        "default": "Non fornito"
+      },
+      "view": {
+        "description": "Livelli: DSM_LAYER, IMAGERY_LAYERS, IMAGERY_AND_ANNUAL_FLUX_LAYERS, IMAGERY_AND_ALL_FLUX_LAYERS o FULL_LAYERS.",
+        "default": "FULL_LAYERS (predefinito Google)"
+      },
+      "pixelSizeMeters": {
+        "description": "Dimensione minima del pixel: 0.1, 0.25, 0.5 o 1 metro; alcuni livelli hanno risoluzione nativa inferiore.",
+        "default": "0.1"
+      },
+      "id": {
+        "description": "ID opaco dall’argomento id di un URL Solar; richiesto solo per geo_tiff. Inviare l’ID, non l’URL.",
+        "default": "— per geo_tiff"
+      }
+    },
+    "result": "building_insights/data_layers restituiscono JSON completo con date, qualità, potenziale e URL temporanei senza credenziali. geo_tiff restituisce byte limitati con MIME reale e cache; JSON CLI usa base64.",
+    "example": {
+      "operation": "data_layers",
+      "location": {
+        "latitude": 37.444,
+        "longitude": -122.16
+      },
+      "radiusMeters": 100,
+      "view": "IMAGERY_AND_ANNUAL_FLUX_LAYERS"
+    },
+    "notes": [
+      "Copertura e qualità variano; NOT_FOUND se manca un edificio entro circa 50 m. URL temporanei e protetti: copiare solo id in geo_tiff, che scarica da solar.googleapis.com/v1/geoTiff:get senza URL arbitrari.",
+      "Risposta massima 16 MiB, budget richieste e scadenza; raster grandi richiedono raggio minore o pixel più grossi. Decodifica e progettazione impianti escluse. EXPANDED_COVERAGE pre-GA; in EEA termini e contenuti possono differire. Fatturazione e quote distinte per endpoint; conservare attribuzione Google Maps.",
+      "Riferimenti ufficiali e limiti: https://developers.google.com/maps/comms/eea/solar ; https://developers.google.com/maps/documentation/solar/coverage ; https://developers.google.com/maps/documentation/solar/reference/rest/v1/buildingInsights/findClosest ; https://developers.google.com/maps/documentation/solar/reference/rest/v1/dataLayers/get ; https://developers.google.com/maps/documentation/solar/reference/rest/v1/geoTiff/get"
+    ],
+    "authentication": "Chiave API o token OAuth2 con ambito cloud-platform; abilitare API e fatturazione. Il principale del progetto quota richiede serviceusage.services.use.",
+    "summary": "Dati degli edifici e livelli solari."
+  },
+  "maps_aerial_view": {
+    "purpose": "Recupera URL temporanei o metadati di un video Aerial View esistente senza scaricarlo.",
+    "parameters": {
+      "operation": {
+        "description": "lookup restituisce URL e metadati (a pagamento); metadata solo dati senza URL (metodo Google gratuito).",
+        "default": "lookup"
+      },
+      "address": {
+        "description": "Indirizzo postale statunitense supportato; esattamente uno tra address e videoId.",
+        "default": "Non fornito"
+      },
+      "videoId": {
+        "description": "ID Aerial View già restituito; esclude address.",
+        "default": "Non fornito"
+      }
+    },
+    "result": "Risposta Google nativa con stato e metadati, e URL per formato/risoluzione quando attivo. metadata esclude gli URL di riproduzione.",
+    "example": {
+      "operation": "metadata",
+      "address": "600 Montgomery St, San Francisco, CA 94111"
+    },
+    "notes": [
+      "Solo indirizzi USA supportati e coperti in 3D. Video mancante: NOT_FOUND; richiedere maps_render_aerial_video. Controllare lo stato con metadata gratuito a intervalli ragionevoli; usare lookup fatturato solo per riprodurre.",
+      "URL a breve scadenza: aggiornarli a ogni visualizzazione. Google vieta download, archiviazione e cache dei video; lo strumento restituisce solo URL. ID conservabili secondo l’eccezione documentata. Attribuzione visibile durante la riproduzione; termini e funzionalità EEA variabili.",
+      "Riferimenti ufficiali e limiti: https://developers.google.com/maps/documentation/aerial-view/lookup-video ; https://developers.google.com/maps/documentation/aerial-view/policies\"]"
+    ],
+    "authentication": "Chiave API richiesta anche in modalità OAuth; abilitare servizio, fatturazione e restrizioni appropriate.",
+    "summary": "URL e metadati dei video Aerial View."
+  },
+  "maps_render_aerial_video": {
+    "purpose": "Accoda esplicitamente un rendering Aerial View asincrono per un indirizzo USA supportato, separato dalla lettura perché l’agente riconosca la modifica.",
+    "parameters": {
+      "address": {
+        "description": "Indirizzo postale statunitense supportato da renderizzare.",
+        "default": "—"
+      }
+    },
+    "result": "Risposta nativa con stato e metadati; PROCESSING indica coda o elaborazione, un video esistente può dare subito ACTIVE.",
+    "example": {
+      "address": "600 Montgomery St, San Francisco, CA 94111"
+    },
+    "notes": [
+      "Modifica la coda Google. Nessun tentativo automatico dopo errori transitori, attesa o download. Verificare con maps_aerial_view metadata usando indirizzo o videoId; lookup solo per gli URL.",
+      "Copertura USA/3D, quote e termini del servizio; API attiva non garantisce il rendering. Vietati download, conservazione e cache dei video; mostrare URL aggiornati con attribuzione.",
+      "Riferimenti ufficiali e limiti: https://developers.google.com/maps/documentation/aerial-view/reference/rest/v1/videos/renderVideo"
+    ],
+    "authentication": "Chiave API richiesta anche in modalità OAuth; abilitare servizio, fatturazione e restrizioni appropriate.",
+    "summary": "Richiede esplicitamente un rendering aereo."
+  },
+  "maps_map_tiles": {
+    "purpose": "Crea sessioni Map Tiles e recupera risorse 2D, 3D e Street View per un visualizzatore, che non è incluso. Licenza Google solo per visualizzazione: vietati interpretazione automatica, analisi immagini, identificazione oggetti, estrazione geodati e uso offline.",
+    "parameters": {
+      "operation": {
+        "description": "create_session, tile_2d, viewport, root_3d, resource_3d, streetview_pano_ids, streetview_metadata, streetview_thumbnail o streetview_tile; determina endpoint e argomenti richiesti.",
+        "default": "—"
+      },
+      "sessionOptions": {
+        "description": "Opzioni createSession native; mapType, language e region richiesti per create_session.",
+        "default": "Non fornito; obbligatorio per le operazioni indicate"
+      },
+      "sessionOptions.mapType": {
+        "description": "roadmap, satellite, terrain o streetview; terrain richiede layerRoadmap in layerTypes.",
+        "default": "Non fornito; obbligatorio per le operazioni indicate"
+      },
+      "sessionOptions.language": {
+        "description": "Lingua IETF, per esempio en-US.",
+        "default": "Non fornito; obbligatorio per le operazioni indicate"
+      },
+      "sessionOptions.region": {
+        "description": "Codice CLDR di due maiuscole, come US, per la posizione fisica dell’utente.",
+        "default": "Non fornito; obbligatorio per le operazioni indicate"
+      },
+      "sessionOptions.imageFormat": {
+        "description": "Formato jpeg o png; JPEG non supporta sovrapposizioni trasparenti.",
+        "default": "Google sceglie il formato migliore"
+      },
+      "sessionOptions.scale": {
+        "description": "Dimensione degli elementi: scaleFactor1x, scaleFactor2x o scaleFactor4x.",
+        "default": "scaleFactor1x"
+      },
+      "sessionOptions.highDpi": {
+        "description": "Aumenta i pixel con scala 2x o 4x; nessun effetto con 1x.",
+        "default": "false"
+      },
+      "sessionOptions.overlay": {
+        "description": "Con true visualizza layerTypes senza immagine di base.",
+        "default": "false"
+      },
+      "sessionOptions.layerTypes": {
+        "description": "Da uno a tre livelli: layerRoadmap, layerStreetview, layerTraffic. terrain richiede layerRoadmap.",
+        "default": "Nessun livello aggiuntivo"
+      },
+      "sessionOptions.styles": {
+        "description": "Oggetti di stile Google nativi, solo per roadmap; sintassi nel riferimento Google.",
+        "default": "Stile predefinito Google"
+      },
+      "session": {
+        "description": "Token createSession; richiesto per 2D e Street View, non per 3D. Rispettare expiry della risposta.",
+        "default": "Non fornito; obbligatorio per le operazioni indicate"
+      },
+      "zoom": {
+        "description": "Zoom intero: 0–22 per tile_2d/viewport, 0–5 per streetview_tile. Verificare disponibilità con viewport.",
+        "default": "Non fornito; obbligatorio per le operazioni indicate"
+      },
+      "x": {
+        "description": "Colonna; in 2D inferiore a 2^zoom. Per Street View dipende dalle dimensioni del panorama nei metadati.",
+        "default": "Non fornito; obbligatorio per le operazioni indicate"
+      },
+      "y": {
+        "description": "Riga; in 2D inferiore a 2^zoom. Per Street View dipende dalle dimensioni del panorama nei metadati.",
+        "default": "Non fornito; obbligatorio per le operazioni indicate"
+      },
+      "north": {
+        "description": "Latitudine nord richiesta per viewport; deve superare south.",
+        "default": "Non fornito; obbligatorio per le operazioni indicate"
+      },
+      "south": {
+        "description": "Latitudine sud richiesta per viewport.",
+        "default": "Non fornito; obbligatorio per le operazioni indicate"
+      },
+      "east": {
+        "description": "Longitudine est richiesta; negativa con west positivo permette attraversamento dell’antimeridiano.",
+        "default": "Non fornito; obbligatorio per le operazioni indicate"
+      },
+      "west": {
+        "description": "Longitudine ovest richiesta per viewport.",
+        "default": "Non fornito; obbligatorio per le operazioni indicate"
+      },
+      "resourceUrl": {
+        "description": "Per resource_3d: URL Google assoluto https://tile.googleapis.com/v1/3dtiles/... dal tileset; vietati altri host, porte personalizzate, credenziali, frammenti e percorsi codificati. La chiave dell’URL è rimossa; si usano le credenziali configurate.",
+        "default": "Non fornito; obbligatorio per le operazioni indicate"
+      },
+      "panoId": {
+        "description": "Richiesto per tessera o miniatura Street View, oppure alternativo alle coordinate nei metadati. Non affidarsi all’ID oltre una sessione.",
+        "default": "Non fornito; obbligatorio per le operazioni indicate"
+      },
+      "latitude": {
+        "description": "Latitudine WGS84 in gradi, da -90 a 90.",
+        "default": "Non fornito; obbligatorio per le operazioni indicate"
+      },
+      "longitude": {
+        "description": "Longitudine WGS84 in gradi, da -180 a 180.",
+        "default": "Non fornito; obbligatorio per le operazioni indicate"
+      },
+      "locations": {
+        "description": "Da uno a 100 luoghi per streetview_pano_ids, ciascuno con lat e lng.",
+        "default": "Non fornito; obbligatorio per le operazioni indicate"
+      },
+      "locations[].lat": {
+        "description": "Latitudine WGS84 in gradi, da -90 a 90.",
+        "default": "Non fornito; obbligatorio per le operazioni indicate"
+      },
+      "locations[].lng": {
+        "description": "Longitudine WGS84 in gradi, da -180 a 180.",
+        "default": "Non fornito; obbligatorio per le operazioni indicate"
+      },
+      "radius": {
+        "description": "Raggio Street View in metri, 0–100000, per pano_ids o metadata con coordinate; esclude panoId.",
+        "default": "50 metri"
+      },
+      "width": {
+        "description": "Larghezza miniatura, 16–600 pixel.",
+        "default": "600"
+      },
+      "height": {
+        "description": "Altezza miniatura, 16–250 pixel.",
+        "default": "250"
+      },
+      "yaw": {
+        "description": "Orientamento orizzontale miniatura da -360 a 360 gradi.",
+        "default": "0"
+      },
+      "pitch": {
+        "description": "Angolo verticale della fotocamera da -90 a 90 gradi.",
+        "default": "0"
+      },
+      "fov": {
+        "description": "Campo visivo orizzontale miniatura, 30–120 gradi.",
+        "default": "90"
+      }
+    },
+    "result": "JSON nativo per sessioni, viewport, panorami e tileset 3D, con attribuzione, copyright, segnalazioni e scadenza. Immagini e risorse 3D non JSON: byte con MIME, Cache-Control ed ETag. MCP mostra immagini supportate, altri dati in base64; CLI --output scrive byte.",
+    "example": {
+      "operation": "root_3d"
+    },
+    "notes": [
+      "create_session richiede sessionOptions; tile_2d session/zoom/x/y; viewport session/zoom/north/south/east/west; root_3d nessun altro campo; resource_3d resourceUrl; pano_ids session/locations; metadata session e panorama o coordinate; thumbnail session/panoId; streetview_tile session/panoId/zoom/x/y. Campi non utilizzati rifiutati.",
+      "Nessun tentativo automatico per creazione sessione; ricerca panorami POST di sola lettura. Il visualizzatore deve unire e renderizzare i dati. Nessuna cache tessere, download massivo, mappa offline o analisi. Non inviare immagini a modelli visivi per interpretazione o estrazione.",
+      "L’accordo limita prefetch, indicizzazione e archiviazione; rispettare Cache-Control ed ETag. Mostrare logo Google Maps e attribuzioni. Usare copyright viewport per 2D, copyright e segnalazioni Street View, crediti in 3D; non tagliare i riconoscimenti. Copertura, costi, quote e termini EEA variabili. Rispettare expiry; ID panorami temporanei.",
+      "Riferimenti ufficiali e limiti: https://developers.google.com/maps/documentation/tile/2d-tiles-overview ; https://developers.google.com/maps/documentation/tile/3d-tiles ; https://developers.google.com/maps/documentation/tile/get-api-key ; https://developers.google.com/maps/documentation/tile/policies ; https://developers.google.com/maps/documentation/tile/session_tokens ; https://developers.google.com/maps/documentation/tile/streetview ; https://developers.google.com/maps/documentation/tile/style-reference ; https://tile.googleapis.com/v1/3dtiles/"
+    ],
+    "authentication": "Chiave API o token OAuth2 con ambito cloud-platform; abilitare API e fatturazione. Il principale del progetto quota richiede serviceusage.services.use.",
+    "summary": "Tessere 2D, 3D e Street View per la visualizzazione."
+  },
+  "maps_streetview": {
+    "purpose": "Verifica metadati panoramici o recupera un JPEG statico per luogo o ID. I metadati permettono di controllare la disponibilità prima dell’immagine fatturata.",
+    "parameters": {
+      "operation": {
+        "description": "metadata per JSON o image per byte JPEG.",
+        "default": "—"
+      },
+      "location": {
+        "description": "Indirizzo, coordinate testuali come 48.8584,2.2945 o place_id:PLACE_ID; esattamente uno tra location e panoId.",
+        "default": "Non fornito; obbligatorio per le operazioni indicate"
+      },
+      "panoId": {
+        "description": "ID di panorama Street View; può cambiare e non va considerato permanente.",
+        "default": "Non fornito; obbligatorio per le operazioni indicate"
+      },
+      "width": {
+        "description": "Larghezza immagine 1–640 pixel, solo per image. Formati speciali più grandi non implementati.",
+        "default": "640"
+      },
+      "height": {
+        "description": "Altezza immagine 1–640 pixel, solo per image.",
+        "default": "400"
+      },
+      "heading": {
+        "description": "Orientamento della fotocamera da 0 a 360 gradi.",
+        "default": "Google orienta verso il luogo indicato"
+      },
+      "fov": {
+        "description": "Campo visivo orizzontale immagine, 1–120 gradi.",
+        "default": "90"
+      },
+      "pitch": {
+        "description": "Angolo verticale della fotocamera da -90 a 90 gradi.",
+        "default": "0"
+      },
+      "radius": {
+        "description": "Raggio di ricerca in metri; l’implementazione accetta interi 0–100000.",
+        "default": "50"
+      },
+      "source": {
+        "description": "Sorgente default, google o outdoor; disponibilità secondo raccolta e regione.",
+        "default": "default"
+      },
+      "returnErrorCode": {
+        "description": "Per image: errore HTTP al posto dell’immagine grigia quando mancano immagini.",
+        "default": "true in questa implementazione"
+      },
+      "signature": {
+        "description": "Firma URL facoltativa per la richiesta codificata esatta; Google la consiglia e talvolta la richiede. Lo strumento la inoltra senza generarla. Nelle richieste firmate signature viene aggiunto per ultimo, dopo la chiave API. Firma il percorso e la query codificati esatti, inclusi i valori predefiniti generati. Ordine immagine: location, radius, source, pano, size, heading, fov, pitch, return_error_code, key; i campi opzionali assenti vengono omessi. I metadati omettono i campi immagine. Gli spazi diventano +. Predefiniti: size=640x400 e return_error_code=true.",
+        "default": "Non fornito"
+      }
+    },
+    "result": "JSON metadata nativo con status, date, location, pano_id e copyright se disponibili, oppure byte JPEG con MIME e intestazioni cache sicure. Immagine assente: errore predefinito. CLI --output salva i byte; MCP espone immagine e metadati.",
+    "example": {
+      "operation": "metadata",
+      "location": "Eiffel Tower, Paris, France"
+    },
+    "notes": [
+      "Esattamente location o panoId. Dimensioni, heading, fov, pitch e returnErrorCode solo per immagini; campi inutilizzati rifiutati. Metadati attualmente gratuiti e senza consumo quota immagini; immagini fatturate.",
+      "Conservare l’attribuzione incorporata. Street View vietato per stampa; limiti Maps sulla conservazione. Il tool non autorizza archiviazione, redistribuzione o analisi. Firma solo inoltrata, non generata; formati speciali esclusi. Copertura e termini EEA variabili; ID e date possono cambiare o mancare.",
+      "Riferimenti ufficiali e limiti: https://about.google/brand-resource-center/products-and-services/geo-guidelines/ ; https://developers.google.com/maps/documentation/streetview/metadata ; https://developers.google.com/maps/documentation/streetview/policies ; https://developers.google.com/maps/documentation/streetview/request-streetview"
+    ],
+    "authentication": "Chiave API richiesta per Street View Static; OAuth da solo non basta. Abilitare Street View Static API. Firma digitale consigliata e obbligatoria per alcuni account.",
+    "summary": "Metadati Street View e immagine JPEG."
+  },
+  "maps_streetview_publish": {
+    "purpose": "Gestisce foto e sequenze dell’utente consenziente. Supporta tutti i metodi REST v1 documentati e upload limitato. Pubblicazione e cancellazione esplicite, senza tentativi automatici.",
+    "parameters": {
+      "operation": {
+        "description": "list/get/start_upload/upload/create/update/delete/batch_get/batch_update/batch_delete/list_sequences/get_sequence/start_sequence_upload/create_sequence/delete_sequence. Pubblicazione, aggiornamento e cancellazione modificano contenuti pubblici dell’utente.",
+        "default": "—"
+      },
+      "photoId": {
+        "description": "ID Google della foto per get/update/delete, senza percorsi o parametri URL.",
+        "default": "Non fornito; obbligatorio per le operazioni indicate"
+      },
+      "sequenceId": {
+        "description": "ID sequenza per get_sequence/delete_sequence; deriva dal nome dell’operazione creata.",
+        "default": "Non fornito; obbligatorio per le operazioni indicate"
+      },
+      "photoIds": {
+        "description": "Da uno a 100 ID foto per batch_get o batch_delete.",
+        "default": "Non fornito; obbligatorio per le operazioni indicate"
+      },
+      "view": {
+        "description": "BASIC o INCLUDE_DOWNLOAD_URL per list/get/batch_get/get_sequence. Gli URL di download sono sensibili e non vengono scaricati.",
+        "default": "BASIC"
+      },
+      "languageCode": {
+        "description": "Lingua IETF BCP-47 per il testo disponibile; Google può scegliere la lingua supportata più vicina.",
+        "default": "Predefinito Google"
+      },
+      "pageSize": {
+        "description": "Dimensione pagina 1–100 per list o list_sequences; Google può restituirne meno.",
+        "default": "Predefinito del servizio Google"
+      },
+      "pageToken": {
+        "description": "Token della pagina successiva dalla risposta precedente; mantenere invariati gli altri parametri. Nessuna paginazione automatica.",
+        "default": "Non fornito; obbligatorio per le operazioni indicate"
+      },
+      "filter": {
+        "description": "Filtro nativo Google; la sintassi dipende dall’endpoint.",
+        "default": "Non fornito; obbligatorio per le operazioni indicate"
+      },
+      "updateMask": {
+        "description": "FieldMask Google obbligatoria per update, separata da virgole, come pose.heading o pose.latLngPair.",
+        "default": "Non fornito; obbligatorio per le operazioni indicate"
+      },
+      "photo": {
+        "description": "Oggetto Photo nativo per create/update. Creazione: uploadReference.uploadUrl dopo il caricamento; aggiornamento: photoId e updateMask. Consultare lo schema Photo ufficiale.",
+        "default": "Non fornito; obbligatorio per le operazioni indicate"
+      },
+      "photoSequence": {
+        "description": "Oggetto PhotoSequence nativo per create_sequence; richiede uploadReference.uploadUrl e metadati GPS/CAMM/IMU e acquisizione appropriati.",
+        "default": "Non fornito; obbligatorio per le operazioni indicate"
+      },
+      "updatePhotoRequests": {
+        "description": "Da 1 a 100 UpdatePhotoRequest nativi per batch_update; ciascuno richiede photo.photoId.id e updateMask.",
+        "default": "Non fornito; obbligatorio per le operazioni indicate"
+      },
+      "inputType": {
+        "description": "Richiesto per create_sequence: VIDEO o XDM.",
+        "default": "Non fornito; obbligatorio per le operazioni indicate"
+      },
+      "uploadUrl": {
+        "description": "URL UploadRef esatto da start_upload/start_sequence_upload, HTTPS su streetviewpublish.googleapis.com, percorso /media/user/{account}/photo/{reference} o photoSequence; vietati redirect, altri host, credenziali, frammenti e percorsi codificati.",
+        "default": "Non fornito; obbligatorio per le operazioni indicate"
+      },
+      "dataBase64": {
+        "description": "Media in base64 standard con padding. Dimensione decodificata da 1 byte a 8 MiB; limite dell’implementazione, non di Google.",
+        "default": "Non fornito; obbligatorio per le operazioni indicate"
+      },
+      "mimeType": {
+        "description": "Tipo dei media caricati: image/jpeg, video/mp4 o application/octet-stream.",
+        "default": "image/jpeg"
+      }
+    },
+    "result": "Photo, elenchi, UploadRef, risultati batch o Operation nativi. Risposte vuote di upload/delete diventano {}. Stato e proprietà conservati. Sequenze possono restare in elaborazione: controllare get_sequence. Nessun polling o pubblicazione automatici.",
+    "example": {
+      "operation": "list",
+      "pageSize": 10,
+      "view": "BASIC"
+    },
+    "notes": [
+      "Flusso foto: start_upload, upload effettivo, create con photo.uploadReference.uploadUrl e metadati. Upload solo non pubblica. Servono immagini 360, metadati Photo Sphere/XMP e criteri Google. Update usa PUT e updateMask; Google non supporta modifica pixel. Delete rimuove foto pubbliche. Doctor e controlli live non scrivono.",
+      "Flusso sequenze: start_sequence_upload, upload, create_sequence con inputType e photoSequence, poi get_sequence. Limite 8 MiB dell’implementazione: video grandi richiedono upload esterno Google; si può usare l’UploadRef risultante. Niente caricamento a blocchi o riprendibile.",
+      "Corpi nativi per GPS, pose, IMU, connessioni e luoghi; Google convalida i dettagli. Il wrapper rifiuta parametri esterni sconosciuti e controlla i requisiti; ogni update batch richiede photo.photoId.id e updateMask. Tutti i metodi REST implementati non significa ogni campo provato dal vivo.",
+      "Upload limitato a origine fissa, POST senza tentativi automatici; tutte le modifiche disabilitano retry per evitare duplicati dopo errori ambigui. Verificare i risultati. Valgono proprietà, privacy, copyright, criteri 360, elaborazione e quote. Account di servizio non sostituisce consenso utente. Nessun test live di pubblicazione con la chiave di servizio fornita: occorre utente consenziente; scritture pubbliche escluse dai controlli.",
+      "Riferimenti ufficiali e limiti: https://developers.google.com/streetview/publish/authorizing ; https://developers.google.com/streetview/publish/first-app ; https://developers.google.com/streetview/publish/reference/rest ; https://developers.google.com/streetview/publish/reference/rest/v1/photo ; https://developers.google.com/streetview/publish/reference/rest/v1/photoSequence/create ; https://developers.google.com/streetview/publish/reference/rest/v1/photos/batchUpdate ; https://www.googleapis.com/auth/streetviewpublish"
+    ],
+    "authentication": "Solo OAuth utente finale con consenso a https://www.googleapis.com/auth/streetviewpublish. Credenziali authorized_user esplicite in GOOGLE_APPLICATION_CREDENTIALS e modalità OAuth. Rifiutati account di servizio, ADC implicito o sola chiave API. Consenso OAuth configurato esternamente; l’eseguibile rinnova credenziali ma non ospita callback browser.",
+    "summary": "Gestisce e pubblica le foto Street View dell’utente."
   }
 }

@@ -1,6 +1,6 @@
 # Google Maps CLI and MCP server
 
-`mcp-gmap-rs` provides 23 Google Maps tools through one Rust executable:
+`mcp-gmap-rs` provides 42 Google Maps tools through one Rust executable:
 a JSON CLI, an MCP stdio server, and an MCP Streamable HTTP server. All three
 interfaces share argument validation and Google API execution.
 
@@ -10,10 +10,10 @@ The underlying Google clients are implementation details, not a public Rust SDK.
 
 ## Install
 
-Install this version from crates.io:
+Version 0.4.0 includes the complete 42-tool catalog below. Install from crates.io:
 
 ```sh
-cargo install mcp-gmap-rs --version 0.3.1 --locked
+cargo install mcp-gmap-rs --version 0.4.0 --locked
 ```
 
 For an existing source checkout, use `cargo install --path . --locked`.
@@ -63,8 +63,12 @@ the bundled `docs/google-cloud-setup.md` or the
 [repository setup guide](https://github.com/fcenedes/mcp-gmap-rs/blob/main/docs/google-cloud-setup.md).
 OAuth mode uses Google's official Rust auth library, the `cloud-platform` scope,
 cached/refreshed access tokens and a quota-project header for Places (New), Routes,
-Weather, Air Quality, Address Validation and Places Aggregate. Other current
-endpoints (Geocoding v3, Elevation, Time Zone, Static Maps, Pollen and Roads) still
+Weather, Air Quality, Address Validation, Places Aggregate, Solar and Map Tiles.
+Datasets and Route Optimization require OAuth with operation-specific IAM.
+Street View Publish requires explicit authorized_user credentials with consent
+for the separate `streetviewpublish` scope; service-account credentials are
+rejected for publishing. Other current endpoints (Geocoding v3, Elevation, Time
+Zone, Static Maps, Pollen, Roads, Geolocation, Aerial View and Street View Static) still
 use `GOOGLE_MAPS_API_KEY`; composite flows may need it.
 With no credential file selected, ADC can discover local credentials or use the
 attached service/workload account. Credential loading is lazy for discovery.
@@ -94,7 +98,7 @@ mcp-gmap-rs static-map --center 'Paris' --zoom 12 --output paris.png
 
 Tool calls print JSON to stdout and failures to stderr. Failures produce a
 nonzero exit status. `doctor` prints its JSON report even on failed checks.
-`--output` writes JSON to a file, or raw PNG for a static map.
+`--output` writes JSON to a file, or raw bytes for binary results.
 Object and array flags take JSON; boolean flags accept `true` or `false`, and a
 bare boolean flag means `true`. Use `COMMAND --help` for its input flags and
 `schema COMMAND` for its JSON Schema.
@@ -160,11 +164,55 @@ defaults, restrictions, result descriptions and equivalent MCP/CLI examples.
 | [`maps_search_along_route`](#maps_search_along_route) | `search-along-route` | Places near a route polyline |
 | [`maps_local_rank_tracker`](#maps_local_rank_tracker) | `local-rank-tracker` | Geographic search-rank grid |
 
+| [`maps_speed_limits`](#maps_speed_limits) | `speed-limits` | Restricted Asset Tracking speed limits |
+| [`maps_autocomplete`](#maps_autocomplete) | `autocomplete` | Places predictions and session tokens |
+| [`maps_geolocate`](#maps_geolocate) | `geolocate` | Radio/WiFi device geolocation |
+| [`maps_solar`](#maps_solar) | `solar` | Building insights, data layers and GeoTIFF |
+| [`maps_aerial_view`](#maps_aerial_view) | `aerial-view` | US video lookup and metadata |
+| [`maps_render_aerial_video`](#maps_render_aerial_video) | `render-aerial-video` | Explicit asynchronous video rendering |
+| [`maps_map_tiles`](#maps_map_tiles) | `map-tiles` | 2D, 3D and Street View visualization assets |
+| [`maps_streetview`](#maps_streetview) | `streetview` | Static panorama metadata and JPEG |
+| [`maps_streetview_publish`](#maps_streetview_publish) | `streetview-publish` | End-user photo/sequence publishing |
+| [`maps_datasets`](#maps_datasets) | `datasets` | OAuth dataset lifecycle and GCS import |
+| [`maps_route_optimization`](#maps_route_optimization) | `route-optimization` | Native fleet models, validation and jobs |
+| [`maps_air_quality_forecast`](#maps_air_quality_forecast) | `air-quality-forecast` | Hourly air quality forecast |
+| [`maps_air_quality_history`](#maps_air_quality_history) | `air-quality-history` | Previous 30 days of air quality |
+| [`maps_air_quality_heatmap`](#maps_air_quality_heatmap) | `air-quality-heatmap` | Air quality PNG tile |
+| [`maps_pollen_heatmap`](#maps_pollen_heatmap) | `pollen-heatmap` | Pollen PNG tile |
+| [`maps_weather_history`](#maps_weather_history) | `weather-history` | Previous 24 hours of weather |
+| [`maps_weather_alerts`](#maps_weather_alerts) | `weather-alerts` | Public weather alerts |
+| [`maps_weather_minute_forecast`](#maps_weather_minute_forecast) | `weather-minute-forecast` | Experimental minute precipitation |
+| [`maps_weather_map`](#maps_weather_map) | `weather-map` | Experimental precipitation PNG tile |
+
+Version 0.4.0 includes the expanded service and routing catalog.
+Mutating tools include conservative MCP write/destructive hints and never retry writes automatically.
+Native request body objects preserve Google API fields, validated by Google; wrapper arguments are strict.
+
 MCP JSON results include text and structured content. Static maps return MCP PNG
-image content; CLI map results use base64 JSON unless written with `--output`.
+image content; new PNG/JPEG/WebP binaries also preserve provider cache headers.
+Other binary assets use MIME/base64 JSON; CLI `--output` writes raw bytes.
+Uploads are limited to 8 MiB decoded, request JSON to 12 MiB and responses to 16 MiB.
 Place results preserve Google field names and source metadata. Display review
 authors, photo attribution, source links, and AI disclosures with their associated
 content, following [Google's Places policies](https://developers.google.com/maps/documentation/places/web-service/policies).
+
+## Optional traffic segments
+
+Directions and route planning accept `polylineQuality: "HIGH_QUALITY"` or
+`"OVERVIEW"` independently of traffic. An explicit quality wins; omitted quality
+keeps Google's overview default unless traffic segments request high quality.
+Higher quality returns more geometry and can increase response size and latency.
+The executable preserves provider points without interpolation.
+
+Directions and route planning accept `trafficSegments: true` for driving.
+This opts into Google traffic-on-polyline calculations and higher Compute Routes
+Enterprise billing. Normalized route/leg segments preserve Google point
+boundaries and traffic categories. Native geometry/advisories remain available.
+Road category, posted speed limit and traffic observation time are `null` because
+Routes does not provide them; `retrievedAt` is only the local fetch timestamp.
+There are no application-specific speed multipliers or automatic Roads calls.
+See the [segment contract](https://github.com/fcenedes/mcp-gmap-rs/blob/main/docs/route-segments.md)
+for field names, independent index scopes, boundary reconstruction and examples.
 
 ## Documentation and tests
 
@@ -177,7 +225,7 @@ an MCP connection or supply Google credentials.
 
 The public Rust API is checked for missing documentation and broken symbol links.
 The example on [`run`] is compile-checked without making Google requests. The
-offline tests exercise all 23 tools and both MCP transports. An opt-in live suite
+offline tests exercise all 42 tools and both MCP transports. An opt-in live suite
 requires a key, enabled Google APIs, billing and network access.
 
 For the full CLI guide and release procedures, consult the README and documentation

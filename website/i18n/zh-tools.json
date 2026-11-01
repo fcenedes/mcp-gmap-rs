@@ -44,6 +44,10 @@
       "enableUspsCass": {
         "description": "请求 USPS CASS 处理；本实现中为 true 时要求 regionCode 为 US 或 PR。",
         "default": "false"
+      },
+      "sessionToken": {
+        "description": "可选调用方管理的 Autocomplete 会话令牌，最多 36 个 URL 安全 ASCII 字符；与此前预测使用同一令牌结束合格会话。所有请求须来自同一 Cloud 项目；结束后换新令牌。",
+        "default": "不提供；不结束 Autocomplete 会话"
       }
     },
     "result": "完整验证响应，通常包含 `result.verdict`、`result.address`、`result.geocode` 和 `responseId`；Google 可能省略不可用字段。",
@@ -411,6 +415,10 @@
       "maxPhotos": {
         "description": "最多执行的照片媒体 URL 查询次数。",
         "default": "0"
+      },
+      "sessionToken": {
+        "description": "可选调用方管理的 Autocomplete 会话令牌，最多 36 个 URL 安全 ASCII 字符；与此前预测使用同一令牌结束合格会话。所有请求须来自同一 Cloud 项目；结束后换新令牌。",
+        "default": "不提供；不结束 Autocomplete 会话"
       }
     },
     "result": "请求字段掩码对应的原生 Google Place 对象。请求照片时，`photoUrls` 包含媒体 URL、照片作者归属和来源链接。",
@@ -455,9 +463,17 @@
       "arrival_time": {
         "description": "期望到达时间，含时区的 RFC 3339；仅限公共交通。",
         "default": "不提供"
+      },
+      "trafficSegments": {
+        "description": "仅适用于驾车的布尔可选项。请求 TRAFFIC_ON_POLYLINE 和 ENCODED_POLYLINE 几何；未显式指定 polylineQuality 时默认 HIGH_QUALITY。折线交通数据触发价格更高的 Compute Routes Enterprise 计费项；无需分段详情时保持 false。",
+        "default": "false"
+      },
+      "polylineQuality": {
+        "description": "几何质量：OVERVIEW 或 HIGH_QUALITY。显式选择始终优先，包括与 trafficSegments=true 同时使用 OVERVIEW。点密度与交通计算独立控制。",
+        "default": "trafficSegments=true 时为 HIGH_QUALITY；否则使用 Google 默认的 OVERVIEW"
       }
     },
-    "result": "对象包含 `routes`、`summary`、`total_distance`（米）、`total_duration`（秒）及可选优化索引。路线条目包含选定路段、步骤、折线与警告。",
+    "result": "对象包含 `routes`、`summary`、`total_distance`（米）、`total_duration`（秒）及可选优化索引。路线条目包含选定路段、步骤、折线与警告。 trafficSegments=true 时，路线和各路段还包含标准化 segments 与 segmentMetadata。",
     "example": {
       "origin": "48.8584,2.2945",
       "destination": "48.8606,2.3376",
@@ -466,7 +482,11 @@
     "notes": [
       "departure_time 与 arrival_time 不可同时提供。arrival_time 仅限公共交通。",
       "避让选项要求驾车模式。Google 还有出行方式/时间/地区方面的附加限制。",
-      "没有可用路线时显式报错。"
+      "没有可用路线时显式报错。",
+      "trafficSegments=true 时，Routes 返回 NORMAL、SLOW、TRAFFIC_JAM 交通区间。路线及各路段的标准化分段分别引用自己的折线，点索引互相独立。Google 区间为 [start,end)；分段几何保留共享的结束边界顶点，以覆盖最后一条边。覆盖缺失或无效会明确报告，不会臆造正常交通。",
+      "segmentMetadata.retrievedAt 是本地取得响应的时间，不是提供方观测交通的时间；Routes 不返回该观测时间，因此 trafficObservedAt 为 null。该 Routes 响应也不返回道路类别和限速，因此 roadCategory、speedLimit 为 null。不隐式调用 Roads，不在客户端乘以时长系数；时长保持 Google 的预测值。",
+      "本程序的交通分段需显式开启且仅支持驾车。此选项请求含交通信息的折线，并触发 Compute Routes Enterprise 计费。[交通区间约定](https://developers.google.com/maps/documentation/routes/traffic_on_polylines)；[当前计费触发条件](https://developers.google.com/maps/billing-and-pricing/sku-details/routes)。",
+      "polylineQuality 选择 Google 返回的几何细节：HIGH_QUALITY 使用更多点，响应更大且延迟可能更高。trafficSegments=true 时仍可显式选择 OVERVIEW。省略质量时，交通分段默认 HIGH_QUALITY；否则使用 Google 的 OVERVIEW。程序不合成或插值补充细节。几何质量独立于 extraComputations：仅选择 HIGH_QUALITY 不会启用 TRAFFIC_ON_POLYLINE。[PolylineQuality 官方定义](https://developers.google.com/maps/documentation/routes/reference/rest/v2/TopLevel/computeRoutes#PolylineQuality)。"
     ],
     "authentication": "Routes/Places 支持 API 密钥或 OAuth。命名地点还需 API 密钥进行 Geocoding；精确坐标字符串可避免该查询。",
     "summary": "获取两个地点间的路线、导航步骤与距离/时间总计。"
@@ -781,9 +801,17 @@
       "optimize": {
         "description": "当总停靠点超过三个且模式不是 transit 时请求优化中间点。",
         "default": "true，但受上述条件限制"
+      },
+      "trafficSegments": {
+        "description": "仅适用于驾车的布尔可选项。请求 TRAFFIC_ON_POLYLINE 和 ENCODED_POLYLINE 几何；未显式指定 polylineQuality 时默认 HIGH_QUALITY。折线交通数据触发价格更高的 Compute Routes Enterprise 计费项；无需分段详情时保持 false。",
+        "default": "false"
+      },
+      "polylineQuality": {
+        "description": "几何质量：OVERVIEW 或 HIGH_QUALITY。显式选择始终优先，包括与 trafficSegments=true 同时使用 OVERVIEW。点密度与交通计算独立控制。",
+        "default": "trafficSegments=true 时为 HIGH_QUALITY；否则使用 Google 默认的 OVERVIEW"
       }
     },
-    "result": "对象包含 `mode`、实际生效的 `optimized`、按顺序解析的 `stops`、显示用 `legs`、total_distance、total_duration、polyline 与警告。路段 durationSeconds 为数值秒。",
+    "result": "对象包含 `mode`、实际生效的 `optimized`、按顺序解析的 `stops`、显示用 `legs`、total_distance、total_duration、polyline 与警告。路段 durationSeconds 为数值秒。 trafficSegments=true 时，路线和各路段还包含标准化 segments 与 segmentMetadata。",
     "example": {
       "stops": [
         "48.8584,2.2945",
@@ -796,7 +824,11 @@
     "notes": [
       "公共交通只支持两个端点，不允许中间停靠点。",
       "只有总停靠点至少四个（至少两个中间点）时优化才生效。",
-      "此工具优化单条路线的停靠顺序，不进行车队的车辆/任务分配。"
+      "此工具优化单条路线的停靠顺序，不进行车队的车辆/任务分配。",
+      "trafficSegments=true 时，Routes 返回 NORMAL、SLOW、TRAFFIC_JAM 交通区间。路线及各路段的标准化分段分别引用自己的折线，点索引互相独立。Google 区间为 [start,end)；分段几何保留共享的结束边界顶点，以覆盖最后一条边。覆盖缺失或无效会明确报告，不会臆造正常交通。",
+      "segmentMetadata.retrievedAt 是本地取得响应的时间，不是提供方观测交通的时间；Routes 不返回该观测时间，因此 trafficObservedAt 为 null。该 Routes 响应也不返回道路类别和限速，因此 roadCategory、speedLimit 为 null。不隐式调用 Roads，不在客户端乘以时长系数；时长保持 Google 的预测值。",
+      "本程序的交通分段需显式开启且仅支持驾车。此选项请求含交通信息的折线，并触发 Compute Routes Enterprise 计费。[交通区间约定](https://developers.google.com/maps/documentation/routes/traffic_on_polylines)；[当前计费触发条件](https://developers.google.com/maps/billing-and-pricing/sku-details/routes)。",
+      "polylineQuality 选择 Google 返回的几何细节：HIGH_QUALITY 使用更多点，响应更大且延迟可能更高。trafficSegments=true 时仍可显式选择 OVERVIEW。省略质量时，交通分段默认 HIGH_QUALITY；否则使用 Google 的 OVERVIEW。程序不合成或插值补充细节。几何质量独立于 extraComputations：仅选择 HIGH_QUALITY 不会启用 TRAFFIC_ON_POLYLINE。[PolylineQuality 官方定义](https://developers.google.com/maps/documentation/routes/reference/rest/v2/TopLevel/computeRoutes#PolylineQuality)。"
     ],
     "authentication": "Routes/Places 支持 API 密钥或 OAuth。命名地点还需 API 密钥进行 Geocoding；精确坐标字符串可避免该查询。",
     "summary": "规划经过 2–27 个停靠点的路线；非公共交通可优化 2–25 个中间点，并保留精确坐标。"
@@ -937,5 +969,1197 @@
     ],
     "authentication": "主 API 支持 API 密钥或 OAuth。",
     "summary": "对 1–3 个关键词在地理网格上跟踪搜索排名，返回 ARP、ATRP、SoLV 和逐点错误。"
+  },
+  "maps_speed_limits": {
+    "purpose": "按 GPS 路径或 Roads 路段 ID 查询公布的汽车限速；此受限功能要求 Asset Tracking 许可，仅启用 Roads 不足以取得访问权。",
+    "parameters": {
+      "path": {
+        "description": "1–100 个 GPS 坐标；与 roadPlaceIds 互斥。Google 先将路径贴合道路。",
+        "default": "不提供"
+      },
+      "path[].latitude": {
+        "description": "WGS84 纬度，−90 至 90 度。",
+        "default": "每个路径点必填"
+      },
+      "path[].longitude": {
+        "description": "WGS84 经度，−180 至 180 度。",
+        "default": "每个路径点必填"
+      },
+      "roadPlaceIds": {
+        "description": "1–100 个道路贴合/最近道路调用返回的路段 ID；普通商家 ID 可能没有限速。与 path 互斥。",
+        "default": "不提供"
+      },
+      "units": {
+        "description": "速度单位 KPH（公里/小时）或 MPH（英里/小时）。",
+        "default": "KPH"
+      }
+    },
+    "result": "返回完整原生 speedLimits、可选 snappedPoints、警告和元数据。",
+    "example": {
+      "roadPlaceIds": [
+        "ChIJs5ydyTiuEmsR0fRSlU0C7k0"
+      ],
+      "units": "KPH"
+    },
+    "notes": [
+      "需要 Asset Tracking 访问权；部分迁移后的 Premium 项目可保留权限，普通结算账号并不代表已获许可。https://developers.google.com/maps/documentation/roads/speed-limits",
+      "每条返回的 speedLimits 可计费，一次请求可产生多项费用。可变限速返回汽车最大限速；非实时，可能缺失、估计或过时，以现场标志为准。",
+      "403 保留脱敏后的 Google 原因和访问提示；API、密钥限制、权限也可导致拒绝，不把所有 403 都判为许可问题。"
+    ],
+    "authentication": "本实现使用 API 密钥；即使选择 OAuth 模式，这些端点仍需要密钥。",
+    "summary": "按 GPS 路径或 Roads 路段 ID 查询公布的汽车限速；此受限功能要求 Asset Tracking 许可，仅启用 Roads 不足以取得访问权。"
+  },
+  "maps_autocomplete": {
+    "purpose": "输入过程中获取 Places API (New) 地点/查询预测，支持地理偏好/限制、类型筛选、光标位置和调用方管理的计费会话令牌。",
+    "parameters": {
+      "input": {
+        "description": "非空查询文字，可为部分地点名或地址。",
+        "default": "—"
+      },
+      "locationBias": {
+        "description": "优先返回一个圆或矩形附近的结果，允许越界；与 locationRestriction 互斥。",
+        "default": "未提供两种地理选项时，Google 按 IP 偏好"
+      },
+      "locationRestriction": {
+        "description": "结果限制在一个圆或矩形内；与 locationBias 互斥。",
+        "default": "未提供两种地理选项时，Google 按 IP 偏好"
+      },
+      "includedPrimaryTypes": {
+        "description": "最多 5 个主要类型；(cities) 或 (regions) 必须单独使用。",
+        "default": "所有类型"
+      },
+      "includedRegionCodes": {
+        "description": "最多 15 个双字母 CLDR 地区代码，与位置限制取交集；空数组不限制。",
+        "default": "所有地区"
+      },
+      "languageCode": {
+        "description": "首选 IETF BCP-47 响应语言，仍可能出现混合语言。",
+        "default": "已配置的 GOOGLE_MAPS_LANGUAGE"
+      },
+      "regionCode": {
+        "description": "格式/排名用双字母 CLDR 地区，不会将结果限制在该地区。",
+        "default": "不提供"
+      },
+      "origin": {
+        "description": "返回直线 distanceMeters 时的参考坐标。",
+        "default": "不返回距离"
+      },
+      "origin.latitude": {
+        "description": "WGS84 纬度，−90 至 90 度。",
+        "default": "提供 origin 时必填"
+      },
+      "origin.longitude": {
+        "description": "WGS84 经度，−180 至 180 度。",
+        "default": "提供 origin 时必填"
+      },
+      "inputOffset": {
+        "description": "从零开始的 Unicode 字符光标位置，不得超过 input 字符数。",
+        "default": "输入末尾"
+      },
+      "includeQueryPredictions": {
+        "description": "同时返回查询预测和地点预测。",
+        "default": "false"
+      },
+      "sessionToken": {
+        "description": "调用方生成的 URL 安全令牌，最多 36 个 ASCII 字符；每次会话建议新 UUID v4，并传给结束会话的 details/validate-address。",
+        "default": "不分组会话；按请求计费"
+      },
+      "includePureServiceAreaBusinesses": {
+        "description": "包含无公开营业地点、上门或配送的服务商家。",
+        "default": "false"
+      },
+      "includeFutureOpeningBusinesses": {
+        "description": "包含未来将开业的商家。",
+        "default": "false"
+      },
+      "locationBias.circle": {
+        "description": "圆形区域；与 rectangle 互斥。",
+        "default": "不提供"
+      },
+      "locationBias.circle.center": {
+        "description": "圆心的 WGS84 坐标。",
+        "default": "提供 circle 时必填"
+      },
+      "locationBias.circle.center.latitude": {
+        "description": "圆心纬度，−90 至 90 度。",
+        "default": "提供 center 时必填"
+      },
+      "locationBias.circle.center.longitude": {
+        "description": "圆心经度，−180 至 180 度。",
+        "default": "提供 center 时必填"
+      },
+      "locationBias.circle.radius": {
+        "description": "半径不超过 50,000 米；locationRestriction 中必须大于零。",
+        "default": "提供 circle 时必填"
+      },
+      "locationBias.rectangle": {
+        "description": "封闭经纬度视口，与 circle 互斥；可跨反子午线。",
+        "default": "不提供"
+      },
+      "locationBias.rectangle.low": {
+        "description": "西南角边界。",
+        "default": "提供 rectangle 时必填"
+      },
+      "locationBias.rectangle.low.latitude": {
+        "description": "南界纬度不得高于北界。",
+        "default": "提供边界时必填"
+      },
+      "locationBias.rectangle.low.longitude": {
+        "description": "西界经度；大于东界表示跨反子午线。",
+        "default": "提供边界时必填"
+      },
+      "locationBias.rectangle.high": {
+        "description": "东北角边界。",
+        "default": "提供 rectangle 时必填"
+      },
+      "locationBias.rectangle.high.latitude": {
+        "description": "北界纬度不得低于南界。",
+        "default": "提供边界时必填"
+      },
+      "locationBias.rectangle.high.longitude": {
+        "description": "东界经度；小于西界表示跨反子午线。",
+        "default": "提供边界时必填"
+      },
+      "locationRestriction.circle": {
+        "description": "圆形区域；与 rectangle 互斥。",
+        "default": "不提供"
+      },
+      "locationRestriction.circle.center": {
+        "description": "圆心的 WGS84 坐标。",
+        "default": "提供 circle 时必填"
+      },
+      "locationRestriction.circle.center.latitude": {
+        "description": "圆心纬度，−90 至 90 度。",
+        "default": "提供 center 时必填"
+      },
+      "locationRestriction.circle.center.longitude": {
+        "description": "圆心经度，−180 至 180 度。",
+        "default": "提供 center 时必填"
+      },
+      "locationRestriction.circle.radius": {
+        "description": "半径不超过 50,000 米；locationRestriction 中必须大于零。",
+        "default": "提供 circle 时必填"
+      },
+      "locationRestriction.rectangle": {
+        "description": "封闭经纬度视口，与 circle 互斥；可跨反子午线。",
+        "default": "不提供"
+      },
+      "locationRestriction.rectangle.low": {
+        "description": "西南角边界。",
+        "default": "提供 rectangle 时必填"
+      },
+      "locationRestriction.rectangle.low.latitude": {
+        "description": "南界纬度不得高于北界。",
+        "default": "提供边界时必填"
+      },
+      "locationRestriction.rectangle.low.longitude": {
+        "description": "西界经度；大于东界表示跨反子午线。",
+        "default": "提供边界时必填"
+      },
+      "locationRestriction.rectangle.high": {
+        "description": "东北角边界。",
+        "default": "提供 rectangle 时必填"
+      },
+      "locationRestriction.rectangle.high.latitude": {
+        "description": "北界纬度不得低于南界。",
+        "default": "提供边界时必填"
+      },
+      "locationRestriction.rectangle.high.longitude": {
+        "description": "东界经度；小于西界表示跨反子午线。",
+        "default": "提供边界时必填"
+      }
+    },
+    "result": "保留完整 suggestions、匹配文字、地点或查询预测，以及可用的 distanceMeters。",
+    "example": {
+      "input": "coffee near Paris",
+      "sessionToken": "550e8400-e29b-41d4-a716-446655440000",
+      "includedRegionCodes": [
+        "FR"
+      ],
+      "locationBias": {
+        "circle": {
+          "center": {
+            "latitude": 48.8566,
+            "longitude": 2.3522
+          },
+          "radius": 5000
+        }
+      },
+      "includeQueryPredictions": true
+    },
+    "notes": [
+      "令牌由调用方管理，不自动创建或结束会话。所有请求使用同一 Cloud 项目的凭据，以合格的 Place Details/Address Validation 结束，再换新令牌；遗漏/复用可按次计费。",
+      "圆半径最多 50km，限制圆必须大于零；矩形纬度须有序，支持跨反子午线。显示时保留 Google/提供方署名；EEA 条款及字段可能不同。原生参考：https://developers.google.com/maps/documentation/places/web-service/reference/rest/v1/places/autocomplete"
+    ],
+    "authentication": "API 密钥或 cloud-platform 范围的 OAuth；服务账号还需要 API 已启用及配额项目的 serviceusage.services.use。",
+    "summary": "输入过程中获取 Places API (New) 地点/查询预测，支持地理偏好/限制、类型筛选、光标位置和调用方管理的计费会话令牌。"
+  },
+  "maps_geolocate": {
+    "purpose": "通过原生基站/WiFi 观测估计位置，并可选择以服务器出口 IP 回退。",
+    "parameters": {
+      "body": {
+        "description": "原生请求对象：homeMobileCountryCode、homeMobileNetworkCode、radioType（gsm/cdma/wcdma/lte/nr）、carrier、considerIp、cellTowers、wifiAccessPoints，以及协议特定的 cellId/newRadioCellId、信号字段。空对象允许服务器 IP 回退。",
+        "default": "—"
+      }
+    },
+    "result": "返回原生 location 和 accuracy（米），保留 Google 错误；估计值不是精确定位。",
+    "example": {
+      "body": {
+        "considerIp": false,
+        "wifiAccessPoints": [
+          {
+            "macAddress": "00:25:9c:cf:1c:ac",
+            "signalStrength": -43
+          },
+          {
+            "macAddress": "00:25:9c:cf:1c:ad",
+            "signalStrength": -55
+          }
+        ]
+      }
+    },
+    "notes": [
+      "Google 默认 considerIp=true。回退定位的是可执行文件的出口 IP，不是代理用户；设 false 可禁止。详细嵌套协议由 Google 验证。https://developers.google.com/maps/documentation/geolocation/requests-geolocation",
+      "WiFi 需至少两个不同的固定接入点；本地管理/保留 MAC、移动热点可能无结果。结果可能 NOT_FOUND，使用前检查 accuracy。"
+    ],
+    "authentication": "本实现使用 API 密钥；即使选择 OAuth 模式，这些端点仍需要密钥。",
+    "summary": "通过原生基站/WiFi 观测估计位置，并可选择以服务器出口 IP 回退。"
+  },
+  "maps_solar": {
+    "purpose": "获取建筑太阳能潜力、区域数据图层，或按 Google 返回的 ID 下载真实 GeoTIFF。",
+    "parameters": {
+      "operation": {
+        "description": "building_insights、data_layers 或 geo_tiff；仅接受当前操作相关参数。",
+        "default": "—"
+      },
+      "location": {
+        "description": "建筑搜索或数据图层中心；building_insights/data_layers 必填。",
+        "default": "不提供"
+      },
+      "location.latitude": {
+        "description": "WGS84 纬度，−90 至 90 度。",
+        "default": "提供 location 时必填"
+      },
+      "location.longitude": {
+        "description": "WGS84 经度，−180 至 180 度。",
+        "default": "提供 location 时必填"
+      },
+      "requiredQuality": {
+        "description": "最低影像质量 HIGH、MEDIUM 或 BASE；BASE 为增强卫星影像，地区覆盖不同。",
+        "default": "HIGH（Google 默认）"
+      },
+      "exactQualityRequired": {
+        "description": "要求恰好匹配指定质量，不接受更高质量。",
+        "default": "false"
+      },
+      "experiments": {
+        "description": "可选 EXPANDED_COVERAGE，Google 将其归为 pre-GA。",
+        "default": "无实验功能"
+      },
+      "additionalInsights": {
+        "description": "building_insights 可选 DETECTED_ARRAYS，返回检测到的屋顶太阳能阵列。",
+        "default": "无附加洞察"
+      },
+      "radiusMeters": {
+        "description": "data_layers 必填正半径，最大 1000 米；超过 100 米须 ≤ pixelSizeMeters×1000；超过 175 米须排除月通量/逐小时阴影。",
+        "default": "不提供"
+      },
+      "view": {
+        "description": "数据图层子集：DSM_LAYER、IMAGERY_LAYERS、IMAGERY_AND_ANNUAL_FLUX_LAYERS、IMAGERY_AND_ALL_FLUX_LAYERS、FULL_LAYERS。",
+        "default": "FULL_LAYERS（Google 默认）"
+      },
+      "pixelSizeMeters": {
+        "description": "最小像素尺度：0.1、0.25、0.5 或 1.0 米；各原生图层可能更粗。",
+        "default": "0.1"
+      },
+      "id": {
+        "description": "返回的 Solar 图层 URL 查询参数 id 中的不透明标识；geo_tiff 必填，只传 ID 不传 URL。",
+        "default": "geo_tiff 必填"
+      }
+    },
+    "result": "返回完整原生洞察/图层 JSON；geo_tiff 返回带 MIME/缓存头的栅格字节。",
+    "example": {
+      "operation": "data_layers",
+      "location": {
+        "latitude": 37.444,
+        "longitude": -122.16
+      },
+      "radiusMeters": 100,
+      "view": "IMAGERY_AND_ANNUAL_FLUX_LAYERS"
+    },
+    "notes": [
+      "覆盖和质量因地区而异；50 米内无建筑可 NOT_FOUND。图层 URL 临时有效且需认证；geo_tiff 只从 solar.googleapis.com 固定端点获取，不访问任意 URL。https://developers.google.com/maps/documentation/solar/coverage",
+      "GeoTIFF 限 16 MiB 及工具时限；大栅格需缩小半径/增大像素。EXPANDED_COVERAGE 为 pre-GA；EEA 可能缺少字段或使用不同条款。端点分别计费；显示须保留 Google 署名。本工具不设计太阳能安装方案。"
+    ],
+    "authentication": "API 密钥或 cloud-platform 范围的 OAuth；服务账号还需要 API 已启用及配额项目的 serviceusage.services.use。",
+    "summary": "获取建筑太阳能潜力、区域数据图层，或按 Google 返回的 ID 下载真实 GeoTIFF。"
+  },
+  "maps_aerial_view": {
+    "purpose": "查询美国受支持地址的 Aerial View 视频状态、元数据和临时播放 URL。",
+    "parameters": {
+      "operation": {
+        "description": "lookup 获取播放 URL 和元数据（计费）；metadata 仅查元数据（Google 免费方法）。",
+        "default": "lookup"
+      },
+      "address": {
+        "description": "受支持的美国邮政地址；与 videoId 恰好选一个。",
+        "default": "不提供"
+      },
+      "videoId": {
+        "description": "此前返回的视频 ID；与 address 恰好选一个。",
+        "default": "不提供"
+      }
+    },
+    "result": "返回原生处理状态、视频元数据和可用格式/分辨率的播放 URI；metadata 不返回播放 URI。",
+    "example": {
+      "operation": "metadata",
+      "address": "600 Montgomery St, San Francisco, CA 94111"
+    },
+    "notes": [
+      "仅支持有 3D 覆盖的美国地址。无视频可 NOT_FOUND；创建需显式 maps_render_aerial_video。处理中合理间隔查询 metadata；lookup 获取播放地址本身计费。",
+      "播放 URL 很快过期，每次展示重新获取。Google 禁止下载/存储/缓存视频；仅视频 ID 有文档例外。保留播放署名，EEA 条件可能不同。https://developers.google.com/maps/documentation/aerial-view/policies"
+    ],
+    "authentication": "本实现使用 API 密钥；即使选择 OAuth 模式，这些端点仍需要密钥。",
+    "summary": "查询美国受支持地址的 Aerial View 视频状态、元数据和临时播放 URL。"
+  },
+  "maps_render_aerial_video": {
+    "purpose": "为受支持美国地址显式排队创建异步 Aerial View 视频。",
+    "parameters": {
+      "address": {
+        "description": "待渲染的受支持美国邮政地址。",
+        "default": "—"
+      }
+    },
+    "result": "返回原生 render 响应；PROCESSING 表示排队/处理中，已有视频可立即 ACTIVE。",
+    "example": {
+      "address": "600 Montgomery St, San Francisco, CA 94111"
+    },
+    "notes": [
+      "操作会改变渲染队列，不自动重试、不等待完成，也不下载视频。使用 maps_aerial_view metadata 查进度，需要播放时再 lookup。",
+      "US/3D 覆盖、配额和条款适用；API 已启用也不保证可渲染。禁止下载、保存、缓存视频，需按要求署名。https://developers.google.com/maps/documentation/aerial-view/reference/rest/v1/videos/renderVideo"
+    ],
+    "authentication": "本实现使用 API 密钥；即使选择 OAuth 模式，这些端点仍需要密钥。",
+    "summary": "为受支持美国地址显式排队创建异步 Aerial View 视频。"
+  },
+  "maps_map_tiles": {
+    "purpose": "获取 Google 2D、3D 和 Street View 地图瓦片、会话及归属元数据，供合规地图可视化使用。",
+    "parameters": {
+      "operation": {
+        "description": "create_session、tile_2d、viewport、root_3d、resource_3d、streetview_pano_ids、streetview_metadata、streetview_thumbnail 或 streetview_tile；决定端点和必填参数。",
+        "default": "—"
+      },
+      "sessionOptions": {
+        "description": "create_session 必填，原生 createSession 选项；mapType、language、region 必填。",
+        "default": "不提供；所述操作需要时必填"
+      },
+      "sessionOptions.mapType": {
+        "description": "roadmap、satellite、terrain、streetview；terrain 要求 layerTypes 包含 layerRoadmap。",
+        "default": "不提供；所述操作需要时必填"
+      },
+      "sessionOptions.language": {
+        "description": "IETF 语言标签，如 en-US。",
+        "default": "不提供；所述操作需要时必填"
+      },
+      "sessionOptions.region": {
+        "description": "用户物理位置的双字母大写 CLDR 地区代码，如 US。",
+        "default": "不提供；所述操作需要时必填"
+      },
+      "sessionOptions.imageFormat": {
+        "description": "jpeg 或 png；JPEG 不支持透明叠加。",
+        "default": "Google 选择最佳格式"
+      },
+      "sessionOptions.scale": {
+        "description": "scaleFactor1x、scaleFactor2x、scaleFactor4x 控制地图元素大小。",
+        "default": "scaleFactor1x"
+      },
+      "sessionOptions.highDpi": {
+        "description": "2x/4x 时增加像素尺寸，1x 时无效。",
+        "default": "false"
+      },
+      "sessionOptions.overlay": {
+        "description": "为 true 时仅渲染 layerTypes，不含基础影像。",
+        "default": "false"
+      },
+      "sessionOptions.layerTypes": {
+        "description": "layerRoadmap、layerStreetview、layerTraffic 中 1–3 项；terrain 需 layerRoadmap。",
+        "default": "无附加图层"
+      },
+      "sessionOptions.styles": {
+        "description": "原生地图样式 JSON，仅 roadmap 支持。https://developers.google.com/maps/documentation/tile/style-reference",
+        "default": "Google 默认样式"
+      },
+      "session": {
+        "description": "createSession 返回的会话令牌；2D/Street View 请求必填，3D 不需要；以返回的过期时间为准。",
+        "default": "不提供；所述操作需要时必填"
+      },
+      "zoom": {
+        "description": "tile_2d/viewport 为 0–22；streetview_tile 为 0–5。实际最大级别查 viewport 元数据。",
+        "default": "不提供；所述操作需要时必填"
+      },
+      "x": {
+        "description": "瓦片列。2D 必须小于 2^zoom；Street View 取决于元数据中的全景尺寸。",
+        "default": "不提供；所述操作需要时必填"
+      },
+      "y": {
+        "description": "瓦片行。2D 必须小于 2^zoom；Street View 取决于元数据中的全景尺寸。",
+        "default": "不提供；所述操作需要时必填"
+      },
+      "north": {
+        "description": "viewport 北界纬度，必须大于 south。",
+        "default": "不提供；所述操作需要时必填"
+      },
+      "south": {
+        "description": "viewport 南界 WGS84 纬度。",
+        "default": "不提供；所述操作需要时必填"
+      },
+      "east": {
+        "description": "viewport 东界经度；东界负值、西界正值可跨反子午线。",
+        "default": "不提供；所述操作需要时必填"
+      },
+      "west": {
+        "description": "viewport 西界经度。",
+        "default": "不提供；所述操作需要时必填"
+      },
+      "resourceUrl": {
+        "description": "resource_3d 用 Google 返回的 https://tile.googleapis.com/v1/3dtiles/... 绝对 URL；拒绝自定义来源、端口、用户信息、片段和编码路径。移除返回 URL 的密钥后使用已配置凭据。",
+        "default": "不提供；所述操作需要时必填"
+      },
+      "panoId": {
+        "description": "streetview_tile/thumbnail 必填；metadata 时可代替经纬度。ID 临时有效，不应依赖其跨会话稳定性。",
+        "default": "不提供；所述操作需要时必填"
+      },
+      "latitude": {
+        "description": "streetview_metadata 搜索中心纬度，需 longitude，与 panoId 互斥。",
+        "default": "不提供；所述操作需要时必填"
+      },
+      "longitude": {
+        "description": "streetview_metadata 搜索中心经度，需 latitude，与 panoId 互斥。",
+        "default": "不提供；所述操作需要时必填"
+      },
+      "locations": {
+        "description": "streetview_pano_ids 用 1–100 个原生位置对象，均含 lat、lng。",
+        "default": "不提供；所述操作需要时必填"
+      },
+      "locations[].lat": {
+        "description": "搜索中心 WGS84 纬度。",
+        "default": "不提供；所述操作需要时必填"
+      },
+      "locations[].lng": {
+        "description": "搜索中心 WGS84 经度。",
+        "default": "不提供；所述操作需要时必填"
+      },
+      "radius": {
+        "description": "全景 ID/经纬度元数据搜索半径，0–100000 米；metadata panoId 不接受半径。",
+        "default": "50 米"
+      },
+      "width": {
+        "description": "缩略图宽度，16–600 像素。",
+        "default": "600"
+      },
+      "height": {
+        "description": "缩略图高度，16–250 像素。",
+        "default": "250"
+      },
+      "yaw": {
+        "description": "缩略图水平相机方向，−360 至 360 度。",
+        "default": "0"
+      },
+      "pitch": {
+        "description": "缩略图垂直相机方向，−90 至 90 度。",
+        "default": "0"
+      },
+      "fov": {
+        "description": "缩略图水平视角，30–120 度。",
+        "default": "90"
+      }
+    },
+    "result": "会话/元数据/tileset 返回原生 JSON；图像和 3D 资源返回保留 MIME/缓存头的真实字节。渲染器由调用方实现。",
+    "example": {
+      "operation": "root_3d"
+    },
+    "notes": [
+      "create_session 生成 Google 会话且不自动重试；全景 ID 查询为只读 POST。不接受当前操作无关的参数；不提供网页/原生渲染器或图像拼接。",
+      "仅限地图可视化；禁止未经许可预取、索引、保存、缓存、提取或将影像提交代理做图像解读。遵守 Cache-Control、ETag 和合同。https://developers.google.com/maps/documentation/tile/policies",
+      "保留 Google Maps 标志和提供方归属：2D 用 viewport copyright；Street View 用 metadata copyright 及问题报告链接；3D 展示瓦片版权。不可裁剪隐藏。",
+      "覆盖、EEA 条款、收费和配额可能不同；会话以返回 expiry 为准，全景 ID 短期有效。不实现离线地图、批量下载、缓存或分析。https://developers.google.com/maps/documentation/tile/session_tokens"
+    ],
+    "authentication": "API 密钥或 cloud-platform 范围 OAuth；启用 Map Tiles 和结算。服务账号需配额项目的 Service Usage 权限。",
+    "summary": "获取 Google 2D、3D 和 Street View 地图瓦片、会话及归属元数据，供合规地图可视化使用。"
+  },
+  "maps_streetview": {
+    "purpose": "查询 Street View 全景元数据或下载真实静态全景 JPEG。",
+    "parameters": {
+      "operation": {
+        "description": "metadata 返回 JSON；image 返回 JPEG 字节。",
+        "default": "—"
+      },
+      "location": {
+        "description": "地址、经纬度字符串（如 48.8584,2.2945）或 place_id:PLACE_ID；与 panoId 恰好选一个。",
+        "default": "不提供；所述操作需要时必填"
+      },
+      "panoId": {
+        "description": "指定全景 ID，与 location 互斥；ID 可变化，保留原搜索位置以便刷新。",
+        "default": "不提供；所述操作需要时必填"
+      },
+      "width": {
+        "description": "image 宽度 1–640 像素；超大影像需要的特殊许可不在此实现中。",
+        "default": "640"
+      },
+      "height": {
+        "description": "image 高度 1–640 像素。",
+        "default": "400"
+      },
+      "heading": {
+        "description": "图像相机罗盘朝向，0–360 度。",
+        "default": "Google 朝向所给位置"
+      },
+      "fov": {
+        "description": "水平视角，1–120 度。",
+        "default": "90"
+      },
+      "pitch": {
+        "description": "垂直相机角度，−90 至 90 度。",
+        "default": "0"
+      },
+      "radius": {
+        "description": "搜索半径，整数 0–100000 米。",
+        "default": "50"
+      },
+      "source": {
+        "description": "default、google 或 outdoor；可用性取决于地区/影像集。",
+        "default": "default"
+      },
+      "returnErrorCode": {
+        "description": "image 无影像时返回 HTTP 错误，代替灰色占位图。",
+        "default": "本实现为 true"
+      },
+      "signature": {
+        "description": "针对精确编码请求的可选 URL 签名；部分账号必需。只转发，不生成签名。 签名请求会在 API 密钥之后，最后添加 signature。请对包含自动默认值的完整编码路径和查询字符串签名。图像参数顺序：location、radius、source、pano、size、heading、fov、pitch、return_error_code、key；未提供的可选参数会跳过。元数据请求省略图像字段。空格编码为 +。默认值为 size=640x400 和 return_error_code=true。",
+        "default": "不提供"
+      }
+    },
+    "result": "metadata 返回原生状态、全景 ID、日期和版权；image 返回 JPEG 字节及 MIME/缓存元数据。",
+    "example": {
+      "operation": "metadata",
+      "location": "Eiffel Tower, Paris, France"
+    },
+    "notes": [
+      "location、panoId 恰好一个。image 专用相机/尺寸参数不能用于 metadata。元数据当前免费且不消耗图像配额，图像请求计费。https://developers.google.com/maps/documentation/streetview/metadata",
+      "保留内嵌 Google Maps 署名；禁止印刷用途，受存储/缓存限制。工具并不授予保留、再分发或分析权利。https://developers.google.com/maps/documentation/streetview/policies",
+      "仅转发可选签名，不管理签名密钥或特殊大图。覆盖、EEA 条款、全景 ID/日期可能变化。"
+    ],
+    "authentication": "本实现仅 API 密钥；仅 OAuth 凭据不可调用。启用 Street View Static；Google 建议数字签名，部分账号必须签名。",
+    "summary": "查询 Street View 全景元数据或下载真实静态全景 JPEG。"
+  },
+  "maps_streetview_publish": {
+    "purpose": "管理已同意用户拥有的 Street View 照片和序列，显式上传、发布、修改元数据或删除公开内容。",
+    "parameters": {
+      "operation": {
+        "description": "list、get、start_upload、upload、create、update、delete、batch_get、batch_update、batch_delete、list_sequences、get_sequence、start_sequence_upload、create_sequence、delete_sequence。",
+        "default": "—"
+      },
+      "photoId": {
+        "description": "get/update/delete 用照片 ID，不含资源路径或 URL 参数。",
+        "default": "不提供；所述操作需要时必填"
+      },
+      "sequenceId": {
+        "description": "get_sequence/delete_sequence 用序列 ID，创建返回的操作名称中携带该 ID。",
+        "default": "不提供；所述操作需要时必填"
+      },
+      "photoIds": {
+        "description": "batch_get/batch_delete 用 1–100 个照片 ID。",
+        "default": "不提供；所述操作需要时必填"
+      },
+      "view": {
+        "description": "list/get/batch_get/get_sequence 的 BASIC 或 INCLUDE_DOWNLOAD_URL；下载 URL 是敏感用户资源，本工具不访问。",
+        "default": "BASIC"
+      },
+      "languageCode": {
+        "description": "list/get/batch_get 照片元数据的首选语言。",
+        "default": "Google 默认"
+      },
+      "pageSize": {
+        "description": "list/list_sequences 的单页数 1–100；Google 可返回更少项目。",
+        "default": "Google 服务默认值"
+      },
+      "pageToken": {
+        "description": "前页返回的 nextPageToken；不自动读取所有页。",
+        "default": "不提供；所述操作需要时必填"
+      },
+      "filter": {
+        "description": "list/list_sequences/get_sequence 的原生筛选表达式，语法依端点而异。",
+        "default": "不提供；所述操作需要时必填"
+      },
+      "updateMask": {
+        "description": "update 必填原生 FieldMask，逗号分隔，如 pose.heading、pose.latLngPair。",
+        "default": "不提供；所述操作需要时必填"
+      },
+      "photo": {
+        "description": "create/update 的完整原生 Photo JSON。create 需要字节已上传后的 uploadReference.uploadUrl；update 还需独立 photoId 和 updateMask。",
+        "default": "不提供；所述操作需要时必填"
+      },
+      "photoSequence": {
+        "description": "create_sequence 的原生 PhotoSequence，需 uploadReference.uploadUrl 及媒体对应 GPS/CAMM/IMU、拍摄元数据。",
+        "default": "不提供；所述操作需要时必填"
+      },
+      "updatePhotoRequests": {
+        "description": "batch_update 的 1–100 个 UpdatePhotoRequest，均需 photo.photoId.id 和 updateMask。",
+        "default": "不提供；所述操作需要时必填"
+      },
+      "inputType": {
+        "description": "create_sequence 必填 VIDEO 或 XDM。",
+        "default": "不提供；所述操作需要时必填"
+      },
+      "uploadUrl": {
+        "description": "start_upload/start_sequence_upload 返回的完整 HTTPS UploadRef，仅允许 streetviewpublish.googleapis.com/media/user/{account}/photo/{reference} 或 photoSequence。禁止重定向、其他来源、用户信息、片段、编码路径。",
+        "default": "不提供；所述操作需要时必填"
+      },
+      "dataBase64": {
+        "description": "标准带填充 base64；解码媒体须 1 字节至 8 MiB，这是程序上限而非 Google 产品上限。",
+        "default": "不提供；所述操作需要时必填"
+      },
+      "mimeType": {
+        "description": "upload 的媒体类型：image/jpeg、video/mp4 或 application/octet-stream。",
+        "default": "image/jpeg"
+      }
+    },
+    "result": "返回原生照片、序列、列表、UploadRef 或处理操作；批处理保留逐项状态，上传字节并不等于发布。",
+    "example": {
+      "operation": "list",
+      "pageSize": 10,
+      "view": "BASIC"
+    },
+    "notes": [
+      "照片流程：start_upload → upload → create。需符合 Photo Sphere/XMP、版权和发布审核要求。https://developers.google.com/streetview/publish/first-app",
+      "update 用 PUT 和 updateMask；Google 不支持更新照片像素。delete/batch_delete 删除公开照片。doctor 和实时冒烟检查不执行任何写入、发布、上传或删除。",
+      "序列流程：start_sequence_upload → upload → create_sequence → get_sequence。视频常超过 8 MiB 上限；不支持分块/可恢复上传。大媒体先走 Google 外部上传流程，再传 UploadRef。",
+      "完整实现文档列出的公开 v1 照片/序列 REST 端点，但不代表全部嵌套字段已实时验证。原生 GPS、姿态、IMU、连接和地点字段由 Google 验证。batch_update 每项必须有 photo.photoId.id、updateMask。https://developers.google.com/streetview/publish/reference/rest",
+      "上传为固定来源、有界、不重试 POST；所有修改禁用自动重试，避免模糊网络失败导致重复公开更改。隐私、所有权、配额和审核限制适用。所提供服务账号不能实时测试此工具，需要真实同意用户凭据。"
+    ],
+    "authentication": "仅最终用户 OAuth，范围 https://www.googleapis.com/auth/streetviewpublish。显式配置 authorized_user JSON、OAuth 模式和配额项目；拒绝服务账号、隐式 ADC、单独 API 密钥。本程序只刷新已获同意的令牌，不提供浏览器授权回调。",
+    "summary": "管理已同意用户拥有的 Street View 照片和序列，显式上传、发布、修改元数据或删除公开内容。"
+  },
+  "maps_datasets": {
+    "purpose": "管理 Google Maps 数据驱动样式的地理数据集，支持从现有 Cloud Storage 对象异步导入。",
+    "parameters": {
+      "operation": {
+        "description": "选择 list、get、create、update、delete、import、download 或 fetch_errors；创建、更新、删除、导入会修改云资源。",
+        "default": "必填"
+      },
+      "parent": {
+        "description": "projects/{项目 ID 或编号}；list、create 必填。",
+        "default": "list/create 必填"
+      },
+      "name": {
+        "description": "projects/{project}/datasets/{dataset}；除 list/create 外必填。仅 get 可加 @active 查询最新已完成版本。",
+        "default": "资源操作必填"
+      },
+      "dataset": {
+        "description": "原生 Dataset JSON，Google 验证全部字段。create 需要唯一 displayName 和 usage:[\"USAGE_DATA_DRIVEN_STYLING\"]；update 自动注入匹配的资源名称。",
+        "default": "create/update 必填"
+      },
+      "gcsSource": {
+        "description": "导入的现有 Cloud Storage 对象；调用者须已有读取权。工具不读取本地文件。",
+        "default": "import 必填"
+      },
+      "gcsSource.inputUri": {
+        "description": "现有 gs://bucket/object；需要 storage.objects.get，例如 Storage Object Viewer。",
+        "default": "提供 gcsSource 时必填"
+      },
+      "gcsSource.fileFormat": {
+        "description": "文件格式：FILE_FORMAT_GEOJSON、FILE_FORMAT_KML 或 FILE_FORMAT_CSV。",
+        "default": "提供 gcsSource 时必填"
+      },
+      "versionDescription": {
+        "description": "新导入版本的说明，仅 import 使用。",
+        "default": "省略"
+      },
+      "updateMask": {
+        "description": "更新的原生元数据字段，逗号分隔，例如 description,displayName。",
+        "default": "Google 默认 *（完整替换元数据）"
+      },
+      "pageSize": {
+        "description": "单页数据集/错误数量上限；本程序允许 1–500。",
+        "default": "list：100；fetch_errors：Google 默认 50"
+      },
+      "pageToken": {
+        "description": "上一响应的 nextPageToken；其他请求参数须保持一致。每次仅获取一页。",
+        "default": "第一页"
+      },
+      "tag": {
+        "description": "list 时 active 仅返回各数据集最新完成版本，跳过尚无完成版本的数据集。",
+        "default": "最新版本，不论处理状态"
+      }
+    },
+    "result": "返回原生数据集、列表、错误或导入版本名称；下载返回原始字节及 MIME/缓存头。get 保留 status.state、status.errorMessage、versionId；导入返回不代表处理完成。",
+    "example": {
+      "operation": "list",
+      "parent": "projects/my-project",
+      "pageSize": 20
+    },
+    "notes": [
+      "各操作需要 mapsplatformdatasets.datasets.list/get/create/update/delete/import/export 权限。原生字段参见 https://developers.google.com/maps/documentation/datasets/reference/rest 。",
+      "GCS 导入异步创建新版本。请显式调用 get 查看状态，fetch_errors 读取处理错误；不自动轮询。公开 v1 没有 listVersions；仅提供最新版本、@active 和 versionId。",
+      "下载需要 export 权限，可用 CLI --output 保存。API 本身目前免费，但必须关联结算；地图显示、Cloud Storage 可另行收费。仅支持数据驱动样式用途，不提供本地 multipart 上传。https://developers.google.com/maps/documentation/datasets/overview"
+    ],
+    "authentication": "仅支持 OAuth 2.0：服务账号或 ADC，范围 https://www.googleapis.com/auth/cloud-platform。API 密钥不适用；资源项目 IAM 和配额项目权限分别配置。",
+    "summary": "管理 Google Maps 数据驱动样式的地理数据集，支持从现有 Cloud Storage 对象异步导入。"
+  },
+  "maps_route_optimization": {
+    "purpose": "通过真实 Route Optimization API 优化车队，完整保留 ShipmentModel 的容量、时间窗和成本约束。",
+    "parameters": {
+      "operation": {
+        "description": "optimize 同步求解；validate 设置 VALIDATE_ONLY；batch 创建 GCS 任务；optimize_long_running、optimize_uri 创建实验任务；get_operation 仅查询一次状态。",
+        "default": "必填"
+      },
+      "parent": {
+        "description": "projects/{项目 ID}，可加 /locations/-。同步和长时间优化不接受具体区域；batch/URI 采用原生位置形式。",
+        "default": "除 get_operation 外必填"
+      },
+      "name": {
+        "description": "Google 返回的 projects/{project}[/locations/{location}]/operations/{ID}；仅 get_operation 使用。",
+        "default": "get_operation 必填"
+      },
+      "request": {
+        "description": "完整原生请求体，不含 parent。求解/验证需 model；Google 验证 shipments、vehicles 和约束。batch 需 1–100 个 modelConfigs，包含 GCS 输入/输出 URI 及 JSON/PROTO_TEXT dataFormat。URI 需 input.uri/output.uri，gs:// 路径以 .json/.txtpb 结尾。",
+        "default": "除 get_operation 外必填"
+      }
+    },
+    "result": "返回原生 OptimizeToursResponse 或长时间 Operation。显式状态查询保留 done:false、metadata 及完成后的 response/error，不隐藏任务失败。",
+    "example": {
+      "operation": "validate",
+      "parent": "projects/my-project",
+      "request": {
+        "model": {
+          "shipments": [],
+          "vehicles": [
+            {
+              "startLocation": {
+                "latitude": 48.85,
+                "longitude": 2.35
+              }
+            }
+          ]
+        },
+        "maxValidationErrors": 10
+      }
+    },
+    "notes": [
+      "原生模型和请求定义：https://developers.google.com/maps/documentation/route-optimization/reference/rest/v1/projects/optimizeTours 。validate 仍调用 Google，仅验证不求解。",
+      "viewer 角色允许 OptimizeTours 和状态读取；editor 还允许创建 batch。需要 locations.use、operations.create/get，另配置 GCS 权限。https://developers.google.com/maps/documentation/route-optimization/cloud-setup",
+      "batch/URI 显式创建可计费云任务，读取/写入指定 GCS 对象，不上传文件或自动轮询。客户端超时不会取消任务。按货件及单车/车队 SKU 计费，与 Routes 路径点优化不同。",
+      "长时间/URI 变体为实验功能；URI 端点大小写为 :OptimizeToursUri。Google 当前不支持 operation 的 cancel/list/delete，仅实现 get_operation。https://developers.google.com/maps/documentation/route-optimization/reference/rest/v1/operations"
+    ],
+    "authentication": "仅支持 OAuth 2.0：服务账号或 ADC，范围 https://www.googleapis.com/auth/cloud-platform。API 密钥不适用；资源项目 IAM 和配额项目权限分别配置。",
+    "summary": "通过真实 Route Optimization API 优化车队，完整保留 ShipmentModel 的容量、时间窗和成本约束。"
+  },
+  "maps_air_quality_forecast": {
+    "purpose": "按指定时间或区间读取未来最多 96 小时的空气质量预报。",
+    "parameters": {
+      "location": {
+        "description": "查询位置坐标。",
+        "default": "必填"
+      },
+      "location.latitude": {
+        "description": "纬度，范围 −90 至 90 度。",
+        "default": "提供 location 时必填"
+      },
+      "location.longitude": {
+        "description": "经度，范围 −180 至 180 度。",
+        "default": "提供 location 时必填"
+      },
+      "dateTime": {
+        "description": "单个 RFC3339 UTC 时间，必须以 Z 结尾；Google 向下取整到小时。与 period、hours 互斥。",
+        "default": "选择一种时间方式"
+      },
+      "period": {
+        "description": "包含结束时刻的有序时间区间；预报跨度不超过 96 小时，历史不超过 720 小时。",
+        "default": "选择一种时间方式"
+      },
+      "period.startTime": {
+        "description": "区间开始时间，合法 RFC3339 UTC Z 格式。",
+        "default": "提供 period 时必填"
+      },
+      "period.endTime": {
+        "description": "包含在内的区间结束时间，合法 RFC3339 UTC Z 格式。",
+        "default": "提供 period 时必填"
+      },
+      "pageSize": {
+        "description": "本页小时记录上限；本程序将预报限制为 96，历史限制为 Google 的上限 168。",
+        "default": "Google：预报 24；历史 72"
+      },
+      "pageToken": {
+        "description": "上一响应的 nextPageToken；其他请求参数须保持一致。每次仅获取一页。",
+        "default": "第一页"
+      },
+      "universalAqi": {
+        "description": "是否包含通用空气质量指数。",
+        "default": "Google：true"
+      },
+      "languageCode": {
+        "description": "首选 IETF/BCP-47 语言代码；无对应内容时 Google 选择最接近的语言。",
+        "default": "Google：en"
+      },
+      "uaqiColorPalette": {
+        "description": "通用 AQI 色板：RED_GREEN、INDIGO_PERSIAN_DARK 或 INDIGO_PERSIAN_LIGHT；本地指数色板不变。",
+        "default": "Google 默认色板"
+      },
+      "extraComputations": {
+        "description": "附加 LOCAL_AQI、HEALTH_RECOMMENDATIONS、POLLUTANT_ADDITIONAL_INFO、DOMINANT_POLLUTANT_CONCENTRATION 或 POLLUTANT_CONCENTRATION。",
+        "default": "不附加计算"
+      },
+      "customLocalAqis": {
+        "description": "为特定国家/地区覆盖 Google 默认选择的本地指数。",
+        "default": "Google 选择本地指数"
+      },
+      "customLocalAqis[].regionCode": {
+        "description": "应用指数覆盖的双字母国家/地区代码。",
+        "default": "每个覆盖项必填"
+      },
+      "customLocalAqis[].aqi": {
+        "description": "支持的指数代码，例如 us_epa；Google 验证组合是否合法。",
+        "default": "每个覆盖项必填"
+      }
+    },
+    "result": "完整保留 Google 的逐小时记录、regionCode、nextPageToken，以及可选污染物和健康建议。",
+    "example": {
+      "location": {
+        "latitude": 48.85,
+        "longitude": 2.35
+      },
+      "dateTime": "2026-11-01T12:00:00Z",
+      "pageSize": 24
+    },
+    "notes": [
+      "必须选择且仅选择一种时间方式：历史用 hours/dateTime/period，预报用 dateTime/period。本地验证 UTC 时间和区间；Google 验证可用时间与地区。",
+      "每次仅一页，使用 nextPageToken 显式翻页。指数/国家覆盖、署名、显示和缓存限制适用。https://developers.google.com/maps/documentation/air-quality/policies"
+    ],
+    "authentication": "API 密钥或 cloud-platform 范围的 OAuth 访问令牌；启用对应 API 和结算。OAuth 配额项目还需要 serviceusage.services.use。",
+    "summary": "按指定时间或区间读取未来最多 96 小时的空气质量预报。"
+  },
+  "maps_air_quality_history": {
+    "purpose": "显式分页读取最近 30 天的历史空气质量。",
+    "parameters": {
+      "location": {
+        "description": "查询位置坐标。",
+        "default": "必填"
+      },
+      "location.latitude": {
+        "description": "纬度，范围 −90 至 90 度。",
+        "default": "提供 location 时必填"
+      },
+      "location.longitude": {
+        "description": "经度，范围 −180 至 180 度。",
+        "default": "提供 location 时必填"
+      },
+      "dateTime": {
+        "description": "单个 RFC3339 UTC 时间，必须以 Z 结尾；Google 向下取整到小时。与 period、hours 互斥。",
+        "default": "选择一种时间方式"
+      },
+      "period": {
+        "description": "包含结束时刻的有序时间区间；预报跨度不超过 96 小时，历史不超过 720 小时。",
+        "default": "选择一种时间方式"
+      },
+      "period.startTime": {
+        "description": "区间开始时间，合法 RFC3339 UTC Z 格式。",
+        "default": "提供 period 时必填"
+      },
+      "period.endTime": {
+        "description": "包含在内的区间结束时间，合法 RFC3339 UTC Z 格式。",
+        "default": "提供 period 时必填"
+      },
+      "pageSize": {
+        "description": "本页小时记录上限；本程序将预报限制为 96，历史限制为 Google 的上限 168。",
+        "default": "Google：预报 24；历史 72"
+      },
+      "pageToken": {
+        "description": "上一响应的 nextPageToken；其他请求参数须保持一致。每次仅获取一页。",
+        "default": "第一页"
+      },
+      "universalAqi": {
+        "description": "是否包含通用空气质量指数。",
+        "default": "Google：true"
+      },
+      "languageCode": {
+        "description": "首选 IETF/BCP-47 语言代码；无对应内容时 Google 选择最接近的语言。",
+        "default": "Google：en"
+      },
+      "uaqiColorPalette": {
+        "description": "通用 AQI 色板：RED_GREEN、INDIGO_PERSIAN_DARK 或 INDIGO_PERSIAN_LIGHT；本地指数色板不变。",
+        "default": "Google 默认色板"
+      },
+      "extraComputations": {
+        "description": "附加 LOCAL_AQI、HEALTH_RECOMMENDATIONS、POLLUTANT_ADDITIONAL_INFO、DOMINANT_POLLUTANT_CONCENTRATION 或 POLLUTANT_CONCENTRATION。",
+        "default": "不附加计算"
+      },
+      "customLocalAqis": {
+        "description": "为特定国家/地区覆盖 Google 默认选择的本地指数。",
+        "default": "Google 选择本地指数"
+      },
+      "customLocalAqis[].regionCode": {
+        "description": "应用指数覆盖的双字母国家/地区代码。",
+        "default": "每个覆盖项必填"
+      },
+      "customLocalAqis[].aqi": {
+        "description": "支持的指数代码，例如 us_epa；Google 验证组合是否合法。",
+        "default": "每个覆盖项必填"
+      },
+      "hours": {
+        "description": "查询最近 1–720 小时（30 天）；与 dateTime、period 互斥。",
+        "default": "hours/dateTime/period 恰好选一个"
+      }
+    },
+    "result": "完整保留 Google 的逐小时记录、regionCode、nextPageToken，以及可选污染物和健康建议。",
+    "example": {
+      "location": {
+        "latitude": 48.85,
+        "longitude": 2.35
+      },
+      "hours": 24,
+      "pageSize": 12
+    },
+    "notes": [
+      "必须选择且仅选择一种时间方式：历史用 hours/dateTime/period，预报用 dateTime/period。本地验证 UTC 时间和区间；Google 验证可用时间与地区。",
+      "每次仅一页，使用 nextPageToken 显式翻页。指数/国家覆盖、署名、显示和缓存限制适用。https://developers.google.com/maps/documentation/air-quality/policies"
+    ],
+    "authentication": "API 密钥或 cloud-platform 范围的 OAuth 访问令牌；启用对应 API 和结算。OAuth 配额项目还需要 serviceusage.services.use。",
+    "summary": "显式分页读取最近 30 天的历史空气质量。"
+  },
+  "maps_air_quality_heatmap": {
+    "purpose": "下载真实空气质量热图 PNG 瓦片。",
+    "parameters": {
+      "mapType": {
+        "description": "热图类型：UAQI_RED_GREEN / UAQI_INDIGO_PERSIAN / PM25_INDIGO_PERSIAN / GBR_DEFRA / DEU_UBA / CAN_EC / FRA_ATMO / US_AQI。",
+        "default": "必填"
+      },
+      "zoom": {
+        "description": "Web Mercator 缩放级别 0–16；0 级只有一块瓦片。",
+        "default": "必填"
+      },
+      "x": {
+        "description": "瓦片列号，范围 0 至 2^zoom−1；发请求前验证。",
+        "default": "必填"
+      },
+      "y": {
+        "description": "瓦片行号，范围 0 至 2^zoom−1；发请求前验证。",
+        "default": "必填"
+      }
+    },
+    "result": "二进制瓦片含 MIME/缓存元数据；MCP 返回图像，CLI --output 可保存字节。",
+    "example": {
+      "mapType": "UAQI_RED_GREEN",
+      "zoom": 2,
+      "x": 2,
+      "y": 1
+    },
+    "notes": [
+      "可用性取决于国家、指数和季节。必须遵守 Google 的归属显示、地图使用和缓存许可，不因启用 API 而免除内容限制。https://developers.google.com/maps/documentation/air-quality/policies"
+    ],
+    "authentication": "API 密钥或 cloud-platform 范围的 OAuth 访问令牌；启用对应 API 和结算。OAuth 配额项目还需要 serviceusage.services.use。",
+    "summary": "下载真实空气质量热图 PNG 瓦片。"
+  },
+  "maps_pollen_heatmap": {
+    "purpose": "下载真实树木、草或杂草花粉指数热图。",
+    "parameters": {
+      "mapType": {
+        "description": "热图类型：TREE_UPI / GRASS_UPI / WEED_UPI。",
+        "default": "必填"
+      },
+      "zoom": {
+        "description": "Web Mercator 缩放级别 0–16；0 级只有一块瓦片。",
+        "default": "必填"
+      },
+      "x": {
+        "description": "瓦片列号，范围 0 至 2^zoom−1；发请求前验证。",
+        "default": "必填"
+      },
+      "y": {
+        "description": "瓦片行号，范围 0 至 2^zoom−1；发请求前验证。",
+        "default": "必填"
+      }
+    },
+    "result": "二进制瓦片含 MIME/缓存元数据；MCP 返回图像，CLI --output 可保存字节。",
+    "example": {
+      "mapType": "TREE_UPI",
+      "zoom": 2,
+      "x": 2,
+      "y": 1
+    },
+    "notes": [
+      "可用性取决于国家、指数和季节。必须遵守 Google 的归属显示、地图使用和缓存许可，不因启用 API 而免除内容限制。https://developers.google.com/maps/documentation/pollen/policies"
+    ],
+    "authentication": "本实现仅支持 API 密钥；启用 Pollen API 和结算，不支持服务账号 OAuth。",
+    "summary": "下载真实树木、草或杂草花粉指数热图。"
+  },
+  "maps_weather_history": {
+    "purpose": "显式分页读取过去最多 24 小时的天气历史。",
+    "parameters": {
+      "location": {
+        "description": "查询位置坐标。",
+        "default": "必填"
+      },
+      "location.latitude": {
+        "description": "纬度，范围 −90 至 90 度。",
+        "default": "提供 location 时必填"
+      },
+      "location.longitude": {
+        "description": "经度，范围 −180 至 180 度。",
+        "default": "提供 location 时必填"
+      },
+      "pageSize": {
+        "description": "本页记录数上限。历史为 1–24；警报/分钟预报的程序上限为 1–1000。",
+        "default": "历史：Google 24；其他：Google 默认"
+      },
+      "pageToken": {
+        "description": "上一响应的 nextPageToken；其他请求参数须保持一致。每次仅获取一页。",
+        "default": "第一页"
+      },
+      "hours": {
+        "description": "从上一个小时起向前查询 1–24 小时。",
+        "default": "Google：24"
+      },
+      "unitsSystem": {
+        "description": "单位制：METRIC 或 IMPERIAL。",
+        "default": "Google：METRIC"
+      },
+      "languageCode": {
+        "description": "首选 IETF/BCP-47 语言代码；无对应内容时 Google 选择最接近的语言。",
+        "default": "Google：en"
+      }
+    },
+    "result": "返回原生 historyHours、timeZone、nextPageToken 及完整逐小时天气。",
+    "example": {
+      "location": {
+        "latitude": 48.85,
+        "longitude": 2.35
+      },
+      "hours": 12,
+      "pageSize": 6
+    },
+    "notes": [
+      "仅覆盖最近 24 小时，不支持任意历史日期。无自动翻页；Google 天气地区覆盖和使用政策适用。https://developers.google.com/maps/documentation/weather/reference/rest/v1/history.hours/lookup"
+    ],
+    "authentication": "API 密钥或 cloud-platform 范围的 OAuth 访问令牌；启用对应 API 和结算。OAuth 配额项目还需要 serviceusage.services.use。",
+    "summary": "显式分页读取过去最多 24 小时的天气历史。"
+  },
+  "maps_weather_alerts": {
+    "purpose": "获取影响区域与位置相交的公共天气警报，保留级别和发布机构信息。",
+    "parameters": {
+      "location": {
+        "description": "查询位置坐标。",
+        "default": "必填"
+      },
+      "location.latitude": {
+        "description": "纬度，范围 −90 至 90 度。",
+        "default": "提供 location 时必填"
+      },
+      "location.longitude": {
+        "description": "经度，范围 −180 至 180 度。",
+        "default": "提供 location 时必填"
+      },
+      "pageSize": {
+        "description": "本页记录数上限。历史为 1–24；警报/分钟预报的程序上限为 1–1000。",
+        "default": "历史：Google 24；其他：Google 默认"
+      },
+      "pageToken": {
+        "description": "上一响应的 nextPageToken；其他请求参数须保持一致。每次仅获取一页。",
+        "default": "第一页"
+      },
+      "languageCode": {
+        "description": "首选 IETF/BCP-47 语言代码；无对应内容时 Google 选择最接近的语言。",
+        "default": "Google：en"
+      }
+    },
+    "result": "返回 Google 原生 weatherAlerts、机构/地区字段和可用的 nextPageToken。",
+    "example": {
+      "location": {
+        "latitude": 48.85,
+        "longitude": 2.35
+      },
+      "pageSize": 5
+    },
+    "notes": [
+      "覆盖、延迟和字段取决于发布机构。保留来源归属；没有返回警报并不保证安全。https://developers.google.com/maps/documentation/weather/reference/rest/v1/publicAlerts/lookup"
+    ],
+    "authentication": "API 密钥或 cloud-platform 范围的 OAuth 访问令牌；启用对应 API 和结算。OAuth 配额项目还需要 serviceusage.services.use。",
+    "summary": "获取影响区域与位置相交的公共天气警报，保留级别和发布机构信息。"
+  },
+  "maps_weather_minute_forecast": {
+    "purpose": "实验功能：分页获取未来六小时的高分辨率降水预报。",
+    "parameters": {
+      "location": {
+        "description": "查询位置坐标。",
+        "default": "必填"
+      },
+      "location.latitude": {
+        "description": "纬度，范围 −90 至 90 度。",
+        "default": "提供 location 时必填"
+      },
+      "location.longitude": {
+        "description": "经度，范围 −180 至 180 度。",
+        "default": "提供 location 时必填"
+      },
+      "pageSize": {
+        "description": "本页记录数上限。历史为 1–24；警报/分钟预报的程序上限为 1–1000。",
+        "default": "历史：Google 24；其他：Google 默认"
+      },
+      "pageToken": {
+        "description": "上一响应的 nextPageToken；其他请求参数须保持一致。每次仅获取一页。",
+        "default": "第一页"
+      },
+      "unitsSystem": {
+        "description": "单位制：METRIC 或 IMPERIAL。",
+        "default": "Google：METRIC"
+      }
+    },
+    "result": "返回 overallPredictionTimeframe、timeZone、segments、nextPageToken；保留类型、概率、降水量和强度。",
+    "example": {
+      "location": {
+        "latitude": 37.60451,
+        "longitude": -80.59044
+      },
+      "pageSize": 5
+    },
+    "notes": [
+      "实验/pre-GA 功能：支持有限，可能不兼容变更。Google 要求归属显示，最多缓存一小时，之后必须删除缓存。",
+      "禁止用这些内容重建主要用途为天气信息的应用/模型；下游调用者同样受约束。分钟预报与地图可能不同步。https://developers.google.com/maps/documentation/weather/minute-forecast"
+    ],
+    "authentication": "API 密钥或 cloud-platform 范围的 OAuth 访问令牌；启用对应 API 和结算。OAuth 配额项目还需要 serviceusage.services.use。",
+    "summary": "实验功能：分页获取未来六小时的高分辨率降水预报。"
+  },
+  "maps_weather_map": {
+    "purpose": "实验功能：下载美国或欧洲降水临近预报图像瓦片。",
+    "parameters": {
+      "mapType": {
+        "description": "US_PRECIPITATION_CURRENT 或 EU_PRECIPITATION_CURRENT；仅限文档标明的美国/欧洲区域。",
+        "default": "必填"
+      },
+      "zoom": {
+        "description": "Web Mercator 缩放级别 0–16；0 级只有一块瓦片。",
+        "default": "必填"
+      },
+      "x": {
+        "description": "瓦片列号，范围 0 至 2^zoom−1；发请求前验证。",
+        "default": "必填"
+      },
+      "y": {
+        "description": "瓦片行号，范围 0 至 2^zoom−1；发请求前验证。",
+        "default": "必填"
+      }
+    },
+    "result": "返回带上游 MIME/缓存头的二进制 PNG；CLI --output 保存，MCP 显示图像。",
+    "example": {
+      "mapType": "US_PRECIPITATION_CURRENT",
+      "zoom": 12,
+      "x": 1025,
+      "y": 1688
+    },
+    "notes": [
+      "实验/pre-GA 功能：支持有限，可能不兼容变更。Google 要求归属显示，最多缓存一小时，之后必须删除缓存。",
+      "禁止用这些内容重建主要用途为天气信息的应用/模型；下游调用者同样受约束。分钟预报与地图可能不同步。https://developers.google.com/maps/documentation/weather/minute-forecast",
+      "网格坐标合法不代表该地区有数据。覆盖图及条款：https://developers.google.com/maps/documentation/weather/weather-map"
+    ],
+    "authentication": "API 密钥或 cloud-platform 范围的 OAuth 访问令牌；启用对应 API 和结算。OAuth 配额项目还需要 serviceusage.services.use。",
+    "summary": "实验功能：下载美国或欧洲降水临近预报图像瓦片。"
   }
 }

@@ -35,7 +35,7 @@
 | `MCP_TLS_KEY` | 未设置 | `--tls-key` | PEM 服务器私钥路径，需运行身份可读，且不放入源代码/镜像。 |
 | `MCP_TLS_CLIENT_CA` | 未设置 | `--tls-client-ca` | PEM 客户端 CA 包，使所有监听路径都要求客户端证书；不替代 bearer 令牌。 |
 
-HTTP 令牌桶按进程全局生效，不按用户/IP 区分。未授权请求不消耗令牌，健康检查与指标不受限。拒绝返回 429 和 `Retry-After`。请求体上限为 1 MiB。参阅 [MCP 访问](../guide/mcp#bind-addresses-and-access)与 [TLS 运维](../guide/production#native-tls-and-mutual-tls)。
+HTTP 令牌桶按进程全局生效，不按用户/IP 区分。未授权请求不消耗令牌，健康检查与指标不受限。拒绝返回 429 和 `Retry-After`。请求体上限为 12 MiB。参阅 [MCP 访问](../guide/mcp#bind-addresses-and-access)与 [TLS 运维](../guide/production#native-tls-and-mutual-tls)。
 
 ## 诊断事件 {#diagnostic-events}
 

@@ -1,17 +1,23 @@
 # Primi passi
 
-Un solo eseguibile Rust offre 23 strumenti Google Maps attraverso CLI, MCP stdio e MCP Streamable HTTP. Non richiede un runtime JavaScript né un plugin per l'assistente dopo l'installazione.
+La versione 0.4.0 offre 42 strumenti in un unico eseguibile, disponibili dal terminale o da un client MCP. Questo manuale descrive installazione, accesso a Google e interfaccia completa degli strumenti.
+
+Dalla copia locale del repository:
+
+```sh
+cargo install --path . --locked
+```
 
 ## Installare
 
 Con Rust 1.88 o successivo:
 
 ```sh
-cargo install mcp-gmap-rs --version 0.3.1 --locked
+cargo install mcp-gmap-rs --version 0.4.0 --locked
 mcp-gmap-rs --version
 ```
 
-In alternativa, scarica l'archivio Linux x86_64, macOS Apple Silicon o macOS Intel dalle [release](https://github.com/fcenedes/mcp-gmap-rs/releases/tag/v0.3.1), verifica `SHA256SUMS` e colloca il binario nel `PATH`. L'host deve disporre di certificati CA e accesso HTTPS a Google.
+In alternativa, scarica l'archivio Linux x86_64, macOS Apple Silicon o macOS Intel dalle [release](https://github.com/fcenedes/mcp-gmap-rs/releases/tag/v0.4.0), verifica `SHA256SUMS` e colloca il binario nel `PATH`. L'host deve disporre di certificati CA e accesso HTTPS a Google.
 
 ## Esplorare senza credenziali
 

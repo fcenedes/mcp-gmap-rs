@@ -1,4 +1,4 @@
-# Production operations
+# Production configuration
 
 This guide covers v0.3.x. All Google tools share
 the same implementation across CLI, MCP stdio and Streamable HTTP.
@@ -42,8 +42,8 @@ for that deployment, understanding that it checks the listener, not TLS or Googl
 
 ## Kubernetes TLS gateway
 
-[the Gateway manifest](https://github.com/fcenedes/mcp-gmap-rs/blob/main/deploy/gateway.yaml) provides an HTTPS Gateway and HTTPRoute for the base
-Deployment in [the base Kubernetes manifest](https://github.com/fcenedes/mcp-gmap-rs/blob/main/deploy/kubernetes.yaml). Install the Gateway API CRDs and a
+`deploy/gateway.yaml` provides an HTTPS Gateway and HTTPRoute for the base
+Deployment in `deploy/kubernetes.yaml`. Install the Gateway API CRDs and a
 conformant controller first. Replace `your-gateway-class` and `maps.example.com`,
 and provision a `kubernetes.io/tls` Secret named `mcp-gmap-tls` in the same namespace.
 The example uses stable Gateway/HTTPRoute v1 fields and HTTPRoute timeouts
@@ -163,16 +163,77 @@ expensive composites. Routes use exact coordinates. Roads uses nearest-road look
 Probes use public Paris landmarks, not user-provided addresses. Success means Google
 accepted that probe, not that every operation or geographic region is available.
 
+## Additional Google tools
 
-## Shutdown and configuration changes
+```sh
+mcp-gmap-rs validate-address --address-lines '["5 Avenue Anatole France"]' \
+  --region-code FR --locality Paris --postal-code 75007
+mcp-gmap-rs pollen --latitude 48.8584 --longitude 2.2945 --days 5
+mcp-gmap-rs area-insights \
+  --area '{"circle":{"latLng":{"latitude":48.8584,"longitude":2.2945},"radius":500}}' \
+  --included-types '["restaurant"]' --min-rating 4
+mcp-gmap-rs snap-to-roads \
+  --path '[{"latitude":-35.27801,"longitude":149.12958},{"latitude":-35.28032,"longitude":149.12907}]' \
+  --interpolate
+mcp-gmap-rs nearest-roads --points '[{"latitude":48.8584,"longitude":2.2945}]'
+```
 
-Ctrl-C and SIGTERM shut down the HTTP server and its active MCP sessions. The
-Kubernetes example gives the process 30 seconds. Other application configuration,
-including environment-injected Secret changes, requires a restart; only native TLS
-certificate/key/client-CA files support SIGHUP reload. Sessions and metrics are
-in memory and are lost on restart. Run a single replica or configure session
-affinity; clients must reconnect when their owning process exits.
+Address Validation and Places Aggregate support this executable's API-key and
+OAuth modes. Pollen and Roads use its configured API key. Enable the relevant
+services and key restrictions separately. Responses preserve Google field names
+and metadata, including validation verdicts, pollen recommendations, road warnings
+and `originalIndex` mappings. A validated address is not a delivery guarantee.
 
-See [Deployment](./deployment) for container permissions, probes and runtime
-credential mounts, and [Configuration reference](../reference/configuration) for
-every setting and flag.
+Area insights accepts exactly one `area` form: `circle`, `region` with a
+`places/PLACE_ID`, or `customArea.polygon.coordinates` with a closed latitude/longitude
+ring. Circle radii are 23–50000 metres; Google also applies area/coverage constraints.
+`includedTypes` is required. Count is returned in Google's int64 representation,
+normally a string. `--include-places` requests place IDs too, available only when
+the matching count is at most 100. It does not silently fetch Place Details.
+
+Pollen requests 1–5 days in a single page; descriptions are opt-in. Snap to Roads
+accepts 2–100 ordered points; Nearest Roads accepts 1–100 independent points.
+Road snapping works best with consecutive points within about 300 metres.
+Speed limits use the separate `maps_speed_limits` tool and require restricted
+Asset Tracking access. Enabling Roads alone does not grant this entitlement.
+
+API references: [Address Validation](https://developers.google.com/maps/documentation/address-validation/requests-validate-address),
+[Pollen](https://developers.google.com/maps/documentation/pollen/forecast),
+[Places Aggregate](https://developers.google.com/maps/documentation/places-aggregate/request-parameters),
+[Snap to Roads](https://developers.google.com/maps/documentation/roads/snap),
+[Nearest Roads](https://developers.google.com/maps/documentation/roads/nearest).
+
+
+## Expanded server-side service coverage (v0.4.0)
+
+The source catalog has 42 tools across 20 server-side API families. The complete
+parameter/operation documentation is in the Tool reference. Native UI/mobile/JS
+SDKs and legacy Directions/Distance Matrix/Places endpoints are not wrapped;
+modern Routes and Places APIs supply their existing use cases.
+
+Solar and Map Tiles also support service-account/ADC OAuth. Datasets and Route
+Optimization require OAuth/IAM; Street View Publish requires end-user OAuth
+(`streetviewpublish` scope) from an explicit authorized_user credential file.
+Neither IAM grants nor a service-account key substitute for user consent.
+
+Datasets, publishing, Aerial render and batch optimization can mutate resources
+and incur charges. MCP discovery marks mixed-operation tools conservatively;
+automatic retries are disabled for writes. Inspect resource status after an
+ambiguous failure before manually resubmitting. `doctor --live` leaves these
+resource/license-specific checks `not_tested` and never publishes or creates jobs.
+
+Binary responses preserve MIME, Cache-Control, ETag, Expires and Last-Modified.
+MCP PNG/JPEG/WebP use image content plus metadata; other binary types use base64
+JSON. CLI `--output` writes raw bytes. Each upstream response is bounded to
+16 MiB, decoded publishing uploads to 8 MiB, and CLI/HTTP request JSON to 12 MiB.
+These are executable bounds, not Google's product maximums. Pagination and job
+polling are explicit; no automatic unbounded downloads or loops are performed.
+
+Provider content limits apply independently of this repository's MIT license:
+Map Tiles permits visualization and excludes machine interpretation/image
+analysis/geodata extraction; do not feed tiles to an agent vision model. Aerial
+View covers supported US addresses and prohibits downloading/storing/caching
+videos. Solar coverage and EEA content differ. Minute weather forecasts and map
+tiles are experimental/pre-GA, have attribution/cache restrictions and cannot be
+used to recreate a primary-purpose weather app/model. Preserve all Google,
+provider and user attribution. The tool descriptions include primary policy links.

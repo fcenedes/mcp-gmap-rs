@@ -1,6 +1,12 @@
 # Primeros pasos
 
-Instale un ejecutable, configure el acceso a Google y use las mismas 23 herramientas desde el terminal o un cliente MCP. Este manual describe v0.3.1.
+La versión 0.4.0 ofrece 42 herramientas en un único ejecutable, disponibles desde la terminal o un cliente MCP. Este manual documenta la instalación, el acceso a Google y la interfaz completa de las herramientas.
+
+Desde la copia local del repositorio:
+
+```sh
+cargo install --path . --locked
+```
 
 ## Instalación
 
@@ -9,7 +15,7 @@ En [GitHub Releases](https://github.com/fcenedes/mcp-gmap-rs/releases) hay binar
 Con Rust 1.88 o posterior, instale desde crates.io:
 
 ```sh
-cargo install mcp-gmap-rs --version 0.3.1 --locked
+cargo install mcp-gmap-rs --version 0.4.0 --locked
 mcp-gmap-rs --version
 ```
 

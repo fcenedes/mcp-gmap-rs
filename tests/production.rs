@@ -296,7 +296,7 @@ async fn doctor_is_offline_by_default_redacts_credentials_and_reports_failure_vi
     let report: Value = serde_json::from_slice(&output.stdout).unwrap();
     assert_eq!(report["live"], false);
     assert_eq!(report["ok"], true);
-    assert_eq!(report["enabled_tools"].as_array().unwrap().len(), 23);
+    assert_eq!(report["enabled_tools"].as_array().unwrap().len(), 42);
     assert!(!String::from_utf8_lossy(&output.stdout).contains(sentinel));
     let output = binary(directory.path())
         .arg("doctor")

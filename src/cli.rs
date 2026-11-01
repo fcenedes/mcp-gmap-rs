@@ -106,7 +106,7 @@ fn command(catalog: &Catalog) -> Command {
         .after_help("No command starts MCP stdio. Set GOOGLE_MAPS_API_KEY, or select --auth-mode oauth for supported APIs with service accounts/ADC. Objects and arrays use JSON. Example: mcp-gmap-rs geocode --address 'Paris, France'")
         .arg(Arg::new("env-file").long("env-file").global(true).conflicts_with("no-env-file").help("Load this dotenv file (or MCP_ENV_FILE); default: optional .env in the working directory"))
         .arg(Arg::new("no-env-file").long("no-env-file").global(true).action(ArgAction::SetTrue).help("Disable dotenv file loading, including MCP_ENV_FILE"))
-        .arg(Arg::new("auth-mode").long("auth-mode").global(true).value_parser(["api-key", "oauth"]).help("Override GOOGLE_MAPS_AUTH_MODE (default: api-key); OAuth uses ADC/service accounts for supported APIs"))
+        .arg(Arg::new("auth-mode").long("auth-mode").global(true).value_parser(["api-key", "oauth"]).help("Override GOOGLE_MAPS_AUTH_MODE (default: api-key); OAuth uses ADC/service accounts or service-specific end-user credentials"))
         .arg(Arg::new("enabled-tools").long("enabled-tools").global(true).help("Override GOOGLE_MAPS_ENABLED_TOOLS; comma-separated MCP names (default: all)"))
         .arg(Arg::new("timeout").long("timeout").global(true).value_parser(clap::value_parser!(u64).range(1..=600)).help("Override GOOGLE_MAPS_TIMEOUT; seconds per request (default: 30)"))
         .arg(Arg::new("language").long("language").global(true).help("Override GOOGLE_MAPS_LANGUAGE (default: en)"))
@@ -151,6 +151,9 @@ fn command(catalog: &Catalog) -> Command {
                         Some("number" | "integer") => "NUMBER",
                         _ => "TEXT",
                     });
+                if let Some(description) = schema["description"].as_str() {
+                    arg = arg.help(description.to_owned());
+                }
                 if schema["type"] == "boolean" {
                     arg = arg
                         .num_args(0..=1)
@@ -170,7 +173,7 @@ fn output_arg() -> Arg {
     Arg::new("output")
         .long("output")
         .short('o')
-        .help("Write JSON or raw static-map PNG to a file; default: JSON on stdout")
+        .help("Write JSON or raw binary response to a file; default: JSON on stdout")
 }
 fn cli_name(name: &str) -> String {
     name.strip_prefix("maps_").unwrap_or(name).replace('_', "-")
@@ -201,10 +204,10 @@ fn read_args(input: &str) -> anyhow::Result<Value> {
     if input == "-" {
         let mut buffer = String::new();
         io::stdin()
-            .take(1024 * 1024 + 1)
+            .take(12 * 1024 * 1024 + 1)
             .read_to_string(&mut buffer)?;
-        if buffer.len() > 1024 * 1024 {
-            anyhow::bail!("JSON arguments exceed 1 MiB");
+        if buffer.len() > 12 * 1024 * 1024 {
+            anyhow::bail!("JSON arguments exceed 12 MiB");
         }
         serde_json::from_str(&buffer).context("invalid JSON arguments on stdin")
     } else {
@@ -217,6 +220,7 @@ fn write_output(output: Output, path: Option<&String>) -> anyhow::Result<()> {
         let bytes = match output {
             Output::Json(value) => serde_json::to_vec_pretty(&value)?,
             Output::Image(bytes) => bytes,
+            Output::Binary(value) => value.data,
         };
         std::fs::write(path, bytes).with_context(|| format!("cannot write {path}"))?;
         Ok(())

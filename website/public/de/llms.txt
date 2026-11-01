@@ -1,6 +1,6 @@
 # mcp-gmap-rs
 
-Alle 23 Werkzeuge mit sämtlichen Parametern, Standardwerten, Grenzen und Beispielen. Dieselbe Schnittstelle steht über MCP und CLI bereit.
+Alle 42 Werkzeuge mit sämtlichen Parametern, Standardwerten, Grenzen und Beispielen. Dieselbe Schnittstelle steht über MCP und CLI bereit.
 
 ## Werkzeuge
 

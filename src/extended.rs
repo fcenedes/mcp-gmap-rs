@@ -20,8 +20,17 @@ impl MapsClient {
                 address[key] = value.clone();
             }
         }
-        self.post("addressvalidation.googleapis.com", "/v1:validateAddress",
-            &json!({"address":address,"enableUspsCass":args["enableUspsCass"].as_bool().unwrap_or(false)}), None).await
+        let mut body = json!({"address":address,"enableUspsCass":args["enableUspsCass"].as_bool().unwrap_or(false)});
+        if let Some(token) = args.get("sessionToken") {
+            body["sessionToken"] = token.clone();
+        }
+        self.post(
+            "addressvalidation.googleapis.com",
+            "/v1:validateAddress",
+            &body,
+            None,
+        )
+        .await
     }
 
     pub async fn pollen(&self, args: &Value) -> Result<Value> {

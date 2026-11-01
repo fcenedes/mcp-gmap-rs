@@ -11,12 +11,16 @@ use crate::{
 pub(crate) enum Output {
     Json(Value),
     Image(Vec<u8>),
+    Binary(crate::client::BinaryResponse),
 }
 
 impl Output {
     pub fn into_json(self) -> Value {
         match self {
             Self::Json(value) => value,
+            Self::Binary(value) => {
+                json!({"mimeType":value.mime_type,"base64":STANDARD.encode(value.data),"headers":value.headers})
+            }
             Self::Image(data) => json!({"mimeType":"image/png","base64":STANDARD.encode(data)}),
         }
     }
@@ -54,6 +58,15 @@ impl EngineState {
 
 impl MapsClient {
     async fn execute(&self, name: &str, a: &Value) -> Result<Output> {
+        if let Some(result) = crate::geo_services::dispatch(self, name, a).await {
+            return result;
+        }
+        if let Some(result) = crate::media_services::dispatch(self, name, a).await {
+            return result;
+        }
+        if let Some(result) = crate::cloud_services::dispatch(self, name, a).await {
+            return result;
+        }
         let value = match name {
             "maps_validate_address" => self.validate_address(a).await?,
             "maps_pollen" => self.pollen(a).await?,
@@ -100,9 +113,10 @@ impl MapsClient {
             }
             "maps_search_nearby" => json!(self.nearby(a).await?),
             "maps_place_details" => {
-                self.details(
+                self.details_session(
                     text(a, "placeId"),
                     a["maxPhotos"].as_u64().unwrap_or(0) as usize,
+                    a["sessionToken"].as_str(),
                 )
                 .await?
             }

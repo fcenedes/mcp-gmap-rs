@@ -35,7 +35,7 @@ Al massimo cinque richieste HTTP Google possono essere attive contemporaneamente
 | `MCP_TLS_KEY` | Non impostata | `--tls-key` | Percorso della chiave privata server PEM. Deve essere leggibile dall'identità di esecuzione e restare fuori da repository e immagini. |
 | `MCP_TLS_CLIENT_CA` | Non impostata | `--tls-client-ca` | Bundle PEM di CA client che rende obbligatori i certificati client su tutti i percorsi del listener. Non sostituisce il bearer token. |
 
-Il token bucket HTTP è globale al processo, non per utente o IP. Le richieste non autorizzate non lo consumano; health e metriche sono escluse. I rifiuti restituiscono 429 con `Retry-After`. Il corpo della richiesta è limitato a 1 MiB. Consulta [accesso MCP](../guide/mcp) e [operazioni TLS](../guide/production).
+Il token bucket HTTP è globale al processo, non per utente o IP. Le richieste non autorizzate non lo consumano; health e metriche sono escluse. I rifiuti restituiscono 429 con `Retry-After`. Il corpo della richiesta è limitato a 12 MiB. Consulta [accesso MCP](../guide/mcp) e [operazioni TLS](../guide/production).
 
 ## Eventi diagnostici
 
